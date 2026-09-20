@@ -323,7 +323,7 @@ class PhysicsEngine {
                 if (r < 0 || r >= room.tiles.length || c < 0 || c >= room.tiles[0].length)
                     continue;
                 const tile = room.tiles[r][c];
-                if (tile === ScreenData_1.TileType.SOLID) {
+                if (tile === ScreenData_1.TileType.SOLID || tile === ScreenData_1.TileType.BOUNCE) {
                     if (player.vx > 0) {
                         player.x = c * ScreenData_1.TILE_SIZE - player.width;
                         player.vx = 0;
@@ -386,7 +386,8 @@ class PhysicsEngine {
                     }
                 }
                 else if (tile === ScreenData_1.TileType.BOUNCE) {
-                    if (player.y + player.height >= tileTop && prevY + player.height <= tileBottom + 12) {
+                    // Only trigger bounce when landing from above (like ONE_WAY), not from the side
+                    if (player.vy > 0 && prevY + player.height <= tileTop + 8 && player.y + player.height >= tileTop) {
                         player.y = tileTop - player.height;
                         // Retrieve propulsion properties directly from the bounce tile configuration on the map
                         const bounceConfig = room.bounceProps?.[`${r},${c}`];
