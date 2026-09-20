@@ -27,6 +27,8 @@ class Game {
   private gameTime: number = 0;
   private sidesTraversed: number = 1;
   private camera3DMode: boolean = true;
+  private pendingNextRoom: ScreenData | null = null;
+  private bannerTimeout: number | null = null;
 
   // DOM Elements
   private hudSectorEl: HTMLElement;
@@ -180,17 +182,31 @@ class Game {
     this.particles.update(dt);
 
     // 5. Render active front face (Canvas 2D -> WebGL CanvasTexture)
-    this.cubeRenderer.updateFaceCanvas(
-      4,
-      this.currentRoom,
-      this.levelMap,
-      this.player,
-      this.particles,
-      dt
-    );
+    if (this.gameState === 'ROTATING' && this.pendingNextRoom) {
+      this.cubeRenderer.updateFaceCanvas(
+        this.cubeRenderer.transitionTargetFace,
+        this.pendingNextRoom,
+        this.levelMap,
+        this.player,
+        this.particles,
+        dt
+      );
+    } else {
+      this.cubeRenderer.updateFaceCanvas(
+        4,
+        this.currentRoom,
+        this.levelMap,
+        this.player,
+        this.particles,
+        dt
+      );
+    }
 
     // 6. Update dynamic 3D player point light
-    this.cubeRenderer.updatePlayerLight(this.player.x, this.player.y, this.currentRoom.themeColor);
+    const activeThemeColor = this.gameState === 'ROTATING' && this.pendingNextRoom
+      ? this.pendingNextRoom.themeColor
+      : this.currentRoom.themeColor;
+    this.cubeRenderer.updatePlayerLight(this.player.x, this.player.y, activeThemeColor);
 
     // 7. Update 3D scene & render
     this.cubeRenderer.update(dt);
@@ -260,23 +276,38 @@ class Game {
     this.sidesTraversed++;
     this.audio.playRotate();
 
+    // Clear any active banner dismiss timer
+    if (this.bannerTimeout !== null) {
+      window.clearTimeout(this.bannerTimeout);
+      this.bannerTimeout = null;
+    }
+
     // Show dynamic banner emphasizing non-Euclidean infinite sides
     this.bannerEl.textContent = `3D CUBE TUMBLE: SECTOR [${this.currentCoords.x},${this.currentCoords.y}] ➔ [${targetX},${targetY}] (SIDE #${this.sidesTraversed})`;
     this.bannerEl.style.opacity = '1';
-
-    // Prepare and predictively bind nextRoom and all visible adjacent faces from pre-warmed cache
-    this.cubeRenderer.prepareTransition(direction, nextRoom, this.levelMap);
 
     // Place player at destination seam
     this.player.setPosition(entryX, entryY);
     this.player.vy = preserveVy;
     this.player.standingPlatform = null;
+    this.pendingNextRoom = nextRoom;
+
+    // Prepare and predictively bind nextRoom and all visible adjacent faces before rotation begins
+    this.cubeRenderer.prepareTransition(
+      direction,
+      nextRoom,
+      this.levelMap,
+      this.currentRoom,
+      this.player,
+      this.particles
+    );
 
     this.cubeRenderer.rotateTo(direction, () => {
       // Rotation complete:
       // 1. Advance coordinate state
       this.currentCoords = { x: targetX, y: targetY };
       this.currentRoom = nextRoom;
+      this.pendingNextRoom = null;
       this.levelMap.markVisited(targetX, targetY);
 
       // 2. Re-anchor 3D cube: snap rotation back to 0
@@ -288,8 +319,16 @@ class Game {
 
       // 4. Return to active gameplay
       this.gameState = 'PLAYING';
-      this.bannerEl.style.opacity = '0';
       this.updateHUD();
+
+      // Keep transition notification banner visible for 3.0s after rotation completes
+      if (this.bannerTimeout !== null) {
+        window.clearTimeout(this.bannerTimeout);
+      }
+      this.bannerTimeout = window.setTimeout(() => {
+        this.bannerEl.style.opacity = '0';
+        this.bannerTimeout = null;
+      }, 3000);
     });
   }
 

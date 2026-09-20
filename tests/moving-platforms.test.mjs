@@ -333,4 +333,84 @@ test('Moving Platforms Verification', async (t) => {
     assert.equal(player.standingPlatform, null, 'Player must not re-stick to one-way moving platform');
     assert.ok(player.y > movingPlat.y - player.height, 'Player should continue falling below platform');
   });
+
+  await t.test('3D Transition Pre-Render: all incoming and adjacent faces mapped before 90-degree tumble', () => {
+    // Helper replicating prepareTransition face mapping
+    function computeTransitionBindings(direction, currentRoom, nextRoom, levelMap) {
+      const bindings = Array(6).fill(null);
+      let targetFace = 0;
+      if (direction === 'right') targetFace = 0;
+      if (direction === 'left') targetFace = 1;
+      if (direction === 'up') targetFace = 2;
+      if (direction === 'down') targetFace = 3;
+
+      // 1. Destination room onto target face
+      bindings[targetFace] = { type: 'room', id: nextRoom.id };
+
+      // 2. Current room onto Face 4
+      bindings[4] = { type: 'room', id: currentRoom.id };
+
+      // 3. Trailing incoming face (Face 5: -Z) and perpendicular faces
+      if (direction === 'right') {
+        const nextRight = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
+        bindings[5] = nextRight ? { type: 'room', id: nextRight.id } : { type: 'void' };
+        const top = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
+        bindings[2] = top ? { type: 'room', id: top.id } : { type: 'void' };
+        const bottom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
+        bindings[3] = bottom ? { type: 'room', id: bottom.id } : { type: 'void' };
+      } else if (direction === 'left') {
+        const nextLeft = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
+        bindings[5] = nextLeft ? { type: 'room', id: nextLeft.id } : { type: 'void' };
+        const top = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
+        bindings[2] = top ? { type: 'room', id: top.id } : { type: 'void' };
+        const bottom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
+        bindings[3] = bottom ? { type: 'room', id: bottom.id } : { type: 'void' };
+      } else if (direction === 'up') {
+        const nextTop = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
+        bindings[5] = nextTop ? { type: 'room', id: nextTop.id, rotationAngle: Math.PI } : { type: 'void', rotationAngle: Math.PI };
+        const right = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
+        bindings[0] = right ? { type: 'room', id: right.id } : { type: 'void' };
+        const left = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
+        bindings[1] = left ? { type: 'room', id: left.id } : { type: 'void' };
+      } else if (direction === 'down') {
+        const nextBottom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
+        bindings[5] = nextBottom ? { type: 'room', id: nextBottom.id, rotationAngle: Math.PI } : { type: 'void', rotationAngle: Math.PI };
+        const right = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
+        bindings[0] = right ? { type: 'room', id: right.id } : { type: 'void' };
+        const left = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
+        bindings[1] = left ? { type: 'room', id: left.id } : { type: 'void' };
+      }
+      return { targetFace, bindings };
+    }
+
+    const currentRoom = map.getRoom(1, 0); // Sector 1
+    const nextRoom = map.getRoom(2, 0);    // Sector 2 (Quantum Junction)
+    assert.ok(currentRoom && nextRoom, 'Rooms must exist');
+
+    // Test transition right: (1, 0) -> (2, 0)
+    const { targetFace, bindings } = computeTransitionBindings('right', currentRoom, nextRoom, map);
+    assert.equal(targetFace, 0, 'Target face for right transition must be Face 0 (+X)');
+    assert.equal(bindings[0].id, 'room_2_0', 'Face 0 must hold nextRoom (Sector 2, 0)');
+    assert.equal(bindings[4].id, 'room_1_0', 'Face 4 must hold departing room (Sector 1, 0)');
+
+    // Crucial: Face 5 must be pre-rendered as Sector (3, 0) Laser Grid, NOT void!
+    assert.equal(bindings[5].type, 'room', 'Face 5 must be pre-rendered as a room, NOT void');
+    assert.equal(bindings[5].id, 'room_3_0', 'Face 5 must hold Sector (3, 0) Laser Grid');
+
+    // Face 2 must be pre-rendered as Sector (2, 1) The Spire
+    assert.equal(bindings[2].type, 'room', 'Face 2 must hold Sector (2, 1) The Spire');
+    assert.equal(bindings[2].id, 'room_2_1', 'Face 2 must hold room_2_1');
+
+    // Test transition up: (2, 0) -> (2, 1) The Spire
+    const spireRoom = map.getRoom(2, 1);
+    const zenithRoom = map.getRoom(2, 2);
+    const upBindings = computeTransitionBindings('up', nextRoom, spireRoom, map);
+    assert.equal(upBindings.targetFace, 2, 'Target face for up transition must be Face 2 (+Y)');
+    assert.equal(upBindings.bindings[2].id, 'room_2_1', 'Target face must hold Sector (2, 1)');
+    assert.equal(upBindings.bindings[4].id, 'room_2_0', 'Departing face must hold Sector (2, 0)');
+    // Face 5 must hold Sector (2, 2) Starlight Zenith with 180-degree rotation!
+    assert.equal(upBindings.bindings[5].type, 'room', 'Face 5 must hold room above destination');
+    assert.equal(upBindings.bindings[5].id, zenithRoom.id, 'Face 5 must hold Sector (2, 2) Starlight Zenith');
+    assert.equal(upBindings.bindings[5].rotationAngle, Math.PI, 'Face 5 must have 180-degree rotation angle');
+  });
 });

@@ -12,6 +12,7 @@ export interface FaceBinding {
   type: 'room' | 'void';
   room?: ScreenData;
   voidLabel?: string;
+  rotationAngle?: number;
 }
 
 export class CubeRenderer {
@@ -21,6 +22,8 @@ export class CubeRenderer {
   public cubeMesh: THREE.Mesh;
   public cubeEdges: THREE.Group;
   public voidBg: VoidBackground;
+  public transitionTargetFace: number = 4;
+  public transitionDirection: RotationDirection | null = null;
 
   // Face textures & canvases
   // Three.js BoxGeometry face order:
@@ -415,21 +418,41 @@ export class CubeRenderer {
   public prepareTransition(
     direction: RotationDirection,
     nextRoom: ScreenData,
-    levelMap: LevelMap
+    levelMap: LevelMap,
+    currentRoom?: ScreenData,
+    player?: Player,
+    particles?: ParticleSystem
   ): void {
     this.activeLevelMap = levelMap;
+    this.transitionDirection = direction;
 
     let targetFaceIndex = 0;
     if (direction === 'right') targetFaceIndex = 0;
     if (direction === 'left') targetFaceIndex = 1;
     if (direction === 'up') targetFaceIndex = 2;
     if (direction === 'down') targetFaceIndex = 3;
+    this.transitionTargetFace = targetFaceIndex;
 
-    // 1. Immediately bind nextRoom onto target face
-    this.bindFaceRoom(targetFaceIndex, nextRoom, levelMap);
+    // 1. Immediately bind nextRoom onto target face with player and particles at entry seam
+    this.faceBindings[targetFaceIndex] = { type: 'room', room: nextRoom };
+    const targetCtx = this.faceContexts[targetFaceIndex];
+    this.faceRenderer.renderRoomToContext(targetCtx, nextRoom, levelMap, player, particles, this.time);
+    this.faceTextures[targetFaceIndex].needsUpdate = true;
 
-    // 2. Predictively bind visible adjacent faces for nextRoom based on rotation axis
-    if (direction === 'right' || direction === 'left') {
+    // 2. Bind currentRoom onto Face 4 without player (player has crossed into nextRoom)
+    if (currentRoom) {
+      this.bindFaceRoom(4, currentRoom, levelMap);
+    }
+
+    // 3. Pre-render incoming trailing face (Face 5: -Z) with nextRoom's neighbor in direction of motion
+    // and pre-render all adjacent side faces for nextRoom before rotation begins!
+    if (direction === 'right') {
+      // Rotating Right:
+      // Face 5 rotates into Right (+X) position -> pre-render nextRoom's right neighbor (X+1, Y)
+      const nextRight = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
+      if (nextRight) this.bindFaceRoom(5, nextRight, levelMap);
+      else this.bindFaceVoid(5, '+X Sector Void Barrier');
+
       // Top face (+Y: 2) and Bottom face (-Y: 3) stay in view while rotating horizontally
       const topRoom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
       if (topRoom) this.bindFaceRoom(2, topRoom, levelMap);
@@ -439,10 +462,30 @@ export class CubeRenderer {
       if (bottomRoom) this.bindFaceRoom(3, bottomRoom, levelMap);
       else this.bindFaceVoid(3, '-Y Abyss Gravitational Void');
 
-      // The rear face (-Z: 5) ALWAYS remains the Rear Processing Core
-      this.bindFaceVoid(5, 'Rear Processing Core');
-    } else if (direction === 'up' || direction === 'down') {
-      // Right face (+X: 0) and Left face (-X: 1) stay in view while rotating vertically
+    } else if (direction === 'left') {
+      // Rotating Left:
+      // Face 5 rotates into Left (-X) position -> pre-render nextRoom's left neighbor (X-1, Y)
+      const nextLeft = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
+      if (nextLeft) this.bindFaceRoom(5, nextLeft, levelMap);
+      else this.bindFaceVoid(5, '-X Sector Void Barrier');
+
+      // Top face (+Y: 2) and Bottom face (-Y: 3)
+      const topRoom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
+      if (topRoom) this.bindFaceRoom(2, topRoom, levelMap);
+      else this.bindFaceVoid(2, '+Y Zenith Void Boundary');
+
+      const bottomRoom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
+      if (bottomRoom) this.bindFaceRoom(3, bottomRoom, levelMap);
+      else this.bindFaceVoid(3, '-Y Abyss Gravitational Void');
+
+    } else if (direction === 'up') {
+      // Rotating Up:
+      // Face 5 rotates into Top (+Y) position -> pre-render nextRoom's top neighbor (X, Y+1) with 180° rotation
+      const nextTop = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
+      if (nextTop) this.bindFaceRoom(5, nextTop, levelMap, Math.PI);
+      else this.bindFaceVoid(5, '+Y Zenith Void Boundary', Math.PI);
+
+      // Right face (+X: 0) and Left face (-X: 1)
       const rightRoom = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
       if (rightRoom) this.bindFaceRoom(0, rightRoom, levelMap);
       else this.bindFaceVoid(0, '+X Sector Void Barrier');
@@ -451,8 +494,21 @@ export class CubeRenderer {
       if (leftRoom) this.bindFaceRoom(1, leftRoom, levelMap);
       else this.bindFaceVoid(1, '-X Sector Void Barrier');
 
-      // The rear face (-Z: 5) ALWAYS remains the Rear Processing Core
-      this.bindFaceVoid(5, 'Rear Processing Core');
+    } else if (direction === 'down') {
+      // Rotating Down:
+      // Face 5 rotates into Bottom (-Y) position -> pre-render nextRoom's bottom neighbor (X, Y-1) with 180° rotation
+      const nextBottom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
+      if (nextBottom) this.bindFaceRoom(5, nextBottom, levelMap, Math.PI);
+      else this.bindFaceVoid(5, '-Y Abyss Gravitational Void', Math.PI);
+
+      // Right face (+X: 0) and Left face (-X: 1)
+      const rightRoom = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
+      if (rightRoom) this.bindFaceRoom(0, rightRoom, levelMap);
+      else this.bindFaceVoid(0, '+X Sector Void Barrier');
+
+      const leftRoom = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
+      if (leftRoom) this.bindFaceRoom(1, leftRoom, levelMap);
+      else this.bindFaceVoid(1, '-X Sector Void Barrier');
     }
   }
 
@@ -562,19 +618,28 @@ export class CubeRenderer {
   /**
    * Directly binds a room to a specific face and immediately renders it.
    */
-  public bindFaceRoom(faceIndex: number, room: ScreenData, levelMap: LevelMap): void {
-    this.faceBindings[faceIndex] = { type: 'room', room };
+  public bindFaceRoom(faceIndex: number, room: ScreenData, levelMap: LevelMap, rotationAngle: number = 0): void {
+    this.faceBindings[faceIndex] = { type: 'room', room, rotationAngle };
     this.activeLevelMap = levelMap;
     const destCtx = this.faceContexts[faceIndex];
-    this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, undefined, undefined, this.time);
+    if (rotationAngle !== 0) {
+      destCtx.save();
+      destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+      destCtx.rotate(rotationAngle);
+      destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+      this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, undefined, undefined, this.time);
+      destCtx.restore();
+    } else {
+      this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, undefined, undefined, this.time);
+    }
     this.faceTextures[faceIndex].needsUpdate = true;
   }
 
   /**
    * Directly binds a void/diagnostic terminal to a specific face and immediately renders it.
    */
-  public bindFaceVoid(faceIndex: number, text: string): void {
-    this.faceBindings[faceIndex] = { type: 'void', voidLabel: text };
+  public bindFaceVoid(faceIndex: number, text: string, rotationAngle: number = 0): void {
+    this.faceBindings[faceIndex] = { type: 'void', voidLabel: text, rotationAngle };
     this.drawVoidFace(faceIndex, text);
   }
 
@@ -583,7 +648,17 @@ export class CubeRenderer {
    */
   public drawVoidFace(faceIndex: number, text: string): void {
     const destCtx = this.faceContexts[faceIndex];
-    this.renderVoidGraphics(destCtx, text, this.time);
+    const binding = this.faceBindings[faceIndex];
+    if (binding?.rotationAngle) {
+      destCtx.save();
+      destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+      destCtx.rotate(binding.rotationAngle);
+      destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+      this.renderVoidGraphics(destCtx, text, this.time);
+      destCtx.restore();
+    } else {
+      this.renderVoidGraphics(destCtx, text, this.time);
+    }
     this.faceTextures[faceIndex].needsUpdate = true;
   }
 
@@ -678,9 +753,12 @@ export class CubeRenderer {
   public updateSideFaces(): void {
     if (!this.activeLevelMap) return;
 
-    // Side and rear faces: 0 (+X), 1 (-X), 2 (+Y), 3 (-Y), 5 (-Z)
-    const sideIndices = [0, 1, 2, 3, 5];
+    // Side and rear faces: 0 (+X), 1 (-X), 2 (+Y), 3 (-Y), 5 (-Z), and 4 (+Z) when rotating
+    const sideIndices = this.isRotating ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 5];
     for (const idx of sideIndices) {
+      // During rotation, transitionTargetFace is active front face updated directly with player
+      if (this.isRotating && idx === this.transitionTargetFace) continue;
+
       const binding = this.faceBindings[idx];
       if (!binding) continue;
 
@@ -689,14 +767,30 @@ export class CubeRenderer {
 
       if (binding.type === 'room' && binding.room) {
         const destCtx = this.faceContexts[idx];
-        this.faceRenderer.renderRoomToContext(
-          destCtx,
-          binding.room,
-          this.activeLevelMap,
-          undefined,
-          undefined,
-          this.time
-        );
+        if (binding.rotationAngle) {
+          destCtx.save();
+          destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+          destCtx.rotate(binding.rotationAngle);
+          destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+          this.faceRenderer.renderRoomToContext(
+            destCtx,
+            binding.room,
+            this.activeLevelMap,
+            undefined,
+            undefined,
+            this.time
+          );
+          destCtx.restore();
+        } else {
+          this.faceRenderer.renderRoomToContext(
+            destCtx,
+            binding.room,
+            this.activeLevelMap,
+            undefined,
+            undefined,
+            this.time
+          );
+        }
         this.faceTextures[idx].needsUpdate = true;
       } else if (binding.type === 'void' && binding.voidLabel) {
         this.drawVoidFace(idx, binding.voidLabel);
@@ -854,6 +948,8 @@ export class CubeRenderer {
   public resetRotationToZero(): void {
     this.cubeMesh.quaternion.set(0, 0, 0, 1);
     this.cubeMesh.rotation.set(0, 0, 0);
+    this.transitionDirection = null;
+    this.transitionTargetFace = 4;
   }
 
   private easeInOutCubic(x: number): number {
