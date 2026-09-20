@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Infinite 3D Cube Platformer</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body, html {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #04060a;
+        font-family: 'Courier New', Courier, monospace;
+        color: #00ffff;
+      }
+
+      #game-container {
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      /* HUD Overlay */
+      #hud {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .hud-card {
+        background: rgba(6, 11, 22, 0.75);
+        border: 1px solid rgba(0, 255, 255, 0.35);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.15), inset 0 0 10px rgba(0, 255, 255, 0.05);
+        border-radius: 6px;
+        padding: 10px 16px;
+        backdrop-filter: blur(6px);
+      }
+
+      .hud-title {
+        font-size: 11px;
+        letter-spacing: 2px;
+        color: #88a0c0;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+
+      .hud-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffffff;
+        text-shadow: 0 0 8px #00ffff;
+      }
+
+      .accent-pink {
+        color: #ff00aa;
+        text-shadow: 0 0 8px #ff00aa;
+      }
+
+      .accent-gold {
+        color: #ffe600;
+        text-shadow: 0 0 8px #ffe600;
+      }
+
+      /* Interactive buttons */
+      .hud-btn {
+        pointer-events: auto;
+        background: rgba(10, 20, 36, 0.85);
+        border: 1px solid #00ffff;
+        color: #00ffff;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 6px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: 8px;
+      }
+
+      .hud-btn:hover {
+        background: #00ffff;
+        color: #04060a;
+        box-shadow: 0 0 12px #00ffff;
+      }
+
+      /* Instructions & Hints */
+      #instructions {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(6, 11, 22, 0.8);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 6px;
+        padding: 8px 20px;
+        font-size: 13px;
+        color: #c0d8f0;
+        text-align: center;
+        pointer-events: none;
+        z-index: 10;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .key-badge {
+        display: inline-block;
+        background: rgba(0, 255, 255, 0.15);
+        border: 1px solid #00ffff;
+        color: #ffffff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: bold;
+        margin: 0 3px;
+      }
+
+      /* Rotation / Infinite Cube Banner */
+      #rotation-banner {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 14px;
+        letter-spacing: 2px;
+        padding: 6px 16px;
+        background: rgba(255, 0, 128, 0.2);
+        border: 1px solid #ff0080;
+        border-radius: 20px;
+        color: #ffffff;
+        text-shadow: 0 0 8px #ff0080;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      /* Victory Modal */
+      #win-modal {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 440px;
+        background: rgba(8, 14, 28, 0.95);
+        border: 2px solid #ffe600;
+        box-shadow: 0 0 30px rgba(255, 230, 0, 0.3);
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        z-index: 100;
+      }
+
+      #win-modal h1 {
+        font-size: 24px;
+        color: #ffe600;
+        text-shadow: 0 0 12px #ffe600;
+        margin-bottom: 12px;
+      }
+
+      #win-modal p {
+        font-size: 14px;
+        color: #c0d8f0;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      .btn-primary {
+        background: #ffe600;
+        color: #04060a;
+        font-weight: bold;
+        font-size: 14px;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary:hover {
+        background: #ffffff;
+        box-shadow: 0 0 15px #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+      <div style="display: flex; gap: 12px;">
+        <div class="hud-card">
+          <div class="hud-title">Current Sector</div>
+          <div class="hud-value" id="hud-sector">Sector [0, 0]</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-title">Manifold Sides</div>
+          <div class="hud-value accent-pink" id="hud-turn">Side #1 (Infinite)</div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-title">Energy Prisms</div>
+          <div class="hud-value accent-gold" id="hud-prisms">0 / 18</div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center;">
+        <button class="hud-btn" id="btn-mute">Sound: ON</button>
+        <button class="hud-btn" id="btn-camera">View: 3D Depth</button>
+        <button class="hud-btn" id="btn-reset">Reset [R]</button>
+      </div>
+    </div>
+
+    <!-- Infinite Sides Rotation Notification -->
+    <div id="rotation-banner">CUBE TUMBLING: ROTATING TO NEXT FACE</div>
+
+    <!-- Instructions Bar -->
+    <div id="instructions">
+      <span class="key-badge">A</span> <span class="key-badge">D</span> / <span class="key-badge">◀</span> <span class="key-badge">▶</span> Move &nbsp;|&nbsp;
+      <span class="key-badge">W</span> / <span class="key-badge">Space</span> Jump &nbsp;|&nbsp;
+      Reach Screen Edges to <strong>Rotate the 3D Cube</strong>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="win-modal">
+      <h1>WARP CORE REACHED!</h1>
+      <p id="win-stats">You navigated through the infinite 3D cube manifold and stabilized the core!</p>
+      <button class="btn-primary" id="btn-play-again">Continue Exploring</button>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
