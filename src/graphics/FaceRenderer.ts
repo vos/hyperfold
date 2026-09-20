@@ -2,6 +2,7 @@ import { FACE_SIZE, ScreenData, TILE_SIZE, TileType } from '../world/ScreenData'
 import { Player } from '../entities/Player';
 import { ParticleSystem } from '../engine/ParticleSystem';
 import { LevelMap } from '../world/LevelMap';
+import { MovingPlatform } from '../entities/MovingPlatform';
 
 export class FaceRenderer {
   public canvas: HTMLCanvasElement;
@@ -100,6 +101,11 @@ export class FaceRenderer {
     for (const item of room.collectibles) {
       if (levelMap.isItemCollected(item.id)) continue;
       this.drawCollectible(ctx, item.x, item.y, item.type, primary);
+    }
+
+    // 3.5 Render Moving Platforms (Holographic guide rails, hover chassis, thrusters)
+    if (room.movingPlatforms && room.movingPlatforms.length > 0) {
+      this.drawMovingPlatforms(ctx, room, particles);
     }
 
     // 4. Render Exit Boundary Portals / Indicators
@@ -346,5 +352,147 @@ export class FaceRenderer {
       ctx.fillText(room.subtitle, 32, 54);
     }
     ctx.restore();
+  }
+
+  private drawMovingPlatforms(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    particles?: ParticleSystem
+  ): void {
+    if (!room.movingPlatforms) return;
+
+    for (const config of room.movingPlatforms) {
+      const state = MovingPlatform.computePlatformState(config, this.time);
+      const color = config.themeColor || room.accentColor || room.themeColor;
+      const w = config.width;
+      const h = config.height ?? 16;
+      const px = Math.round(state.x);
+      const py = Math.round(state.y);
+
+      // A. Holographic Magnetic Guide Rails
+      ctx.save();
+      const sx = config.startX + w * 0.5;
+      const sy = config.startY + h * 0.5;
+      const ex = config.endX + w * 0.5;
+      const ey = config.endY + h * 0.5;
+
+      // Draw guide path dashed line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 6]);
+      ctx.globalAlpha = 0.28 + 0.12 * Math.sin(this.time * 3);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Draw endpoint magnetic docking nodes
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = color;
+      for (const [nx, ny] of [[sx, sy], [ex, ey]]) {
+        ctx.beginPath();
+        ctx.arc(nx, ny, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // B. Underside Plasma Thrusters
+      ctx.save();
+      const numThrusters = w >= 90 ? 3 : 2;
+      for (let i = 0; i < numThrusters; i++) {
+        const tx = px + (w / (numThrusters + 1)) * (i + 1);
+        const ty = py + h;
+
+        // Nozzle mount
+        ctx.fillStyle = '#080c14';
+        ctx.fillRect(tx - 4, ty - 2, 8, 3);
+
+        // Animated plasma exhaust flame
+        const flamePulse = Math.sin(this.time * 28 + tx) * 3;
+        const flameLen = Math.max(4, 7 + flamePulse);
+
+        const flameGrad = ctx.createLinearGradient(tx, ty, tx, ty + flameLen);
+        flameGrad.addColorStop(0, '#ffffff');
+        flameGrad.addColorStop(0.35, color);
+        flameGrad.addColorStop(1, 'rgba(0, 255, 255, 0)');
+
+        ctx.beginPath();
+        ctx.moveTo(tx - 3.5, ty + 1);
+        ctx.lineTo(tx + 3.5, ty + 1);
+        ctx.lineTo(tx, ty + 1 + flameLen);
+        ctx.closePath();
+        ctx.fillStyle = flameGrad;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8;
+        ctx.fill();
+
+        // Emit occasional thruster micro-spark into particle system
+        if (particles && Math.random() < 0.08) {
+          particles.emitDust(tx, ty + 2, 1, color);
+        }
+      }
+      ctx.restore();
+
+      // C. Hover Sled Body (Dark Obsidian Chassis with Chamfered Tech Trim)
+      ctx.save();
+      ctx.fillStyle = '#0a101d';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+
+      ctx.beginPath();
+      ctx.roundRect(px, py, w, h, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // D. Top Traction Surface (Bright luminous guide line)
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 6;
+      ctx.fillRect(px + 4, py + 1.5, w - 8, 2);
+
+      // Micro LED dash lights along top edge
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      const numLeds = Math.floor((w - 16) / 14);
+      for (let i = 0; i < numLeds; i++) {
+        const lx = px + 10 + i * 14;
+        ctx.fillRect(lx, py + 4.5, 6, 2);
+      }
+
+      // E. Center Power Reactor Core
+      const cx = px + w * 0.5;
+      const cy = py + h * 0.5 + 1;
+      const corePulse = 0.6 + 0.4 * Math.sin(this.time * 6 + px * 0.1);
+
+      // Outer reactor glow ring
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12 * corePulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner fusion core
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // F. Side Hazard Bumpers / Corner Accents
+      ctx.fillStyle = color;
+      ctx.fillRect(px + 2, py + 3, 2, h - 6);
+      ctx.fillRect(px + w - 4, py + 3, 2, h - 6);
+
+      ctx.restore();
+    }
   }
 }

@@ -24,6 +24,7 @@ class Game {
 
   private gameState: GameState = 'PLAYING';
   private lastTime: number = 0;
+  private gameTime: number = 0;
   private sidesTraversed: number = 1;
   private camera3DMode: boolean = true;
 
@@ -133,6 +134,10 @@ class Game {
     if (this.lastTime === 0) this.lastTime = time;
     const dt = Math.min((time - this.lastTime) / 1000, 0.05);
     this.lastTime = time;
+    this.gameTime += dt;
+
+    // Keep all rendering faces and physics 100% in lockstep
+    this.cubeRenderer.setGameTime(this.gameTime);
 
     const inputState = this.input.update();
 
@@ -161,7 +166,8 @@ class Game {
         inputState,
         dt,
         () => this.onGoalReached(),
-        () => this.onPlayerDeath()
+        () => this.onPlayerDeath(),
+        this.gameTime
       );
 
       // 3. Trigger 3D Infinite Cube Rotation if player crossed an edge
@@ -264,6 +270,7 @@ class Game {
     // Place player at destination seam
     this.player.setPosition(entryX, entryY);
     this.player.vy = preserveVy;
+    this.player.standingPlatform = null;
 
     this.cubeRenderer.rotateTo(direction, () => {
       // Rotation complete:
@@ -300,6 +307,7 @@ class Game {
     this.player.setPosition(spawn.x, spawn.y);
     this.player.vx = 0;
     this.player.vy = 0;
+    this.player.standingPlatform = null;
     this.particles.emitSparks(spawn.x, spawn.y, 16, this.currentRoom.themeColor);
   }
 

@@ -737,8 +737,11 @@ export class CubeRenderer {
     this.rotTargetQuat.copy(deltaQuat).multiply(this.rotStartQuat);
   }
 
+  public setGameTime(time: number): void {
+    this.time = time;
+  }
+
   public update(dt: number): void {
-    this.time += dt;
     this.voidBg.update(dt);
 
     // Update lighting based on mode

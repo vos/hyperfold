@@ -1,4 +1,5 @@
 import { ParticleSystem } from '../engine/ParticleSystem';
+import { MovingPlatform } from './MovingPlatform';
 
 export interface PlayerBounds {
   x: number;
@@ -18,6 +19,7 @@ export class Player {
   public isGrounded: boolean = false;
   public wasGrounded: boolean = false;
   public isBouncePropelled: boolean = false;
+  public standingPlatform: MovingPlatform | null = null;
   public facing: number = 1; // 1 = right, -1 = left
 
   // Kinematics tuning constants
@@ -34,6 +36,7 @@ export class Player {
   public readonly COYOTE_DURATION = 0.1;
   public jumpBufferTime: number = 0;
   public readonly JUMP_BUFFER_DURATION = 0.12;
+  public dropThroughTimer: number = 0;
 
   // Visuals & animation
   public animTimer: number = 0;
@@ -69,6 +72,10 @@ export class Player {
 
     if (this.jumpBufferTime > 0) {
       this.jumpBufferTime = Math.max(0, this.jumpBufferTime - dt);
+    }
+
+    if (this.dropThroughTimer > 0) {
+      this.dropThroughTimer = Math.max(0, this.dropThroughTimer - dt);
     }
 
     this.animTimer += dt * 10;

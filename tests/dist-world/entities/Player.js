@@ -1,0 +1,148 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Player = void 0;
+class Player {
+    x = 120;
+    y = 660;
+    vx = 0;
+    vy = 0;
+    width = 24;
+    height = 36;
+    isGrounded = false;
+    wasGrounded = false;
+    isBouncePropelled = false;
+    standingPlatform = null;
+    facing = 1; // 1 = right, -1 = left
+    // Kinematics tuning constants
+    MOVE_SPEED = 280;
+    ACCELERATION = 1800;
+    DECELERATION = 2000;
+    GRAVITY = 1150;
+    JUMP_VELOCITY = -520;
+    MIN_JUMP_VELOCITY = -200;
+    MAX_FALL_SPEED = 650;
+    // Forgiving platformer timers (seconds)
+    coyoteTime = 0;
+    COYOTE_DURATION = 0.1;
+    jumpBufferTime = 0;
+    JUMP_BUFFER_DURATION = 0.12;
+    dropThroughTimer = 0;
+    // Visuals & animation
+    animTimer = 0;
+    trailTimer = 0;
+    primaryColor = '#00ffff';
+    accentColor = '#ff007f';
+    constructor(startX = 120, startY = 660) {
+        this.x = startX;
+        this.y = startY;
+    }
+    setPosition(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    getBounds() {
+        return {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+        };
+    }
+    updateTimers(dt) {
+        if (this.isGrounded) {
+            this.coyoteTime = this.COYOTE_DURATION;
+        }
+        else {
+            this.coyoteTime = Math.max(0, this.coyoteTime - dt);
+        }
+        if (this.jumpBufferTime > 0) {
+            this.jumpBufferTime = Math.max(0, this.jumpBufferTime - dt);
+        }
+        if (this.dropThroughTimer > 0) {
+            this.dropThroughTimer = Math.max(0, this.dropThroughTimer - dt);
+        }
+        this.animTimer += dt * 10;
+    }
+    render(ctx, particles) {
+        ctx.save();
+        // Subtle breathing/bounce scaling
+        const bounce = this.isGrounded && Math.abs(this.vx) > 10 ? Math.sin(this.animTimer * 1.5) * 2 : 0;
+        const px = Math.floor(this.x);
+        const py = Math.floor(this.y) + bounce;
+        const w = this.width;
+        const h = this.height - bounce;
+        // Motion trail when moving fast
+        if (particles && Math.abs(this.vx) > 150) {
+            this.trailTimer += 0.016;
+            if (this.trailTimer > 0.06) {
+                this.trailTimer = 0;
+                particles.emitTrail(px, py, w, h, 'rgba(0, 255, 255, 0.25)');
+            }
+        }
+        // Outer Neon Glow
+        ctx.shadowColor = this.primaryColor;
+        ctx.shadowBlur = 10;
+        // Body chassis (rounded futuristic rectangle)
+        ctx.fillStyle = '#0a101d';
+        ctx.strokeStyle = this.primaryColor;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(px, py, w, h, 6);
+        ctx.fill();
+        ctx.stroke();
+        // Glowing Neon Visor / Eye
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        const visorW = 10;
+        const visorH = 4;
+        const visorX = this.facing === 1 ? px + w - 12 : px + 2;
+        const visorY = py + 7;
+        ctx.fillRect(visorX, visorY, visorW, visorH);
+        // Glowing Core Reactor (Chest)
+        ctx.fillStyle = this.accentColor;
+        ctx.shadowColor = this.accentColor;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(px + w * 0.5, py + h * 0.55, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Animated Runner Legs
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = this.primaryColor;
+        ctx.lineWidth = 3;
+        const legY = py + h - 2;
+        if (this.isGrounded && Math.abs(this.vx) > 20) {
+            const stride = Math.sin(this.animTimer * 1.5) * 5;
+            // Front leg
+            ctx.beginPath();
+            ctx.moveTo(px + w * 0.3, legY);
+            ctx.lineTo(px + w * 0.3 + stride, legY + 4);
+            ctx.stroke();
+            // Back leg
+            ctx.beginPath();
+            ctx.moveTo(px + w * 0.7, legY);
+            ctx.lineTo(px + w * 0.7 - stride, legY + 4);
+            ctx.stroke();
+        }
+        else if (!this.isGrounded) {
+            // In-air tucked legs
+            ctx.beginPath();
+            ctx.moveTo(px + w * 0.3, legY);
+            ctx.lineTo(px + w * 0.2, legY + 2);
+            ctx.moveTo(px + w * 0.7, legY);
+            ctx.lineTo(px + w * 0.8, legY + 2);
+            ctx.stroke();
+        }
+        else {
+            // Idle legs
+            ctx.beginPath();
+            ctx.moveTo(px + w * 0.3, legY);
+            ctx.lineTo(px + w * 0.3, legY + 3);
+            ctx.moveTo(px + w * 0.7, legY);
+            ctx.lineTo(px + w * 0.7, legY + 3);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+exports.Player = Player;

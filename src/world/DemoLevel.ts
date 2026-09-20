@@ -144,10 +144,24 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_1_0',
       coords: { x: 1, y: 0 },
       title: 'Sector 1: Neon Nexus',
-      subtitle: 'Thin cyan platforms can be jumped through from below',
+      subtitle: 'Ride the maglev hover sled across the hazardous spike chasm!',
       themeColor: '#ff00aa', // Magenta
       accentColor: '#ff0055',
       tiles,
+      movingPlatforms: [
+        {
+          id: 'plat_1_0_1',
+          startX: 240,
+          startY: 590,
+          endX: 480,
+          endY: 590,
+          width: 80,
+          height: 16,
+          speed: 120,
+          pauseTime: 0.5,
+          themeColor: '#00ffff',
+        },
+      ],
       collectibles: [
         { id: 'core_1_0_1', x: 240, y: 380, type: 'core' },
         { id: 'core_1_0_2', x: 480, y: 300, type: 'prism' },
@@ -226,10 +240,24 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_3_0',
       coords: { x: 3, y: 0 },
       title: 'Sector 3: Laser Grid',
-      subtitle: 'Careful timing over the energy spikes',
+      subtitle: 'Ride the plasma skiff over the laser grid spikes',
       themeColor: '#ffaa00', // Amber
       accentColor: '#ff6600',
       tiles,
+      movingPlatforms: [
+        {
+          id: 'plat_3_0_1',
+          startX: 220,
+          startY: 500,
+          endX: 500,
+          endY: 500,
+          width: 80,
+          height: 16,
+          speed: 140,
+          pauseTime: 0.4,
+          themeColor: '#ffaa00',
+        },
+      ],
       collectibles: [
         { id: 'core_3_0_1', x: 240, y: 500, type: 'core' },
         { id: 'core_3_0_2', x: 400, y: 420, type: 'prism' },
@@ -266,10 +294,24 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_4_0',
       coords: { x: 4, y: 0 },
       title: 'Sector 4: Gravity Well',
-      subtitle: 'Drop DOWN into the Crypt (4,-1) or jump across RIGHT',
+      subtitle: 'Drop DOWN into the Crypt (4,-1) or ride across the void',
       themeColor: '#aa00ff', // Violet
       accentColor: '#7700cc',
       tiles,
+      movingPlatforms: [
+        {
+          id: 'plat_4_0_1',
+          startX: 240,
+          startY: 520,
+          endX: 520,
+          endY: 520,
+          width: 80,
+          height: 16,
+          speed: 130,
+          pauseTime: 0.5,
+          themeColor: '#aa00ff',
+        },
+      ],
       collectibles: [
         { id: 'core_4_0_1', x: 320, y: 440, type: 'core' },
         { id: 'core_4_0_2', x: 480, y: 400, type: 'core' },
@@ -291,19 +333,40 @@ export function buildDemoLevel(): LevelMap {
     // Floor
     fillBox(tiles, 18, 0, 18, 19, TileType.SOLID);
 
-    // Floating stepped platforms
-    fillBox(tiles, 15, 4, 15, 7, TileType.ONE_WAY);
-    fillBox(tiles, 12, 8, 12, 11, TileType.SOLID);
-    fillBox(tiles, 15, 12, 15, 15, TileType.ONE_WAY);
+    // Stepped quantum platforms climbing from both sides to the center
+    // Lower side steps (Row 16: y = 640)
+    fillBox(tiles, 16, 2, 16, 5, TileType.ONE_WAY);
+    fillBox(tiles, 16, 14, 16, 17, TileType.ONE_WAY);
+
+    // Mid side steps (Row 14: y = 560)
+    fillBox(tiles, 14, 4, 14, 7, TileType.ONE_WAY);
+    fillBox(tiles, 14, 12, 14, 15, TileType.ONE_WAY);
+
+    // Center summit platform (Row 12: y = 480) - ONE_WAY to allow seamless ascent
+    fillBox(tiles, 12, 8, 12, 11, TileType.ONE_WAY);
 
     const room: ScreenData = {
       id: 'room_5_0',
       coords: { x: 5, y: 0 },
       title: 'Sector 5: Beyond Euclidean Space',
-      subtitle: 'A standard cube has only 6 sides, yet here is side #6!',
+      subtitle: 'Ride the dimensional shuttle between quantum platforms',
       themeColor: '#00e5ff', // Electric Cyan
       accentColor: '#0099ff',
       tiles,
+      movingPlatforms: [
+        {
+          id: 'plat_5_0_1',
+          startX: 220,
+          startY: 400,
+          endX: 580,
+          endY: 400,
+          width: 80,
+          height: 16,
+          speed: 150,
+          pauseTime: 0.4,
+          themeColor: '#00e5ff',
+        },
+      ],
       collectibles: [
         { id: 'core_5_0_1', x: 220, y: 460, type: 'prism' },
         { id: 'core_5_0_2', x: 400, y: 340, type: 'prism' },
@@ -401,11 +464,25 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_2_1',
       coords: { x: 2, y: 1 },
       title: 'Sector (2,1): The Spire',
-      subtitle: 'Vertical cube rotation! Climb to reach the Zenith',
+      subtitle: 'Ride the vertical maglev lift to ascend the spire',
       themeColor: '#39ff14', // Neon Green
       accentColor: '#00aa33',
       tiles,
       bounceProps,
+      movingPlatforms: [
+        {
+          id: 'plat_2_1_1',
+          startX: 360,
+          startY: 440,
+          endX: 360,
+          endY: 320,
+          width: 80,
+          height: 16,
+          speed: 80,
+          pauseTime: 0.5,
+          themeColor: '#39ff14',
+        },
+      ],
       collectibles: [
         { id: 'core_2_1_1', x: 180, y: 460, type: 'core' },
         { id: 'core_2_1_2', x: 600, y: 460, type: 'core' },
@@ -450,11 +527,25 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_2_2',
       coords: { x: 2, y: 2 },
       title: 'Sector (2,2): Starlight Zenith',
-      subtitle: 'The peak of the cube manifold! Master Prisms found!',
+      subtitle: 'Ride the solar cruiser across the zenith manifold',
       themeColor: '#ffe600', // Gold Solar
       accentColor: '#ff8800',
       tiles,
       bounceProps,
+      movingPlatforms: [
+        {
+          id: 'plat_2_2_1',
+          startX: 220,
+          startY: 460,
+          endX: 580,
+          endY: 460,
+          width: 80,
+          height: 16,
+          speed: 130,
+          pauseTime: 0.5,
+          themeColor: '#ffe600',
+        },
+      ],
       collectibles: [
         { id: 'core_2_2_1', x: 200, y: 380, type: 'prism' },
         { id: 'core_2_2_2', x: 600, y: 380, type: 'prism' },

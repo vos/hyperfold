@@ -33,6 +33,21 @@ export interface BouncePadConfig {
   vx?: number; // Optional horizontal launch velocity (e.g. for angled vaults)
 }
 
+export interface MovingPlatformConfig {
+  id: string;
+  startX: number;           // in pixels
+  startY: number;           // in pixels
+  endX: number;             // in pixels
+  endY: number;             // in pixels
+  width: number;            // in pixels (e.g. 80, 100, 120)
+  height?: number;          // in pixels (defaults to 16)
+  speed: number;            // in pixels per second
+  pauseTime?: number;       // dwell time at endpoints in seconds (defaults to 0.4)
+  initialProgress?: number; // 0 to 1 starting phase offset (default: 0)
+  themeColor?: string;      // custom neon color override (optional)
+  oneWay?: boolean;         // whether platform is jump-through from below (defaults to true)
+}
+
 export interface ScreenData {
   id: string;
   coords: { x: number; y: number };
@@ -45,4 +60,5 @@ export interface ScreenData {
   exits: RoomExits;
   spawnPoint?: { x: number; y: number };
   bounceProps?: Record<string, BouncePadConfig>; // Keyed by "${row},${col}"
+  movingPlatforms?: MovingPlatformConfig[];
 }
