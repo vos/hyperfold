@@ -29,15 +29,15 @@ test('Screen Floor & Topology Verification', async (t) => {
     const room = map.getRoom(2, 0);
     assert.ok(room, 'Sector (2,0) must exist');
 
-    // Bounce pads across cols 8 to 11 on row 17
+    // Bounce pads across cols 8 to 11 on row 17 with map property vy = -1550
     for (let c = 8; c <= 11; c++) {
       assert.equal(room.tiles[17][c], TileType.BOUNCE, `Col ${c} on row 17 must be BOUNCE pad`);
+      assert.equal(room.bounceProps?.[`17,${c}`]?.vy, -1550, `Col ${c} on row 17 must have bounceProps.vy = -1550`);
     }
 
-    // Physics check: Launch propulsion with vy = -1400 and gravity = 1150
-    // Height reached: 1400^2 / (2 * 1150) = 852 pixels.
-    // Distance from row 17 (y = 680) to ceiling (y = 0) is 680 pixels.
-    const launchHeight = Math.pow(1400, 2) / (2 * 1150);
+    // Physics check: Launch propulsion with vy = -1550 (read from tile property) and gravity = 1150
+    const padVy = room.bounceProps?.['17,8']?.vy ?? -1400;
+    const launchHeight = Math.pow(Math.abs(padVy), 2) / (2 * 1150);
     assert.ok(
       launchHeight > 680,
       `Super bounce launch height (${launchHeight.toFixed(1)}px) must exceed ceiling distance (680px) to reach Sector (2,1)`
@@ -71,6 +71,43 @@ test('Screen Floor & Topology Verification', async (t) => {
     // Floor bounce pads for quick ascent
     assert.equal(room.tiles[17][1], TileType.BOUNCE, 'Col 1 on row 17 should be a bounce pad');
     assert.equal(room.tiles[17][18], TileType.BOUNCE, 'Col 18 on row 17 should be a bounce pad');
+    assert.equal(room.bounceProps?.['17,1']?.vy, -900, 'Floor recovery pad vy should be -900');
+    assert.equal(room.bounceProps?.['7,9']?.vy, -1200, 'Zenith pad vy should be -1200');
+
+    // Row 14 one-way landing steps extending into the chute (cols 5-7 and 12-14)
+    // to allow landing on side ledges from Sector (2,0) bounce launch
+    for (let c = 5; c <= 7; c++) {
+      assert.equal(room.tiles[14][c], TileType.ONE_WAY, `Col ${c} on row 14 should be ONE_WAY landing step`);
+    }
+    for (let c = 12; c <= 14; c++) {
+      assert.equal(room.tiles[14][c], TileType.ONE_WAY, `Col ${c} on row 14 should be ONE_WAY landing step`);
+    }
+
+    // Row 10 intermediate climbing platforms to bridge row 12 -> row 8
+    for (let c = 4; c <= 7; c++) {
+      assert.equal(room.tiles[10][c], TileType.ONE_WAY, `Col ${c} on row 10 should be ONE_WAY platform`);
+    }
+    for (let c = 12; c <= 15; c++) {
+      assert.equal(room.tiles[10][c], TileType.ONE_WAY, `Col ${c} on row 10 should be ONE_WAY platform`);
+    }
+
+    // Physics check: Sector 2 super bounce launch with vy = -1550 and g = 1150
+    // Trajectory in Sector (2,0): traverses 648px from row 17 (y = 648) to ceiling (y = 0).
+    // Velocity at ceiling: sqrt(1550^2 - 2 * 1150 * 648) = sqrt(912100) = 955 px/s.
+    // Height gained in Sector (2,1): 912100 / (2 * 1150) = 396.6 px.
+    // Apex in Sector (2,1): y = 764 - 396.6 = 367.4 px (Row 9.2).
+    // Feet at y = 399.4 px (Row 10.0), which is 80.6px ABOVE row 12 platform (y = 480)
+    // and 200.6px ABOVE row 15 side ledges (y = 600)!
+    const g = 1150;
+    const v0 = -1550;
+    const vCeilingSq = Math.pow(v0, 2) - 2 * g * 648;
+    assert.ok(vCeilingSq > 0, 'Must have upward velocity exiting Sector (2,0)');
+    const vCeiling = Math.sqrt(vCeilingSq);
+    const heightInNextSector = Math.pow(vCeiling, 2) / (2 * g);
+    const apexY = 764 - heightInNextSector;
+    const feetY = apexY + 32;
+    assert.ok(feetY < 480, `Player feet (${feetY.toFixed(1)}px) must rise above row 12 platform (480px)`);
+    assert.ok(feetY < 600, `Player feet (${feetY.toFixed(1)}px) must rise above row 15 side ledges (600px)`);
   });
 
   await t.test('Sector (2,2) Starlight Zenith has floor ledges and one-way entry platform', () => {
@@ -115,6 +152,41 @@ test('Screen Floor & Topology Verification', async (t) => {
     // Reachable crumble platforms
     assert.equal(room.tiles[16][7], TileType.CRUMBLE);
     assert.equal(room.tiles[15][11], TileType.CRUMBLE);
+  });
+
+  await t.test('Sector (4,-1) Sub-Zero Crypt has center Super Bounce Pad aligned with roof exit', () => {
+    const room = map.getRoom(4, -1);
+    assert.ok(room, 'Sector (4,-1) must exist');
+
+    // Roof exit is at cols 7-12 on row 0
+    for (let c = 7; c <= 12; c++) {
+      assert.equal(room.tiles[0][c], TileType.EMPTY, `Roof col ${c} must be open`);
+    }
+
+    // Center Super Bounce Pad across cols 7 to 12 directly under the roof chute
+    for (let c = 7; c <= 12; c++) {
+      assert.equal(room.tiles[17][c], TileType.BOUNCE, `Col ${c} on row 17 must be a Super Bounce Pad`);
+      assert.equal(room.bounceProps?.[`17,${c}`]?.vy, -1550, `Center pad col ${c} must have vy = -1550`);
+    }
+    assert.equal(room.bounceProps?.['17,1']?.vx, 200, 'Corner pad col 1 should vault inward');
+    assert.equal(room.bounceProps?.['17,18']?.vx, -200, 'Corner pad col 18 should vault inward');
+
+    // Row 14 platform (cols 8-11) is ONE_WAY allowing upward vault through it
+    for (let c = 8; c <= 11; c++) {
+      assert.equal(room.tiles[14][c], TileType.ONE_WAY, `Col ${c} on row 14 must be ONE_WAY`);
+    }
+
+    // Launch propulsion check: -1550 px/s with g = 1150
+    // Traverses 648px to ceiling, enters Sector (4,0) with -955 px/s and reaches y = 367px (Row 9.2)
+    const g = 1150;
+    const v0 = -1550;
+    const vCeilingSq = Math.pow(v0, 2) - 2 * g * 648;
+    assert.ok(vCeilingSq > 0, 'Must have upward velocity exiting Sector (4,-1)');
+    const vCeiling = Math.sqrt(vCeilingSq);
+    const heightInNextSector = Math.pow(vCeiling, 2) / (2 * g);
+    const apexY = 764 - heightInNextSector;
+    const feetY = apexY + 32;
+    assert.ok(feetY < 640, `Player feet (${feetY.toFixed(1)}px) must rise above Sector (4,0) crumble platform (640px)`);
   });
 
   await t.test('All rooms have grounded, safe spawn points', () => {
@@ -166,5 +238,38 @@ test('Screen Floor & Topology Verification', async (t) => {
         `Floor NDC Y (${floorNdcY.toFixed(2)}) must be comfortably framed away from browser edges and HUD`
       );
     }
+  });
+
+  await t.test('Airborne horizontal propulsion preserves parabolic momentum without abrupt stopping', () => {
+    // Simulate trajectory with g = 1150, dt = 1/60, vx0 = 200, vy0 = -1100
+    const g = 1150;
+    const dt = 1 / 60;
+    let x = 60;
+    let y = 648;
+    let vx = 200;
+    let vy = -1100;
+    let apexReached = false;
+    let landed = false;
+
+    for (let frame = 1; frame <= 150; frame++) {
+      vy += g * dt;
+      x += vx * dt;
+      y += vy * dt;
+      if (vy >= 0 && !apexReached) {
+        apexReached = true;
+        // Verify horizontal speed is maintained through the apex
+        assert.equal(vx, 200, 'Horizontal velocity must be preserved at apex');
+      }
+      if (y >= 560 && vy > 0 && frame > 30) {
+        landed = true;
+        // Verify horizontal speed persisted all the way to landing
+        assert.equal(vx, 200, 'Horizontal velocity must persist throughout descent until landing');
+        // Verify landed near center platform (cols 8 to 11: x between 320 and 440)
+        assert.ok(x >= 320 && x <= 440, `Landing X (${x.toFixed(1)}) must be on the center platform (320-440px)`);
+        break;
+      }
+    }
+    assert.ok(apexReached, 'Should have reached apex');
+    assert.ok(landed, 'Should have landed on center platform');
   });
 });

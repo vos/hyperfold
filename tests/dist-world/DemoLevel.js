@@ -23,6 +23,22 @@ function fillBox(grid, r1, c1, r2, c2, tile) {
         }
     }
 }
+// Helper to place bounce pads with custom propulsion properties on the map
+function setBouncePad(grid, bounceProps, r, c, config) {
+    if (r >= 0 && r < ScreenData_1.ROWS && c >= 0 && c < ScreenData_1.COLS) {
+        grid[r][c] = ScreenData_1.TileType.BOUNCE;
+        if (config) {
+            bounceProps[`${r},${c}`] = { ...config };
+        }
+    }
+}
+function fillBouncePads(grid, bounceProps, r1, c1, r2, c2, config) {
+    for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+            setBouncePad(grid, bounceProps, r, c, config);
+        }
+    }
+}
 // Add boundary walls while leaving specified exit gaps open
 function addEnclosure(grid, exits) {
     // Top wall
@@ -124,8 +140,9 @@ function buildDemoLevel() {
         addEnclosure(tiles, exits);
         // Floor
         fillBox(tiles, 18, 0, 18, 19, ScreenData_1.TileType.SOLID);
+        const bounceProps = {};
         // Super bounce pad launching straight into the sky through the ceiling into Sector (2,1)
-        fillBox(tiles, 17, 8, 17, 11, ScreenData_1.TileType.BOUNCE);
+        fillBouncePads(tiles, bounceProps, 17, 8, 17, 11, { vy: -1550 });
         // Stepping stones to right exit
         fillBox(tiles, 15, 14, 15, 19, ScreenData_1.TileType.SOLID);
         // Stepped climbing platforms for alternative vertical ascent
@@ -144,6 +161,7 @@ function buildDemoLevel() {
             themeColor: '#00ff88', // Emerald Neon
             accentColor: '#00cc66',
             tiles,
+            bounceProps,
             collectibles: [
                 { id: 'core_2_0_1', x: 400, y: 400, type: 'core' },
                 { id: 'core_2_0_2', x: 620, y: 480, type: 'core' },
@@ -294,22 +312,30 @@ function buildDemoLevel() {
         // Floor ledges on left and right of vertical descent chute (cols 7-12)
         fillBox(tiles, 18, 0, 18, 6, ScreenData_1.TileType.SOLID);
         fillBox(tiles, 18, 13, 18, 19, ScreenData_1.TileType.SOLID);
+        const bounceProps = {};
         // Bounce pads on floor for quick ascent return
-        tiles[17][1] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][18] = ScreenData_1.TileType.BOUNCE;
-        // Stepping blocks from floor to side ledges
-        fillBox(tiles, 16, 5, 16, 6, ScreenData_1.TileType.SOLID);
-        fillBox(tiles, 16, 13, 16, 14, ScreenData_1.TileType.SOLID);
-        // Side ledges
+        setBouncePad(tiles, bounceProps, 17, 1, { vy: -900 });
+        setBouncePad(tiles, bounceProps, 17, 18, { vy: -900 });
+        // Solid base for side blocks
+        fillBox(tiles, 16, 2, 16, 5, ScreenData_1.TileType.SOLID);
+        fillBox(tiles, 16, 14, 16, 17, ScreenData_1.TileType.SOLID);
+        // Side ledges (Solid blocks)
         fillBox(tiles, 15, 2, 15, 6, ScreenData_1.TileType.SOLID);
         fillBox(tiles, 15, 13, 15, 17, ScreenData_1.TileType.SOLID);
+        // One-way landing steps extending from the side ledges into the chute
+        // This allows the player to easily land on either side without getting blocked from below
+        fillBox(tiles, 14, 5, 14, 7, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 14, 12, 14, 14, ScreenData_1.TileType.ONE_WAY);
         // Middle one-way platforms
         fillBox(tiles, 12, 7, 12, 12, ScreenData_1.TileType.ONE_WAY);
+        // Stepping platforms to easily climb from row 12 to row 8
+        fillBox(tiles, 10, 4, 10, 7, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 10, 12, 10, 15, ScreenData_1.TileType.ONE_WAY);
         fillBox(tiles, 8, 4, 8, 8, ScreenData_1.TileType.ONE_WAY);
         fillBox(tiles, 8, 11, 8, 15, ScreenData_1.TileType.ONE_WAY);
         // Bounce pad to reach upper ceiling room (2, 2)
-        tiles[7][9] = ScreenData_1.TileType.BOUNCE;
-        tiles[7][10] = ScreenData_1.TileType.BOUNCE;
+        setBouncePad(tiles, bounceProps, 7, 9, { vy: -1200 });
+        setBouncePad(tiles, bounceProps, 7, 10, { vy: -1200 });
         const room = {
             id: 'room_2_1',
             coords: { x: 2, y: 1 },
@@ -318,6 +344,7 @@ function buildDemoLevel() {
             themeColor: '#39ff14', // Neon Green
             accentColor: '#00aa33',
             tiles,
+            bounceProps,
             collectibles: [
                 { id: 'core_2_1_1', x: 180, y: 460, type: 'core' },
                 { id: 'core_2_1_2', x: 600, y: 460, type: 'core' },
@@ -338,9 +365,10 @@ function buildDemoLevel() {
         // Floor ledges on left and right of vertical descent chute (cols 7-12)
         fillBox(tiles, 18, 0, 18, 6, ScreenData_1.TileType.SOLID);
         fillBox(tiles, 18, 13, 18, 19, ScreenData_1.TileType.SOLID);
+        const bounceProps = {};
         // Bounce pads on floor to fling player up towards master prisms
-        tiles[17][2] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][17] = ScreenData_1.TileType.BOUNCE;
+        setBouncePad(tiles, bounceProps, 17, 2, { vy: -1400 });
+        setBouncePad(tiles, bounceProps, 17, 17, { vy: -1400 });
         // Stepping stones
         fillBox(tiles, 15, 4, 15, 6, ScreenData_1.TileType.SOLID);
         fillBox(tiles, 15, 13, 15, 15, ScreenData_1.TileType.SOLID);
@@ -358,6 +386,7 @@ function buildDemoLevel() {
             themeColor: '#ffe600', // Gold Solar
             accentColor: '#ff8800',
             tiles,
+            bounceProps,
             collectibles: [
                 { id: 'core_2_2_1', x: 200, y: 380, type: 'prism' },
                 { id: 'core_2_2_2', x: 600, y: 380, type: 'prism' },
@@ -377,17 +406,21 @@ function buildDemoLevel() {
         addEnclosure(tiles, exits);
         // Deep pit floor with bounce return
         fillBox(tiles, 18, 0, 18, 19, ScreenData_1.TileType.SOLID);
-        fillBox(tiles, 17, 3, 17, 16, ScreenData_1.TileType.SPIKE);
-        // Secret treasure platform
-        fillBox(tiles, 14, 8, 14, 11, ScreenData_1.TileType.SOLID);
-        // Safe stepping one-way ledges to navigate out of the pit to bounce pads
+        fillBox(tiles, 17, 3, 17, 6, ScreenData_1.TileType.SPIKE);
+        fillBox(tiles, 17, 13, 17, 16, ScreenData_1.TileType.SPIKE);
+        // Secret treasure platform directly under entrance chute (ONE_WAY allows vaulting straight through!)
+        fillBox(tiles, 14, 8, 14, 11, ScreenData_1.TileType.ONE_WAY);
+        // Safe stepping one-way ledges to navigate between side and center
         fillBox(tiles, 15, 4, 15, 6, ScreenData_1.TileType.ONE_WAY);
         fillBox(tiles, 15, 13, 15, 15, ScreenData_1.TileType.ONE_WAY);
-        // Bounce pads on both sides to fling player back up into (4, 0)
-        tiles[17][1] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][2] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][17] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][18] = ScreenData_1.TileType.BOUNCE;
+        const bounceProps = {};
+        // Center Super Bounce Pad aligned directly with the roof opening (cols 7-12) to vault back up into Sector (4,0)
+        fillBouncePads(tiles, bounceProps, 17, 7, 17, 12, { vy: -1550 });
+        // Corner bounce pads to recover from side pits and vault inward toward center
+        setBouncePad(tiles, bounceProps, 17, 1, { vy: -1100, vx: 200 });
+        setBouncePad(tiles, bounceProps, 17, 2, { vy: -1100, vx: 200 });
+        setBouncePad(tiles, bounceProps, 17, 17, { vy: -1100, vx: -200 });
+        setBouncePad(tiles, bounceProps, 17, 18, { vy: -1100, vx: -200 });
         const room = {
             id: 'room_4_minus1',
             coords: { x: 4, y: -1 },
@@ -396,6 +429,7 @@ function buildDemoLevel() {
             themeColor: '#0033ff', // Deep Indigo Neon
             accentColor: '#00ffff',
             tiles,
+            bounceProps,
             collectibles: [
                 { id: 'core_4_m1_1', x: 400, y: 420, type: 'prism' },
                 { id: 'core_4_m1_2', x: 380, y: 200, type: 'prism' },

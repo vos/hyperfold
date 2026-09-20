@@ -28,6 +28,11 @@ export interface RoomExits {
   down: boolean;
 }
 
+export interface BouncePadConfig {
+  vy?: number; // Custom vertical launch velocity (defaults to -1400)
+  vx?: number; // Optional horizontal launch velocity (e.g. for angled vaults)
+}
+
 export interface ScreenData {
   id: string;
   coords: { x: number; y: number };
@@ -39,4 +44,5 @@ export interface ScreenData {
   collectibles: CollectibleData[];
   exits: RoomExits;
   spawnPoint?: { x: number; y: number };
+  bounceProps?: Record<string, BouncePadConfig>; // Keyed by "${row},${col}"
 }

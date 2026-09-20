@@ -1,4 +1,4 @@
-import { COLS, ROWS, ScreenData, TileType } from './ScreenData';
+import { BouncePadConfig, COLS, ROWS, ScreenData, TileType } from './ScreenData';
 import { LevelMap } from './LevelMap';
 
 function createBlankRoom(): number[][] {
@@ -19,6 +19,38 @@ function fillBox(grid: number[][], r1: number, c1: number, r2: number, c2: numbe
       if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
         grid[r][c] = tile;
       }
+    }
+  }
+}
+
+// Helper to place bounce pads with custom propulsion properties on the map
+function setBouncePad(
+  grid: number[][],
+  bounceProps: Record<string, BouncePadConfig>,
+  r: number,
+  c: number,
+  config?: BouncePadConfig
+) {
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    grid[r][c] = TileType.BOUNCE;
+    if (config) {
+      bounceProps[`${r},${c}`] = { ...config };
+    }
+  }
+}
+
+function fillBouncePads(
+  grid: number[][],
+  bounceProps: Record<string, BouncePadConfig>,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  config?: BouncePadConfig
+) {
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      setBouncePad(grid, bounceProps, r, c, config);
     }
   }
 }
@@ -137,8 +169,9 @@ export function buildDemoLevel(): LevelMap {
     // Floor
     fillBox(tiles, 18, 0, 18, 19, TileType.SOLID);
 
+    const bounceProps: Record<string, BouncePadConfig> = {};
     // Super bounce pad launching straight into the sky through the ceiling into Sector (2,1)
-    fillBox(tiles, 17, 8, 17, 11, TileType.BOUNCE);
+    fillBouncePads(tiles, bounceProps, 17, 8, 17, 11, { vy: -1550 });
 
     // Stepping stones to right exit
     fillBox(tiles, 15, 14, 15, 19, TileType.SOLID);
@@ -160,6 +193,7 @@ export function buildDemoLevel(): LevelMap {
       themeColor: '#00ff88', // Emerald Neon
       accentColor: '#00cc66',
       tiles,
+      bounceProps,
       collectibles: [
         { id: 'core_2_0_1', x: 400, y: 400, type: 'core' },
         { id: 'core_2_0_2', x: 620, y: 480, type: 'core' },
@@ -331,26 +365,37 @@ export function buildDemoLevel(): LevelMap {
     fillBox(tiles, 18, 0, 18, 6, TileType.SOLID);
     fillBox(tiles, 18, 13, 18, 19, TileType.SOLID);
 
+    const bounceProps: Record<string, BouncePadConfig> = {};
     // Bounce pads on floor for quick ascent return
-    tiles[17][1] = TileType.BOUNCE;
-    tiles[17][18] = TileType.BOUNCE;
+    setBouncePad(tiles, bounceProps, 17, 1, { vy: -900 });
+    setBouncePad(tiles, bounceProps, 17, 18, { vy: -900 });
 
-    // Stepping blocks from floor to side ledges
-    fillBox(tiles, 16, 5, 16, 6, TileType.SOLID);
-    fillBox(tiles, 16, 13, 16, 14, TileType.SOLID);
+    // Solid base for side blocks
+    fillBox(tiles, 16, 2, 16, 5, TileType.SOLID);
+    fillBox(tiles, 16, 14, 16, 17, TileType.SOLID);
 
-    // Side ledges
+    // Side ledges (Solid blocks)
     fillBox(tiles, 15, 2, 15, 6, TileType.SOLID);
     fillBox(tiles, 15, 13, 15, 17, TileType.SOLID);
 
+    // One-way landing steps extending from the side ledges into the chute
+    // This allows the player to easily land on either side without getting blocked from below
+    fillBox(tiles, 14, 5, 14, 7, TileType.ONE_WAY);
+    fillBox(tiles, 14, 12, 14, 14, TileType.ONE_WAY);
+
     // Middle one-way platforms
     fillBox(tiles, 12, 7, 12, 12, TileType.ONE_WAY);
+
+    // Stepping platforms to easily climb from row 12 to row 8
+    fillBox(tiles, 10, 4, 10, 7, TileType.ONE_WAY);
+    fillBox(tiles, 10, 12, 10, 15, TileType.ONE_WAY);
+
     fillBox(tiles, 8, 4, 8, 8, TileType.ONE_WAY);
     fillBox(tiles, 8, 11, 8, 15, TileType.ONE_WAY);
 
     // Bounce pad to reach upper ceiling room (2, 2)
-    tiles[7][9] = TileType.BOUNCE;
-    tiles[7][10] = TileType.BOUNCE;
+    setBouncePad(tiles, bounceProps, 7, 9, { vy: -1200 });
+    setBouncePad(tiles, bounceProps, 7, 10, { vy: -1200 });
 
     const room: ScreenData = {
       id: 'room_2_1',
@@ -360,6 +405,7 @@ export function buildDemoLevel(): LevelMap {
       themeColor: '#39ff14', // Neon Green
       accentColor: '#00aa33',
       tiles,
+      bounceProps,
       collectibles: [
         { id: 'core_2_1_1', x: 180, y: 460, type: 'core' },
         { id: 'core_2_1_2', x: 600, y: 460, type: 'core' },
@@ -383,9 +429,10 @@ export function buildDemoLevel(): LevelMap {
     fillBox(tiles, 18, 0, 18, 6, TileType.SOLID);
     fillBox(tiles, 18, 13, 18, 19, TileType.SOLID);
 
+    const bounceProps: Record<string, BouncePadConfig> = {};
     // Bounce pads on floor to fling player up towards master prisms
-    tiles[17][2] = TileType.BOUNCE;
-    tiles[17][17] = TileType.BOUNCE;
+    setBouncePad(tiles, bounceProps, 17, 2, { vy: -1400 });
+    setBouncePad(tiles, bounceProps, 17, 17, { vy: -1400 });
 
     // Stepping stones
     fillBox(tiles, 15, 4, 15, 6, TileType.SOLID);
@@ -407,6 +454,7 @@ export function buildDemoLevel(): LevelMap {
       themeColor: '#ffe600', // Gold Solar
       accentColor: '#ff8800',
       tiles,
+      bounceProps,
       collectibles: [
         { id: 'core_2_2_1', x: 200, y: 380, type: 'prism' },
         { id: 'core_2_2_2', x: 600, y: 380, type: 'prism' },
@@ -428,20 +476,25 @@ export function buildDemoLevel(): LevelMap {
 
     // Deep pit floor with bounce return
     fillBox(tiles, 18, 0, 18, 19, TileType.SOLID);
-    fillBox(tiles, 17, 3, 17, 16, TileType.SPIKE);
+    fillBox(tiles, 17, 3, 17, 6, TileType.SPIKE);
+    fillBox(tiles, 17, 13, 17, 16, TileType.SPIKE);
 
-    // Secret treasure platform
-    fillBox(tiles, 14, 8, 14, 11, TileType.SOLID);
+    // Secret treasure platform directly under entrance chute (ONE_WAY allows vaulting straight through!)
+    fillBox(tiles, 14, 8, 14, 11, TileType.ONE_WAY);
 
-    // Safe stepping one-way ledges to navigate out of the pit to bounce pads
+    // Safe stepping one-way ledges to navigate between side and center
     fillBox(tiles, 15, 4, 15, 6, TileType.ONE_WAY);
     fillBox(tiles, 15, 13, 15, 15, TileType.ONE_WAY);
 
-    // Bounce pads on both sides to fling player back up into (4, 0)
-    tiles[17][1] = TileType.BOUNCE;
-    tiles[17][2] = TileType.BOUNCE;
-    tiles[17][17] = TileType.BOUNCE;
-    tiles[17][18] = TileType.BOUNCE;
+    const bounceProps: Record<string, BouncePadConfig> = {};
+    // Center Super Bounce Pad aligned directly with the roof opening (cols 7-12) to vault back up into Sector (4,0)
+    fillBouncePads(tiles, bounceProps, 17, 7, 17, 12, { vy: -1550 });
+
+    // Corner bounce pads to recover from side pits and vault inward toward center
+    setBouncePad(tiles, bounceProps, 17, 1, { vy: -1100, vx: 200 });
+    setBouncePad(tiles, bounceProps, 17, 2, { vy: -1100, vx: 200 });
+    setBouncePad(tiles, bounceProps, 17, 17, { vy: -1100, vx: -200 });
+    setBouncePad(tiles, bounceProps, 17, 18, { vy: -1100, vx: -200 });
 
     const room: ScreenData = {
       id: 'room_4_minus1',
@@ -451,6 +504,7 @@ export function buildDemoLevel(): LevelMap {
       themeColor: '#0033ff', // Deep Indigo Neon
       accentColor: '#00ffff',
       tiles,
+      bounceProps,
       collectibles: [
         { id: 'core_4_m1_1', x: 400, y: 420, type: 'prism' },
         { id: 'core_4_m1_2', x: 380, y: 200, type: 'prism' },

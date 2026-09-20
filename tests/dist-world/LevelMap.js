@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LevelMap = void 0;
 class LevelMap {
-    rooms = new Map();
-    collectedItemIds = new Set();
-    visitedCoordinates = new Set();
+    constructor() {
+        this.rooms = new Map();
+        this.collectedItemIds = new Set();
+        this.visitedCoordinates = new Set();
+    }
     static coordKey(x, y) {
         return `${x},${y}`;
     }

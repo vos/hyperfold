@@ -104,14 +104,40 @@ export class PhysicsEngine {
       player.facing = 1;
     }
 
-    // Accelerate or decelerate smoothly
-    if (targetVx !== 0) {
-      if (Math.sign(player.vx) !== Math.sign(targetVx)) {
-        player.vx += targetVx > 0 ? player.DECELERATION * dt : -player.DECELERATION * dt;
+    if (player.isGrounded) {
+      // Ground physics: snappy acceleration & crisp ground deceleration
+      player.isBouncePropelled = false;
+      if (targetVx !== 0) {
+        if (Math.sign(player.vx) !== Math.sign(targetVx)) {
+          player.vx += targetVx > 0 ? player.DECELERATION * dt : -player.DECELERATION * dt;
+        }
+        player.vx = this.approach(player.vx, targetVx, player.ACCELERATION * dt);
+      } else {
+        player.vx = this.approach(player.vx, 0, player.DECELERATION * dt);
       }
-      player.vx = this.approach(player.vx, targetVx, player.ACCELERATION * dt);
     } else {
-      player.vx = this.approach(player.vx, 0, player.DECELERATION * dt);
+      // Airborne physics
+      if (player.isBouncePropelled) {
+        // Player is riding a bounce launch: preserve horizontal momentum along the parabolic arc
+        if (targetVx === 0) {
+          // Coast on launch momentum without ground friction
+        } else if (Math.sign(targetVx) === Math.sign(player.vx)) {
+          // Holding the launch direction: maintain boosted speed (do not forcibly brake to MOVE_SPEED)
+          if (Math.abs(player.vx) < player.MOVE_SPEED) {
+            player.vx = this.approach(player.vx, targetVx, player.ACCELERATION * dt);
+          }
+        } else {
+          // Counter-steering against the launch direction: allow responsive air control redirection
+          player.vx = this.approach(player.vx, targetVx, 1000 * dt);
+        }
+      } else {
+        // Regular aerial movement: steer with acceleration, use gentle air drag when neutral
+        if (targetVx !== 0) {
+          player.vx = this.approach(player.vx, targetVx, player.ACCELERATION * dt);
+        } else {
+          player.vx = this.approach(player.vx, 0, 600 * dt);
+        }
+      }
     }
 
     // 2. Jump input & Coyote Time & Jump Buffering
@@ -131,11 +157,6 @@ export class PhysicsEngine {
     // Variable Jump Cut (release jump early - only affects regular jumps, not bounce pads)
     if (!input.jump && player.vy < player.MIN_JUMP_VELOCITY && !player.isBouncePropelled) {
       player.vy = player.MIN_JUMP_VELOCITY;
-    }
-
-    // Reset bounce propulsion once downward velocity begins or grounded
-    if (player.vy >= 0 || player.isGrounded) {
-      player.isBouncePropelled = false;
     }
 
     // 3. Gravity
@@ -238,7 +259,12 @@ export class PhysicsEngine {
         } else if (tile === TileType.BOUNCE) {
           if (player.y + player.height >= tileTop && prevY + player.height <= tileBottom + 12) {
             player.y = tileTop - player.height;
-            player.vy = -1400; // Powerful vertical launch to reach sector above!
+            // Retrieve propulsion properties directly from the bounce tile configuration on the map
+            const bounceConfig = room.bounceProps?.[`${r},${c}`];
+            player.vy = bounceConfig?.vy ?? -1400;
+            if (bounceConfig?.vx !== undefined) {
+              player.vx = bounceConfig.vx;
+            }
             player.isGrounded = false;
             player.isBouncePropelled = true;
             this.audio.playBounce();
