@@ -712,59 +712,56 @@ export function buildDemoLevel(): LevelMap {
   }
 
   // ==========================================
-  // ROOM (2, 1): UPPER ASCENT
+  // ROOM (2, 1): THE SPIRE
   // ==========================================
   {
     const tiles = createBlankRoom();
     const exits = { left: false, right: false, up: true, down: true };
     addEnclosure(tiles, exits);
 
-    // Floor ledges on left and right of vertical descent chute (cols 7-12)
+    // Floor ledges flanking the vertical chute (cols 7-12 stay open for entry from below)
     fillBox(tiles, 18, 0, 18, 6, TileType.SOLID);
     fillBox(tiles, 18, 13, 18, 19, TileType.SOLID);
 
     const bounceProps: Record<string, BouncePadConfig> = {};
-    // Bounce pads on floor for quick ascent return
+    // Corner bounce pads on floor for quick ascent recovery
     setBouncePad(tiles, bounceProps, 17, 1, { vy: -900 });
     setBouncePad(tiles, bounceProps, 17, 18, { vy: -900 });
 
-    // Solid base for side blocks
-    fillBox(tiles, 16, 2, 16, 5, TileType.SOLID);
-    fillBox(tiles, 16, 14, 16, 17, TileType.SOLID);
-
-    // Side ledges (Solid blocks)
-    fillBox(tiles, 15, 2, 15, 6, TileType.SOLID);
-    fillBox(tiles, 15, 13, 15, 17, TileType.SOLID);
-
-    // One-way landing steps extending from the side ledges into the chute
-    // This allows the player to easily land on either side without getting blocked from below
+    // ONE_WAY landing steps bridging from side ledges into the chute
+    // (player launched from Sector 2,0 can land here)
     fillBox(tiles, 14, 5, 14, 7, TileType.ONE_WAY);
     fillBox(tiles, 14, 12, 14, 14, TileType.ONE_WAY);
 
-    // Middle one-way platforms
-    fillBox(tiles, 12, 7, 12, 12, TileType.ONE_WAY);
+    // Small solid platform anchors on sides for spike mounting
+    tiles[15][2] = TileType.SOLID;
+    tiles[15][17] = TileType.SOLID;
 
-    // Stepping platforms to easily climb from row 12 to row 8
+    // Mid-height climbing platforms (row 10) — bridge from landing steps to zenith pads
     fillBox(tiles, 10, 4, 10, 7, TileType.ONE_WAY);
     fillBox(tiles, 10, 12, 10, 15, TileType.ONE_WAY);
 
-    fillBox(tiles, 8, 4, 8, 8, TileType.ONE_WAY);
-    fillBox(tiles, 8, 11, 8, 15, TileType.ONE_WAY);
+    // Central one-way platform (row 12) — must stay for upward jump-through from below
+    fillBox(tiles, 12, 7, 12, 12, TileType.ONE_WAY);
 
-    // Bounce pad to reach upper ceiling room (2, 2)
+    // Zenith bounce pads to reach Sector (2,2)
     setBouncePad(tiles, bounceProps, 7, 9, { vy: -1200 });
     setBouncePad(tiles, bounceProps, 7, 10, { vy: -1200 });
 
+    // Upper approach ledges to reach zenith pads
+    fillBox(tiles, 7, 7, 7, 8, TileType.ONE_WAY);
+    fillBox(tiles, 7, 11, 7, 12, TileType.ONE_WAY);
+
     const spikeProps: Record<string, SpikeConfig> = {};
-    // Spikes on solid platform ledge
+    // Platform spikes on solid anchors
     setSpike(tiles, spikeProps, 14, 2, 'up');
     setSpike(tiles, spikeProps, 14, 17, 'up');
 
-    // Spikes on roof (hanging from top wall outside of chute)
+    // Roof spikes flanking the exit chute
     fillSpikes(tiles, spikeProps, 1, 2, 1, 5, 'down');
     fillSpikes(tiles, spikeProps, 1, 14, 1, 17, 'down');
 
-    // Wall spikes projecting from outer walls
+    // Wall spikes
     setSpike(tiles, spikeProps, 5, 1, 'right');
     setSpike(tiles, spikeProps, 5, 18, 'left');
 
@@ -772,7 +769,7 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_2_1',
       coords: { x: 2, y: 1 },
       title: 'Sector (2,1): The Spire',
-      subtitle: 'Ride the vertical elevator through mid-shaft laser beams and barrier sweeps',
+      subtitle: 'Ascend the spire — time the elevator past laser beams and barriers to reach the Zenith!',
       themeColor: '#39ff14', // Neon Green
       accentColor: '#00aa33',
       tiles,
@@ -782,12 +779,12 @@ export function buildDemoLevel(): LevelMap {
         {
           id: 'plat_2_1_1',
           startX: 360,
-          startY: 440,
+          startY: 480,
           endX: 360,
-          endY: 320,
+          endY: 280,
           width: 80,
           height: 16,
-          speed: 80,
+          speed: 90,
           pauseTime: 0.5,
           themeColor: '#39ff14',
         },
@@ -795,12 +792,12 @@ export function buildDemoLevel(): LevelMap {
       laserBarriers: [
         {
           id: 'barrier_2_1_1',
-          startX1: 300,
-          startY1: 260,
-          startX2: 500,
-          startY2: 260,
+          startX1: 280,
+          startY1: 220,
+          startX2: 520,
+          startY2: 220,
           activeDuration: 1.8,
-          inactiveDuration: 2.2,
+          inactiveDuration: 2.5,
           warningDuration: 0.7,
           themeColor: '#ff0055',
         },
@@ -813,16 +810,16 @@ export function buildDemoLevel(): LevelMap {
           direction: 'right',
           mode: 'beam',
           activeDuration: 2.0,
-          inactiveDuration: 2.2,
+          inactiveDuration: 2.5,
           warningDuration: 0.6,
           initialPhase: 0.7,
           themeColor: '#39ff14',
         },
       ],
       collectibles: [
-        { id: 'core_2_1_1', x: 180, y: 460, type: 'core' },
-        { id: 'core_2_1_2', x: 600, y: 460, type: 'core' },
-        { id: 'core_2_1_3', x: 390, y: 200, type: 'prism' },
+        { id: 'core_2_1_1', x: 160, y: 540, type: 'core' },
+        { id: 'core_2_1_2', x: 640, y: 540, type: 'core' },
+        { id: 'core_2_1_3', x: 400, y: 200, type: 'prism' },
       ],
       exits,
       spawnPoint: { x: 120, y: 680 },
