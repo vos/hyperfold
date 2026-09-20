@@ -176,27 +176,36 @@ export function buildDemoLevel(): LevelMap {
     const exits = { left: true, right: true, up: false, down: false };
     addEnclosure(tiles, exits);
 
-    // Floor with small gap
-    fillBox(tiles, 18, 0, 18, 6, TileType.SOLID);
-    fillBox(tiles, 18, 13, 18, 19, TileType.SOLID);
+    // Full solid floor — safe ground traversal
+    fillBox(tiles, 18, 0, 18, 19, TileType.SOLID);
 
-    // One-way jump-through platforms across gap
-    fillBox(tiles, 16, 7, 16, 12, TileType.ONE_WAY);
-    fillBox(tiles, 13, 4, 13, 8, TileType.ONE_WAY);
-    fillBox(tiles, 11, 10, 11, 15, TileType.ONE_WAY);
+    // Left ascending platforms
+    fillBox(tiles, 15, 2, 15, 5, TileType.ONE_WAY);    // y=600, first step
+    fillBox(tiles, 12, 3, 12, 6, TileType.ONE_WAY);    // y=480, mid-left
+
+    // Right ascending platforms (mirror)
+    fillBox(tiles, 15, 14, 15, 17, TileType.ONE_WAY);   // y=600, first step
+    fillBox(tiles, 12, 13, 12, 16, TileType.ONE_WAY);   // y=480, mid-right
+
+    // Central elevated treasure platform
+    fillBox(tiles, 9, 8, 9, 11, TileType.ONE_WAY);      // y=360, holds prism
 
     const spikeProps: Record<string, SpikeConfig> = {};
-    // Roof spikes (hanging from ceiling row 0 over the spike gap)
-    fillSpikes(tiles, spikeProps, 1, 8, 1, 11, 'down');
+    // Roof spikes flanking centre (decorative danger ceiling)
+    fillSpikes(tiles, spikeProps, 1, 5, 1, 8, 'down');
+    fillSpikes(tiles, spikeProps, 1, 11, 1, 14, 'down');
 
-    // Spikes in bottom pit
-    fillSpikes(tiles, spikeProps, 19, 7, 19, 12, 'up');
+    // Wall spikes on left and right walls at mid height
+    setSpike(tiles, spikeProps, 10, 1, 'right');
+    setSpike(tiles, spikeProps, 11, 1, 'right');
+    setSpike(tiles, spikeProps, 10, 18, 'left');
+    setSpike(tiles, spikeProps, 11, 18, 'left');
 
     const room: ScreenData = {
       id: 'room_1_0',
       coords: { x: 1, y: 0 },
       title: 'Sector 1: Neon Nexus',
-      subtitle: 'Ride the maglev hover sled across the chasm — use it to shield against overhead laser beams!',
+      subtitle: 'Time your crossing through alternating ceiling beams — the hover sled blocks them!',
       themeColor: '#ff00aa', // Magenta
       accentColor: '#ff0055',
       tiles,
@@ -204,13 +213,13 @@ export function buildDemoLevel(): LevelMap {
       movingPlatforms: [
         {
           id: 'plat_1_0_1',
-          startX: 240,
-          startY: 590,
-          endX: 480,
-          endY: 590,
+          startX: 180,
+          startY: 520,
+          endX: 560,
+          endY: 520,
           width: 80,
           height: 16,
-          speed: 120,
+          speed: 110,
           pauseTime: 0.5,
           themeColor: '#00ffff',
         },
@@ -218,19 +227,32 @@ export function buildDemoLevel(): LevelMap {
       laserTurrets: [
         {
           id: 'turret_1_0_1',
-          x: 360,
+          x: 260,
           y: 40,
           direction: 'down',
           mode: 'beam',
           activeDuration: 2.0,
-          inactiveDuration: 2.0,
+          inactiveDuration: 2.4,
           warningDuration: 0.6,
+          initialPhase: 0,
           themeColor: '#ff00aa',
+        },
+        {
+          id: 'turret_1_0_2',
+          x: 540,
+          y: 40,
+          direction: 'down',
+          mode: 'beam',
+          activeDuration: 2.0,
+          inactiveDuration: 2.4,
+          warningDuration: 0.6,
+          initialPhase: 0.5,
+          themeColor: '#ff0055',
         },
       ],
       collectibles: [
-        { id: 'core_1_0_1', x: 240, y: 380, type: 'core' },
-        { id: 'core_1_0_2', x: 480, y: 300, type: 'prism' },
+        { id: 'core_1_0_1', x: 200, y: 420, type: 'core' },
+        { id: 'core_1_0_2', x: 400, y: 280, type: 'prism' },
       ],
       exits,
       spawnPoint: { x: 120, y: 680 },
