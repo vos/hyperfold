@@ -8,6 +8,12 @@ import { VoidBackground } from './VoidBackground';
 
 export type RotationDirection = 'right' | 'left' | 'up' | 'down';
 
+export interface FaceBinding {
+  type: 'room' | 'void';
+  room?: ScreenData;
+  voidLabel?: string;
+}
+
 export class CubeRenderer {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
@@ -29,12 +35,38 @@ export class CubeRenderer {
   private faceTextures: THREE.CanvasTexture[] = [];
   private faceMaterials: THREE.MeshStandardMaterial[] = [];
 
-  // Dedicated offscreen renderer for room drawing
-  private offscreenFaceRenderer: FaceRenderer;
+  // Renderer for room drawing
+  public faceRenderer: FaceRenderer;
 
-  // Pre-rendered offscreen canvas caches for instantaneous side loading (<0.05ms blits)
-  private roomCanvasCache: Map<string, HTMLCanvasElement> = new Map();
-  private voidCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+  // Real-time face bindings (Faces 0 to 5)
+  private faceBindings: (FaceBinding | null)[] = [
+    null, // 0: +X
+    null, // 1: -X
+    null, // 2: +Y
+    null, // 3: -Y
+    null, // 4: +Z
+    { type: 'void', voidLabel: 'Rear Processing Core' }, // 5: -Z
+  ];
+  private activeLevelMap: LevelMap | null = null;
+
+  // 6 Face Normals (BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z)
+  private static readonly FACE_NORMALS: THREE.Vector3[] = [
+    new THREE.Vector3( 1,  0,  0), // 0: +X (Right)
+    new THREE.Vector3(-1,  0,  0), // 1: -X (Left)
+    new THREE.Vector3( 0,  1,  0), // 2: +Y (Top)
+    new THREE.Vector3( 0, -1,  0), // 3: -Y (Bottom)
+    new THREE.Vector3( 0,  0,  1), // 4: +Z (Front)
+    new THREE.Vector3( 0,  0, -1), // 5: -Z (Back)
+  ];
+
+  // Scratch vectors for zero-allocation visibility culling
+  private readonly tempFaceNormal = new THREE.Vector3();
+  private readonly tempFaceCenter = new THREE.Vector3();
+  private readonly tempViewDir = new THREE.Vector3();
+
+  // 30 FPS Side Faces Animation Clock
+  private sideFacesAccumulator: number = 0;
+  private readonly SIDE_FACES_INTERVAL: number = 1 / 30; // ~0.0333s (30 FPS)
 
   // Rotation Animation State
   public isRotating: boolean = false;
@@ -119,7 +151,7 @@ export class CubeRenderer {
     this.playerLight = new THREE.PointLight(0x00ffff, 1.4, 20, 1.2);
     this.playerLight.position.set(0, 0, 8.6);
 
-    this.offscreenFaceRenderer = new FaceRenderer();
+    this.faceRenderer = new FaceRenderer();
 
     // Create textures for all 6 cube faces
     for (let i = 0; i < 6; i++) {
@@ -168,63 +200,13 @@ export class CubeRenderer {
   }
 
   /**
-   * Pre-renders all 10 demo rooms and void faces into offscreen canvases at startup.
-   * This guarantees 0ms instantaneous texture updates with ZERO loading delay.
+   * Renders a cybernetic synthwave diagnostic terminal with real-time animations.
    */
-  public prewarmRoomCache(levelMap: LevelMap): void {
-    const rooms = levelMap.getAllRooms();
-    for (const room of rooms) {
-      this.getOrCreateRoomCanvas(room, levelMap);
-    }
-
-    // Pre-cache standard void faces
-    const voidLabels = [
-      '+X Sector Void Barrier',
-      '-X Sector Void Barrier',
-      '+Y Zenith Void Boundary',
-      '-Y Abyss Gravitational Void',
-      'Rear Processing Core',
-    ];
-    for (const label of voidLabels) {
-      this.getOrCreateVoidCanvas(label);
-    }
-  }
-
-  public invalidateRoomCache(roomId: string): void {
-    this.roomCanvasCache.delete(roomId);
-  }
-
-  private getOrCreateRoomCanvas(room: ScreenData, levelMap: LevelMap): HTMLCanvasElement {
-    let cached = this.roomCanvasCache.get(room.id);
-    if (!cached) {
-      const rendered = this.offscreenFaceRenderer.renderRoom(room, levelMap);
-      cached = document.createElement('canvas');
-      cached.width = FACE_SIZE;
-      cached.height = FACE_SIZE;
-      const ctx = cached.getContext('2d')!;
-      ctx.drawImage(rendered, 0, 0);
-      this.roomCanvasCache.set(room.id, cached);
-    }
-    return cached;
-  }
-
-  private getOrCreateVoidCanvas(text: string): HTMLCanvasElement {
-    let cached = this.voidCanvasCache.get(text);
-    if (!cached) {
-      cached = document.createElement('canvas');
-      cached.width = FACE_SIZE;
-      cached.height = FACE_SIZE;
-      const ctx = cached.getContext('2d')!;
-      this.renderVoidGraphics(ctx, text);
-      this.voidCanvasCache.set(text, cached);
-    }
-    return cached;
-  }
-
-  private renderVoidGraphics(ctx: CanvasRenderingContext2D, text: string): void {
+  private renderVoidGraphics(ctx: CanvasRenderingContext2D, text: string, time: number = 0): void {
     ctx.fillStyle = '#060a14';
     ctx.fillRect(0, 0, FACE_SIZE, FACE_SIZE);
 
+    // 1. Cyber background grid
     ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i <= FACE_SIZE; i += 50) {
@@ -239,7 +221,20 @@ export class CubeRenderer {
       ctx.stroke();
     }
 
-    ctx.strokeStyle = 'rgba(255, 0, 170, 0.35)';
+    // 2. Animated scanning laser beam
+    const scanY = ((time * 110) % (FACE_SIZE + 100)) - 50;
+    if (scanY >= 0 && scanY <= FACE_SIZE) {
+      const grad = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
+      grad.addColorStop(0, 'rgba(0, 255, 255, 0)');
+      grad.addColorStop(0.5, 'rgba(0, 255, 255, 0.12)');
+      grad.addColorStop(1, 'rgba(0, 255, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, scanY - 18, FACE_SIZE, 36);
+    }
+
+    // 3. Cybernetic circuit telemetry lines with breathing luminescence
+    const pulse = 0.5 + 0.5 * Math.sin(time * 3.5);
+    ctx.strokeStyle = `rgba(255, 0, 170, ${0.28 + pulse * 0.22})`;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(40, 200);
@@ -259,50 +254,60 @@ export class CubeRenderer {
     ctx.lineTo(760, 600);
     ctx.stroke();
 
+    // 4. Pulsing circuit nodes
     ctx.fillStyle = '#00ffff';
     for (const [nx, ny] of [
       [180, 200], [240, 280], [600, 280], [680, 200],
       [200, 600], [260, 520], [540, 520], [600, 600]
     ]) {
       ctx.beginPath();
-      ctx.arc(nx, ny, 4, 0, Math.PI * 2);
+      const nodePulse = 3.5 + Math.sin(time * 5 + nx * 0.1) * 1.5;
+      ctx.arc(nx, ny, nodePulse, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+    // 5. Border frame
+    ctx.strokeStyle = `rgba(0, 255, 255, ${0.35 + pulse * 0.2})`;
     ctx.lineWidth = 4;
     ctx.strokeRect(16, 16, FACE_SIZE - 32, FACE_SIZE - 32);
 
-    ctx.fillStyle = 'rgba(8, 14, 28, 0.88)';
-    ctx.fillRect(100, 320, 600, 160);
+    // 6. Central console display
+    ctx.fillStyle = 'rgba(8, 14, 28, 0.9)';
+    ctx.fillRect(100, 310, 600, 180);
     ctx.strokeStyle = '#00ffff';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(100, 320, 600, 160);
+    ctx.strokeRect(100, 310, 600, 180);
 
     ctx.font = 'bold 20px "Courier New", monospace';
     ctx.fillStyle = '#ff00aa';
     ctx.textAlign = 'center';
-    ctx.fillText(`[${text.toUpperCase()}]`, FACE_SIZE * 0.5, 365);
+    ctx.fillText(`[${text.toUpperCase()}]`, FACE_SIZE * 0.5, 355);
 
     if (text === 'Rear Processing Core') {
+      const freq = (8.4 + Math.sin(time * 1.8) * 0.15).toFixed(2);
+      const flux = Math.floor(95 + Math.sin(time * 2.7) * 4);
+      const cyc = Math.floor((time * 120) % 9999).toString().padStart(4, '0');
       ctx.font = '14px "Courier New", monospace';
       ctx.fillStyle = '#88c8ff';
-      ctx.fillText('STATUS: QUANTUM HYPER-CORE ONLINE', FACE_SIZE * 0.5, 400);
-      ctx.fillText('MANIFOLD PROCESSOR: 4D NON-EUCLIDEAN KERNEL', FACE_SIZE * 0.5, 425);
-      ctx.fillText('CORE FREQUENCY: 8.4 THz | FLUX: NOMINAL', FACE_SIZE * 0.5, 450);
+      ctx.fillText('STATUS: QUANTUM HYPER-CORE ONLINE', FACE_SIZE * 0.5, 390);
+      ctx.fillText('MANIFOLD PROCESSOR: 4D NON-EUCLIDEAN KERNEL', FACE_SIZE * 0.5, 415);
+      ctx.fillText(`CORE FREQUENCY: ${freq} THz | FLUX: ${flux}% | CYC: #${cyc}`, FACE_SIZE * 0.5, 440);
+      ctx.fillStyle = '#ffe600';
+      ctx.fillText('ACTIVE MANIFOLD BUS: SYNCHRONIZED', FACE_SIZE * 0.5, 465);
     } else {
       ctx.font = '14px "Courier New", monospace';
       ctx.fillStyle = '#88c8ff';
-      ctx.fillText('STATUS: UNMAPPED DIMENSIONAL SECTOR', FACE_SIZE * 0.5, 400);
-      ctx.fillText('MANIFOLD TOPOLOGY: NON-EUCLIDEAN 4D MATRIX', FACE_SIZE * 0.5, 425);
-      ctx.fillText('WARP METRIC: ACTIVE TESSERACT', FACE_SIZE * 0.5, 450);
+      ctx.fillText('STATUS: UNMAPPED DIMENSIONAL SECTOR', FACE_SIZE * 0.5, 395);
+      ctx.fillText('MANIFOLD TOPOLOGY: NON-EUCLIDEAN 4D MATRIX', FACE_SIZE * 0.5, 420);
+      ctx.fillText('WARP METRIC: ACTIVE TESSERACT', FACE_SIZE * 0.5, 445);
     }
 
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth = 2;
+    // 7. Dynamic Traveling Waveform
+    ctx.strokeStyle = text === 'Rear Processing Core' ? '#ff00aa' : '#00ffff';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    for (let x = 120; x <= 680; x += 10) {
-      const waveY = 500 + Math.sin(x * 0.05) * 12 + Math.cos(x * 0.02) * 8;
+    for (let x = 120; x <= 680; x += 8) {
+      const waveY = 530 + Math.sin(x * 0.045 + time * 6) * 14 + Math.cos(x * 0.02 - time * 3.5) * 8;
       if (x === 120) ctx.moveTo(x, waveY);
       else ctx.lineTo(x, waveY);
     }
@@ -404,7 +409,7 @@ export class CubeRenderer {
   }
 
   /**
-   * Predictively prepares and binds all adjacent rooms of nextRoom using cached canvases
+   * Predictively prepares and binds all adjacent rooms of nextRoom in real-time
    * BEFORE the tumble animation begins, ensuring 0ms latency and zero visual pop-in.
    */
   public prepareTransition(
@@ -412,6 +417,8 @@ export class CubeRenderer {
     nextRoom: ScreenData,
     levelMap: LevelMap
   ): void {
+    this.activeLevelMap = levelMap;
+
     let targetFaceIndex = 0;
     if (direction === 'right') targetFaceIndex = 0;
     if (direction === 'left') targetFaceIndex = 1;
@@ -419,33 +426,33 @@ export class CubeRenderer {
     if (direction === 'down') targetFaceIndex = 3;
 
     // 1. Immediately bind nextRoom onto target face
-    this.updateFaceCanvas(targetFaceIndex, nextRoom, levelMap);
+    this.bindFaceRoom(targetFaceIndex, nextRoom, levelMap);
 
     // 2. Predictively bind visible adjacent faces for nextRoom based on rotation axis
     if (direction === 'right' || direction === 'left') {
       // Top face (+Y: 2) and Bottom face (-Y: 3) stay in view while rotating horizontally
       const topRoom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y + 1);
-      if (topRoom) this.updateFaceCanvas(2, topRoom, levelMap);
-      else this.drawVoidFace(2, '+Y Zenith Void Boundary');
+      if (topRoom) this.bindFaceRoom(2, topRoom, levelMap);
+      else this.bindFaceVoid(2, '+Y Zenith Void Boundary');
 
       const bottomRoom = levelMap.getRoom(nextRoom.coords.x, nextRoom.coords.y - 1);
-      if (bottomRoom) this.updateFaceCanvas(3, bottomRoom, levelMap);
-      else this.drawVoidFace(3, '-Y Abyss Gravitational Void');
+      if (bottomRoom) this.bindFaceRoom(3, bottomRoom, levelMap);
+      else this.bindFaceVoid(3, '-Y Abyss Gravitational Void');
 
       // The rear face (-Z: 5) ALWAYS remains the Rear Processing Core
-      this.drawVoidFace(5, 'Rear Processing Core');
+      this.bindFaceVoid(5, 'Rear Processing Core');
     } else if (direction === 'up' || direction === 'down') {
       // Right face (+X: 0) and Left face (-X: 1) stay in view while rotating vertically
       const rightRoom = levelMap.getRoom(nextRoom.coords.x + 1, nextRoom.coords.y);
-      if (rightRoom) this.updateFaceCanvas(0, rightRoom, levelMap);
-      else this.drawVoidFace(0, '+X Sector Void Barrier');
+      if (rightRoom) this.bindFaceRoom(0, rightRoom, levelMap);
+      else this.bindFaceVoid(0, '+X Sector Void Barrier');
 
       const leftRoom = levelMap.getRoom(nextRoom.coords.x - 1, nextRoom.coords.y);
-      if (leftRoom) this.updateFaceCanvas(1, leftRoom, levelMap);
-      else this.drawVoidFace(1, '-X Sector Void Barrier');
+      if (leftRoom) this.bindFaceRoom(1, leftRoom, levelMap);
+      else this.bindFaceVoid(1, '-X Sector Void Barrier');
 
       // The rear face (-Z: 5) ALWAYS remains the Rear Processing Core
-      this.drawVoidFace(5, 'Rear Processing Core');
+      this.bindFaceVoid(5, 'Rear Processing Core');
     }
   }
 
@@ -552,84 +559,149 @@ export class CubeRenderer {
     this.playerLight.color.set(colorHex);
   }
 
+  /**
+   * Directly binds a room to a specific face and immediately renders it.
+   */
+  public bindFaceRoom(faceIndex: number, room: ScreenData, levelMap: LevelMap): void {
+    this.faceBindings[faceIndex] = { type: 'room', room };
+    this.activeLevelMap = levelMap;
+    const destCtx = this.faceContexts[faceIndex];
+    this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, undefined, undefined, this.time);
+    this.faceTextures[faceIndex].needsUpdate = true;
+  }
+
+  /**
+   * Directly binds a void/diagnostic terminal to a specific face and immediately renders it.
+   */
+  public bindFaceVoid(faceIndex: number, text: string): void {
+    this.faceBindings[faceIndex] = { type: 'void', voidLabel: text };
+    this.drawVoidFace(faceIndex, text);
+  }
+
+  /**
+   * Renders a cybernetic synthwave diagnostic terminal onto the specified face canvas.
+   */
+  public drawVoidFace(faceIndex: number, text: string): void {
+    const destCtx = this.faceContexts[faceIndex];
+    this.renderVoidGraphics(destCtx, text, this.time);
+    this.faceTextures[faceIndex].needsUpdate = true;
+  }
+
+  /**
+   * Updates an active face (such as Face 4) with live player and particle systems.
+   */
   public updateFaceCanvas(
     faceIndex: number,
     room: ScreenData,
     levelMap: LevelMap,
     player?: Player,
     particles?: ParticleSystem,
-    dt: number = 0.016
+    _dt: number = 0.016
   ): void {
+    this.faceBindings[faceIndex] = { type: 'room', room };
+    this.activeLevelMap = levelMap;
     const destCtx = this.faceContexts[faceIndex];
-
-    if (player || particles) {
-      // Active front face with dynamic player & particle animations
-      const renderedCanvas = this.offscreenFaceRenderer.renderRoom(room, levelMap, player, particles, dt);
-      destCtx.clearRect(0, 0, FACE_SIZE, FACE_SIZE);
-      destCtx.drawImage(renderedCanvas, 0, 0);
-    } else {
-      // Instantaneous blit (<0.05ms) from pre-rendered room cache
-      const cached = this.getOrCreateRoomCanvas(room, levelMap);
-      destCtx.clearRect(0, 0, FACE_SIZE, FACE_SIZE);
-      destCtx.drawImage(cached, 0, 0);
-    }
-
+    this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, player, particles, this.time);
     this.faceTextures[faceIndex].needsUpdate = true;
   }
 
   /**
    * Pre-binds current room to Front (+Z = index 4) and neighbors to their respective faces
-   * using instant pre-rendered offscreen caches.
+   * using real-time direct context rendering.
    */
   public bindCurrentAndNeighborRooms(currentRoom: ScreenData, levelMap: LevelMap): void {
+    this.activeLevelMap = levelMap;
+
     // 4: Front face = Current room
-    this.updateFaceCanvas(4, currentRoom, levelMap);
+    this.bindFaceRoom(4, currentRoom, levelMap);
 
     // 0: Right face (+X) = (X+1, Y)
     const rightRoom = levelMap.getRoom(currentRoom.coords.x + 1, currentRoom.coords.y);
     if (rightRoom) {
-      this.updateFaceCanvas(0, rightRoom, levelMap);
+      this.bindFaceRoom(0, rightRoom, levelMap);
     } else {
-      this.drawVoidFace(0, '+X Sector Void Barrier');
+      this.bindFaceVoid(0, '+X Sector Void Barrier');
     }
 
     // 1: Left face (-X) = (X-1, Y)
     const leftRoom = levelMap.getRoom(currentRoom.coords.x - 1, currentRoom.coords.y);
     if (leftRoom) {
-      this.updateFaceCanvas(1, leftRoom, levelMap);
+      this.bindFaceRoom(1, leftRoom, levelMap);
     } else {
-      this.drawVoidFace(1, '-X Sector Void Barrier');
+      this.bindFaceVoid(1, '-X Sector Void Barrier');
     }
 
     // 2: Top face (+Y) = (X, Y+1)
     const topRoom = levelMap.getRoom(currentRoom.coords.x, currentRoom.coords.y + 1);
     if (topRoom) {
-      this.updateFaceCanvas(2, topRoom, levelMap);
+      this.bindFaceRoom(2, topRoom, levelMap);
     } else {
-      this.drawVoidFace(2, '+Y Zenith Void Boundary');
+      this.bindFaceVoid(2, '+Y Zenith Void Boundary');
     }
 
     // 3: Bottom face (-Y) = (X, Y-1)
     const bottomRoom = levelMap.getRoom(currentRoom.coords.x, currentRoom.coords.y - 1);
     if (bottomRoom) {
-      this.updateFaceCanvas(3, bottomRoom, levelMap);
+      this.bindFaceRoom(3, bottomRoom, levelMap);
     } else {
-      this.drawVoidFace(3, '-Y Abyss Gravitational Void');
+      this.bindFaceVoid(3, '-Y Abyss Gravitational Void');
     }
 
     // 5: Rear face (-Z) = ALWAYS Rear Processing Core
-    this.drawVoidFace(5, 'Rear Processing Core');
+    this.bindFaceVoid(5, 'Rear Processing Core');
   }
 
   /**
-   * Renders a cybernetic synthwave diagnostic terminal using pre-cached canvases.
+   * Determines if a cube face is front-facing (visible) to the camera using back-face culling math.
+   * On a 3D convex cube, at most 3 total faces can ever be visible at once (at most 2 non-front side faces).
    */
-  private drawVoidFace(faceIndex: number, text: string): void {
-    const destCtx = this.faceContexts[faceIndex];
-    const cached = this.getOrCreateVoidCanvas(text);
-    destCtx.clearRect(0, 0, FACE_SIZE, FACE_SIZE);
-    destCtx.drawImage(cached, 0, 0);
-    this.faceTextures[faceIndex].needsUpdate = true;
+  public isFaceVisible(faceIndex: number): boolean {
+    const localNormal = CubeRenderer.FACE_NORMALS[faceIndex];
+    // Transform normal by cube's current world rotation, supporting 3D tumble animations
+    this.tempFaceNormal.copy(localNormal).applyQuaternion(this.cubeMesh.quaternion);
+
+    // World position of face center: cubeMesh.position + normal * (CUBE_SIZE * 0.5)
+    this.tempFaceCenter.copy(this.cubeMesh.position)
+      .addScaledVector(this.tempFaceNormal, this.CUBE_SIZE * 0.5);
+
+    // Vector from face center to camera position
+    this.tempViewDir.subVectors(this.camera.position, this.tempFaceCenter);
+
+    // Positive dot product means face normal points toward the camera (front-facing)
+    return this.tempFaceNormal.dot(this.tempViewDir) > 0.001;
+  }
+
+  /**
+   * Real-time 30 FPS animation update for visible side faces only.
+   * Culls back-facing faces: at most 2 side faces are visible at once to the user.
+   */
+  public updateSideFaces(): void {
+    if (!this.activeLevelMap) return;
+
+    // Side and rear faces: 0 (+X), 1 (-X), 2 (+Y), 3 (-Y), 5 (-Z)
+    const sideIndices = [0, 1, 2, 3, 5];
+    for (const idx of sideIndices) {
+      const binding = this.faceBindings[idx];
+      if (!binding) continue;
+
+      // Visibility culling: Skip faces that are facing away from the camera
+      if (!this.isFaceVisible(idx)) continue;
+
+      if (binding.type === 'room' && binding.room) {
+        const destCtx = this.faceContexts[idx];
+        this.faceRenderer.renderRoomToContext(
+          destCtx,
+          binding.room,
+          this.activeLevelMap,
+          undefined,
+          undefined,
+          this.time
+        );
+        this.faceTextures[idx].needsUpdate = true;
+      } else if (binding.type === 'void' && binding.voidLabel) {
+        this.drawVoidFace(idx, binding.voidLabel);
+      }
+    }
   }
 
   /**
@@ -677,6 +749,16 @@ export class CubeRenderer {
     } else {
       this.cyanCornerLight.intensity = 0.2;
       this.magentaCornerLight.intensity = 0.2;
+    }
+
+    // Real-time 30 FPS Side-Face Animation:
+    // Throttled at 30 FPS to conserve GPU bandwidth while keeping side rooms alive
+    if (this.is3DMode || this.isRotating) {
+      this.sideFacesAccumulator += dt;
+      if (this.sideFacesAccumulator >= this.SIDE_FACES_INTERVAL) {
+        this.sideFacesAccumulator %= this.SIDE_FACES_INTERVAL;
+        this.updateSideFaces();
+      }
     }
 
     // Smooth camera glide & 3D orbit

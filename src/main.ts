@@ -62,10 +62,7 @@ class Game {
     this.physics = new PhysicsEngine(this.audio, this.particles);
     this.cubeRenderer = new CubeRenderer(container);
 
-    // Pre-warm offscreen room cache for instant side-face loading
-    this.cubeRenderer.prewarmRoomCache(this.levelMap);
-
-    // Initial binding of active and adjacent rooms
+    // Initial binding of active and adjacent rooms (rendered directly in real-time)
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
     this.updateHUD();
     this.setupUIEvents();
@@ -190,7 +187,6 @@ class Game {
         this.levelMap.collectItem(item.id);
         this.audio.playCollect();
         this.particles.emitSparks(item.x, item.y, 18, item.type === 'prism' ? '#ff00aa' : '#ffe600');
-        this.cubeRenderer.invalidateRoomCache(this.currentRoom.id);
         this.updateHUD();
       }
     }

@@ -25,7 +25,21 @@ export class FaceRenderer {
     dt: number = 0.016
   ): HTMLCanvasElement {
     this.time += dt;
-    const ctx = this.ctx;
+    this.renderRoomToContext(this.ctx, room, levelMap, player, particles, this.time);
+    return this.canvas;
+  }
+
+  public renderRoomToContext(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    levelMap: LevelMap,
+    player?: Player,
+    particles?: ParticleSystem,
+    animTime?: number
+  ): void {
+    if (animTime !== undefined) {
+      this.time = animTime;
+    }
 
     // 1. Dark Cybernetic Background
     ctx.fillStyle = '#080c14';
@@ -112,8 +126,6 @@ export class FaceRenderer {
     ctx.shadowBlur = 12;
     ctx.strokeRect(1.5, 1.5, FACE_SIZE - 3, FACE_SIZE - 3);
     ctx.shadowBlur = 0;
-
-    return this.canvas;
   }
 
   private drawSolidTile(ctx: CanvasRenderingContext2D, x: number, y: number, primary: string, _accent: string): void {

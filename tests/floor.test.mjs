@@ -280,4 +280,72 @@ test('Screen Floor & Topology Verification', async (t) => {
     assert.ok(apexReached, 'Should have reached apex');
     assert.ok(landed, 'Should have landed on center platform');
   });
+
+  await t.test('3D Cube Face Visibility Culling: at most 2 side faces are visible at any camera orientation', () => {
+    const CUBE_SIZE = 16;
+    const normals = [
+      [ 1,  0,  0], // 0: +X (Right)
+      [-1,  0,  0], // 1: -X (Left)
+      [ 0,  1,  0], // 2: +Y (Top)
+      [ 0, -1,  0], // 3: -Y (Bottom)
+      [ 0,  0,  1], // 4: +Z (Front)
+      [ 0,  0, -1], // 5: -Z (Back)
+    ];
+
+    function isFaceVisible(faceIdx, camPos) {
+      const n = normals[faceIdx];
+      const center = [n[0] * (CUBE_SIZE * 0.5), n[1] * (CUBE_SIZE * 0.5), n[2] * (CUBE_SIZE * 0.5)];
+      const view = [camPos[0] - center[0], camPos[1] - center[1], camPos[2] - center[2]];
+      const dot = n[0] * view[0] + n[1] * view[1] + n[2] * view[2];
+      return dot > 0.001;
+    }
+
+    // 1. Flat Face mode: camera at (0, 0, 36) looking at (0, 0, 0)
+    const flatCam = [0, 0, 36];
+    assert.equal(isFaceVisible(4, flatCam), true, 'Front face must be visible in Flat Face mode');
+    const sideVisibleFlat = [0, 1, 2, 3, 5].filter((idx) => isFaceVisible(idx, flatCam));
+    assert.equal(sideVisibleFlat.length, 0, 'Zero side faces must be visible in Flat Face mode');
+
+    // 2. Default 3D mode: yaw = 0.285, pitch = 0.145, dist = 38
+    const yaw = 0.285;
+    const pitch = 0.145;
+    const dist = 38;
+    const defaultCam = [
+      Math.sin(yaw) * Math.cos(pitch) * dist,
+      Math.sin(pitch) * dist,
+      Math.cos(yaw) * Math.cos(pitch) * dist,
+    ];
+    assert.equal(isFaceVisible(4, defaultCam), true, 'Front face must be visible in default 3D mode');
+    const defaultSides = [0, 1, 2, 3, 5].filter((idx) => isFaceVisible(idx, defaultCam));
+    assert.ok(defaultSides.length <= 2, `Visible side faces (${defaultSides.length}) must be <= 2 in default 3D mode`);
+
+    // 3. Full 360-degree orbital sweep (yaw 0..360, pitch -80..80, distance 20..58)
+    for (let pDeg = -80; pDeg <= 80; pDeg += 15) {
+      const pRad = (pDeg * Math.PI) / 180;
+      for (let yDeg = 0; yDeg < 360; yDeg += 15) {
+        const yRad = (yDeg * Math.PI) / 180;
+        for (const d of [20, 38, 58]) {
+          const cam = [
+            Math.sin(yRad) * Math.cos(pRad) * d,
+            Math.sin(pRad) * d,
+            Math.cos(yRad) * Math.cos(pRad) * d,
+          ];
+
+          const totalVisible = [0, 1, 2, 3, 4, 5].filter((idx) => isFaceVisible(idx, cam));
+          assert.ok(
+            totalVisible.length <= 3,
+            `At camera (${cam.map((v) => v.toFixed(1))}), total visible faces (${totalVisible.length}) exceeds 3!`
+          );
+
+          if (isFaceVisible(4, cam)) {
+            const sideCount = [0, 1, 2, 3, 5].filter((idx) => isFaceVisible(idx, cam)).length;
+            assert.ok(
+              sideCount <= 2,
+              `When front face is visible, side face count (${sideCount}) must be <= 2!`
+            );
+          }
+        }
+      }
+    }
+  });
 });
