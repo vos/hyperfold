@@ -205,37 +205,45 @@ test('Screen Floor & Topology Verification', async (t) => {
     }
   });
 
-  await t.test('Camera viewport framing keeps the floor (row 18) and bottom border fully visible', () => {
-    // 3D cube math: 16 units tall, front face at Z = 8.
-    // Row 18 (floor) is from Y = -6.4 to -7.2, bottom border is at Y = -8.
-    // With FOV = 40, tan(20 deg) = 0.36397
-    const tanHalfFov = Math.tan((20 * Math.PI) / 180);
+  await t.test('Camera viewport framing keeps the floor (row 18) and bottom border fully visible', async () => {
+    const THREE = await import('three');
+    const camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 1000);
 
     for (const is3D of [true, false]) {
-      const camY = is3D ? 1.2 : 0;
-      const camZ = is3D ? 38 : 36;
-      const distToFront = camZ - 8; // 30 in 3D, 28 in flat
+      if (is3D) {
+        camera.position.set(11.5, 5.8, 38);
+        camera.lookAt(-1.5, -0.7, 0);
+      } else {
+        camera.position.set(0, 0, 36);
+        camera.lookAt(0, 0, 0);
+      }
+      camera.updateMatrixWorld();
+      camera.updateProjectionMatrix();
 
-      const visibleHalfHeight = distToFront * tanHalfFov;
-      const topVisible = camY + visibleHalfHeight;
-      const bottomVisible = camY - visibleHalfHeight;
+      // Floor row 18 midpoint at Y = -6.8 (front face Z = 8)
+      const floorLeft = new THREE.Vector3(-8, -6.8, 8).project(camera);
+      const floorRight = new THREE.Vector3(8, -6.8, 8).project(camera);
+      const bottom = new THREE.Vector3(is3D ? 8 : 0, -8, 8).project(camera);
+      const top = new THREE.Vector3(is3D ? -8 : 0, 8, 8).project(camera);
 
-      // Ensure top of cube (Y = +8) and bottom of cube (Y = -8) are fully inside visible frustum
+      // Ensure bottom and top of cube are fully inside visible frustum
       assert.ok(
-        bottomVisible < -8,
-        `Camera bottom (${bottomVisible.toFixed(2)}) must be below cube bottom (-8.0) so floor is visible`
+        bottom.y >= -0.85,
+        `Camera bottom (${bottom.y.toFixed(2)}) must be visible above viewport edge`
       );
       assert.ok(
-        topVisible > 8,
-        `Camera top (${topVisible.toFixed(2)}) must be above cube top (+8.0)`
+        top.y <= 0.85,
+        `Camera top (${top.y.toFixed(2)}) must be visible below viewport edge`
       );
 
-      // Verify row 18 (floor) normalized device coordinate is well within [-0.85, 0.85]
-      const floorY3D = -6.8; // midpoint of row 18
-      const floorNdcY = (floorY3D - camY) / visibleHalfHeight;
+      // Verify row 18 (floor) normalized device coordinate is well within [-0.80, 0.80]
       assert.ok(
-        floorNdcY > -0.85 && floorNdcY < 0.85,
-        `Floor NDC Y (${floorNdcY.toFixed(2)}) must be comfortably framed away from browser edges and HUD`
+        floorLeft.y > -0.80 && floorLeft.y < 0.80,
+        `Floor left NDC Y (${floorLeft.y.toFixed(2)}) must be comfortably framed away from browser edges and HUD`
+      );
+      assert.ok(
+        floorRight.y > -0.80 && floorRight.y < 0.80,
+        `Floor right NDC Y (${floorRight.y.toFixed(2)}) must be comfortably framed away from browser edges and HUD`
       );
     }
   });

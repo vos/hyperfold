@@ -91,6 +91,12 @@ class Game {
       this.gameState = 'PLAYING';
     });
 
+    window.addEventListener('pointermove', (e) => {
+      const normX = (e.clientX / window.innerWidth) * 2 - 1;
+      const normY = (e.clientY / window.innerHeight) * 2 - 1;
+      this.cubeRenderer.setMousePosition(normX, normY);
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') {
         const muted = this.audio.toggleMute();
@@ -146,7 +152,10 @@ class Game {
       dt
     );
 
-    // 6. Update 3D scene & render
+    // 6. Update dynamic 3D player point light
+    this.cubeRenderer.updatePlayerLight(this.player.x, this.player.y, this.currentRoom.themeColor);
+
+    // 7. Update 3D scene & render
     this.cubeRenderer.update(dt);
 
     requestAnimationFrame(this.gameLoop);
