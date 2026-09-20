@@ -62,6 +62,9 @@ class Game {
     this.physics = new PhysicsEngine(this.audio, this.particles);
     this.cubeRenderer = new CubeRenderer(container);
 
+    // Pre-warm offscreen room cache for instant side-face loading
+    this.cubeRenderer.prewarmRoomCache(this.levelMap);
+
     // Initial binding of active and adjacent rooms
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
     this.updateHUD();
@@ -91,10 +94,8 @@ class Game {
       this.gameState = 'PLAYING';
     });
 
-    window.addEventListener('pointermove', (e) => {
-      const normX = (e.clientX / window.innerWidth) * 2 - 1;
-      const normY = (e.clientY / window.innerHeight) * 2 - 1;
-      this.cubeRenderer.setMousePosition(normX, normY);
+    document.getElementById('btn-reset-cam')?.addEventListener('click', () => {
+      this.cubeRenderer.resetCameraToDefault();
     });
 
     window.addEventListener('keydown', (e) => {
@@ -104,6 +105,9 @@ class Game {
       }
       if (e.code === 'KeyC') {
         this.btnCameraEl.click();
+      }
+      if (e.code === 'KeyV') {
+        this.cubeRenderer.resetCameraToDefault();
       }
     });
   }
@@ -117,6 +121,16 @@ class Game {
 
     if (inputState.restartJustPressed) {
       this.respawnPlayer();
+    }
+
+    // Gamepad right stick & keyboard camera orbit control
+    if (this.camera3DMode) {
+      if (inputState.cameraOrbitX !== 0 || inputState.cameraOrbitY !== 0) {
+        this.cubeRenderer.addOrbit(-inputState.cameraOrbitX * dt * 2.8, inputState.cameraOrbitY * dt * 2.2);
+      }
+      if (inputState.cameraResetJustPressed) {
+        this.cubeRenderer.resetCameraToDefault();
+      }
     }
 
     if (this.gameState === 'PLAYING') {
@@ -176,6 +190,7 @@ class Game {
         this.levelMap.collectItem(item.id);
         this.audio.playCollect();
         this.particles.emitSparks(item.x, item.y, 18, item.type === 'prism' ? '#ff00aa' : '#ffe600');
+        this.cubeRenderer.invalidateRoomCache(this.currentRoom.id);
         this.updateHUD();
       }
     }
@@ -214,16 +229,8 @@ class Game {
     this.bannerEl.textContent = `3D CUBE TUMBLE: SECTOR [${this.currentCoords.x},${this.currentCoords.y}] ➔ [${targetX},${targetY}] (SIDE #${this.sidesTraversed})`;
     this.bannerEl.style.opacity = '1';
 
-    // Target face index on BoxGeometry:
-    // Right: 0, Left: 1, Top: 2, Bottom: 3
-    let targetFaceIndex = 0;
-    if (direction === 'right') targetFaceIndex = 0;
-    if (direction === 'left') targetFaceIndex = 1;
-    if (direction === 'up') targetFaceIndex = 2;
-    if (direction === 'down') targetFaceIndex = 3;
-
-    // Render destination room on the adjacent face so it turns smoothly into view
-    this.cubeRenderer.updateFaceCanvas(targetFaceIndex, nextRoom, this.levelMap);
+    // Prepare and predictively bind nextRoom and all visible adjacent faces from pre-warmed cache
+    this.cubeRenderer.prepareTransition(direction, nextRoom, this.levelMap);
 
     // Place player at destination seam
     this.player.setPosition(entryX, entryY);
