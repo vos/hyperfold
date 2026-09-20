@@ -1,6 +1,8 @@
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType } from '../world/ScreenData';
+import { LaserBarrier } from '../entities/LaserBarrier';
+import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
+import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection } from '../world/ScreenData';
 import { AudioManager } from './AudioManager';
 import { ParticleSystem } from './ParticleSystem';
 import { InputState } from './InputManager';
@@ -18,6 +20,9 @@ export class PhysicsEngine {
   private crumblingTiles: Map<string, { room: ScreenData; r: number; c: number; state: 'shaking' | 'broken'; timer: number }> = new Map();
   private gameTime: number = 0;
   private roomPlatforms: Map<string, MovingPlatform[]> = new Map();
+  private roomBarriers: Map<string, LaserBarrier[]> = new Map();
+  private roomTurrets: Map<string, LaserTurret[]> = new Map();
+  private roomProjectiles: Map<string, LaserProjectile[]> = new Map();
 
   constructor(audio: AudioManager, particles: ParticleSystem) {
     this.audio = audio;
@@ -40,11 +45,48 @@ export class PhysicsEngine {
     return platforms;
   }
 
+  public getBarriersForRoom(room: ScreenData, time?: number): LaserBarrier[] {
+    const t = time ?? this.gameTime;
+    if (!room.laserBarriers || room.laserBarriers.length === 0) {
+      return [];
+    }
+    let barriers = this.roomBarriers.get(room.id);
+    if (!barriers || barriers.length !== room.laserBarriers.length) {
+      barriers = room.laserBarriers.map((cfg) => new LaserBarrier(cfg, t));
+      this.roomBarriers.set(room.id, barriers);
+    }
+    for (const barrier of barriers) {
+      barrier.update(t);
+    }
+    return barriers;
+  }
+
+  public getTurretsForRoom(room: ScreenData): LaserTurret[] {
+    if (!room.laserTurrets || room.laserTurrets.length === 0) {
+      return [];
+    }
+    let turrets = this.roomTurrets.get(room.id);
+    if (!turrets || turrets.length !== room.laserTurrets.length) {
+      turrets = room.laserTurrets.map((cfg) => new LaserTurret(cfg));
+      this.roomTurrets.set(room.id, turrets);
+    }
+    return turrets;
+  }
+
+  public getProjectilesForRoom(roomId: string): LaserProjectile[] {
+    return this.roomProjectiles.get(roomId) ?? [];
+  }
+
+  public clearProjectiles(): void {
+    this.roomProjectiles.clear();
+  }
+
   public resetCrumblingTiles(): void {
     for (const [, item] of this.crumblingTiles) {
       item.room.tiles[item.r][item.c] = TileType.CRUMBLE;
     }
     this.crumblingTiles.clear();
+    this.clearProjectiles();
   }
 
   private updateCrumble(dt: number): void {
@@ -257,12 +299,14 @@ export class PhysicsEngine {
     // 4. Horizontal Movement & Collision
     player.x += player.vx * dt;
     this.resolveHorizontalCollisions(player, room);
+    if (this.checkSpikeCollisions(player, room, onPlayerDeath)) return null;
 
     // 5. Vertical Movement & Collision
     const prevY = player.y;
     player.y += player.vy * dt;
     player.isGrounded = false;
     this.resolveVerticalCollisions(player, room, prevY, onGoalReached, onPlayerDeath);
+    if (this.checkSpikeCollisions(player, room, onPlayerDeath)) return null;
 
     // Moving Platform Collisions
     this.resolvePlatformCollisions(player, platforms, prevY, dt);
@@ -273,7 +317,14 @@ export class PhysicsEngine {
       this.particles.emitDust(player.x + player.width * 0.5, player.y + player.height, 6, room.themeColor);
     }
 
-    // 6. Check Edge Boundaries for 3D Cube Rotation
+    // 6. Laser Hazards Collision & Projectile Simulation
+    const barrierKilled = this.checkLaserBarriers(player, room, onPlayerDeath);
+    if (barrierKilled) return null;
+
+    const turretKilled = this.updateLaserTurrets(player, room, platforms, dt, onPlayerDeath);
+    if (turretKilled) return null;
+
+    // 7. Check Edge Boundaries for 3D Cube Rotation
     return this.checkBoundaryTransitions(player, room);
   }
 
@@ -408,11 +459,7 @@ export class PhysicsEngine {
           }
         } else if (tile === TileType.SPIKE) {
           // Spike hazard hit
-          if (onPlayerDeath) {
-            player.standingPlatform = null;
-            this.audio.playDeath();
-            this.particles.emitSparks(player.x + player.width * 0.5, player.y + player.height * 0.5, 24, '#ff0055');
-            onPlayerDeath();
+          if (this.checkSpikeCollisions(player, room, onPlayerDeath)) {
             return;
           }
         } else if (tile === TileType.GOAL) {
@@ -422,6 +469,61 @@ export class PhysicsEngine {
         }
       }
     }
+  }
+
+  public checkSpikeCollisions(player: Player, room: ScreenData, onPlayerDeath?: () => void): boolean {
+    const minCol = Math.floor((player.x - 2) / TILE_SIZE);
+    const maxCol = Math.floor((player.x + player.width + 2) / TILE_SIZE);
+    const minRow = Math.floor((player.y - 2) / TILE_SIZE);
+    const maxRow = Math.floor((player.y + player.height + 2) / TILE_SIZE);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (r < 0 || r >= room.tiles.length || c < 0 || c >= room.tiles[0].length) continue;
+        if (room.tiles[r][c] === TileType.SPIKE) {
+          const dir = getSpikeDirection(room, r, c);
+          const tLeft = c * TILE_SIZE;
+          const tRight = tLeft + TILE_SIZE;
+          const tTop = r * TILE_SIZE;
+          const tBottom = tTop + TILE_SIZE;
+
+          let hLeft = tLeft;
+          let hRight = tRight;
+          let hTop = tTop;
+          let hBottom = tBottom;
+
+          // Forgiving hitbox matching spike tip geometry
+          if (dir === 'up') {
+            hLeft += 4; hRight -= 4; hTop += 10;
+          } else if (dir === 'down') {
+            hLeft += 4; hRight -= 4; hBottom -= 10;
+          } else if (dir === 'right') {
+            hTop += 4; hBottom -= 4; hRight -= 10;
+          } else if (dir === 'left') {
+            hTop += 4; hBottom -= 4; hLeft += 10;
+          }
+
+          if (
+            player.x + player.width > hLeft &&
+            player.x < hRight &&
+            player.y + player.height > hTop &&
+            player.y < hBottom
+          ) {
+            player.standingPlatform = null;
+            this.audio.playDeath();
+            this.particles.emitPlayerExplosion(
+              player.x + player.width * 0.5,
+              player.y + player.height * 0.5,
+              player.primaryColor,
+              player.accentColor
+            );
+            if (onPlayerDeath) onPlayerDeath();
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private resolvePlatformCollisions(
@@ -533,7 +635,12 @@ export class PhysicsEngine {
       } else {
         // Fell into bottom void without exit -> respawn
         this.audio.playDeath();
-        this.particles.emitSparks(player.x + player.width * 0.5, FACE_SIZE - 20, 20, '#ff0055');
+        this.particles.emitPlayerExplosion(
+          player.x + player.width * 0.5,
+          FACE_SIZE - 20,
+          player.primaryColor,
+          player.accentColor
+        );
         return {
           direction: 'down', // will be treated as fall death if no room
           entryX: 120,
@@ -544,5 +651,224 @@ export class PhysicsEngine {
     }
 
     return null;
+  }
+
+  private checkLaserBarriers(
+    player: Player,
+    room: ScreenData,
+    onPlayerDeath?: () => void
+  ): boolean {
+    const barriers = this.getBarriersForRoom(room, this.gameTime);
+    for (const barrier of barriers) {
+      if (barrier.justEnteredWarning()) {
+        this.audio.playLaserWarning();
+      }
+      if (barrier.justActivated()) {
+        this.audio.playLaserHum();
+      }
+
+      if (barrier.state.state === 'WARNING') {
+        if (Math.random() < 0.25) {
+          this.particles.emitLaserCharge(barrier.state.x1, barrier.state.y1, barrier.themeColor);
+          this.particles.emitLaserCharge(barrier.state.x2, barrier.state.y2, barrier.themeColor);
+        }
+      } else if (barrier.state.isActive) {
+        if (Math.random() < 0.15) {
+          this.particles.emitLaserSparks(barrier.state.x1, barrier.state.y1, 2, barrier.themeColor);
+          this.particles.emitLaserSparks(barrier.state.x2, barrier.state.y2, 2, barrier.themeColor);
+        }
+      }
+
+      if (barrier.intersectsPlayer(player)) {
+        player.standingPlatform = null;
+        this.audio.playDeath();
+        this.particles.emitPlayerExplosion(
+          player.x + player.width * 0.5,
+          player.y + player.height * 0.5,
+          player.primaryColor,
+          barrier.themeColor
+        );
+        if (onPlayerDeath) onPlayerDeath();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private updateLaserTurrets(
+    player: Player,
+    room: ScreenData,
+    platforms: MovingPlatform[],
+    dt: number,
+    onPlayerDeath?: () => void
+  ): boolean {
+    const turrets = this.getTurretsForRoom(room);
+    let projectiles = this.roomProjectiles.get(room.id);
+    if (!projectiles) {
+      projectiles = [];
+      this.roomProjectiles.set(room.id, projectiles);
+    }
+
+    for (const turret of turrets) {
+      const nozzle = turret.getNozzlePosition();
+
+      if (turret.mode === 'beam') {
+        turret.updateBeam(this.gameTime);
+        if (turret.justEnteredWarning()) {
+          this.audio.playLaserWarning();
+        }
+        if (turret.justActivated()) {
+          this.audio.playLaserHum();
+        }
+
+        if (turret.isBeamActive) {
+          const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, room.tiles, platforms);
+          if (turret.justActivated()) {
+            this.particles.emitLaserSparks(ray.hitX, ray.hitY, 8, turret.themeColor, ray.normalX, ray.normalY);
+          } else if (Math.random() < 0.35) {
+            this.particles.emitLaserSparks(ray.hitX, ray.hitY, 2, turret.themeColor, ray.normalX, ray.normalY);
+          }
+          if (LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, player)) {
+            player.standingPlatform = null;
+            this.audio.playDeath();
+            this.particles.emitPlayerExplosion(
+              player.x + player.width * 0.5,
+              player.y + player.height * 0.5,
+              player.primaryColor,
+              turret.themeColor
+            );
+            if (onPlayerDeath) onPlayerDeath();
+            return true;
+          }
+        } else if (turret.beamState === 'WARNING') {
+          if (Math.random() < 0.25) {
+            this.particles.emitLaserCharge(nozzle.x, nozzle.y, turret.themeColor);
+          }
+        }
+      } else {
+        // Projectile mode
+        const fireInterval = turret.config.fireInterval ?? 2.0;
+        const fireOffset = turret.config.fireOffset ?? 0;
+        const effectiveTime = this.gameTime - fireOffset;
+
+        if (effectiveTime >= 0) {
+          if (turret.lastShotTime < 0 || effectiveTime - turret.lastShotTime >= fireInterval) {
+            turret.lastShotTime = effectiveTime - (effectiveTime % fireInterval);
+            const speed = turret.config.projectileSpeed ?? 320;
+            const len = turret.config.projectileLength ?? 20;
+
+            projectiles.push({
+              id: `${turret.config.id}_${Date.now()}_${Math.random()}`,
+              x: nozzle.x,
+              y: nozzle.y,
+              vx: nozzle.dirX * speed,
+              vy: nozzle.dirY * speed,
+              width: len,
+              height: 6,
+              color: turret.themeColor,
+              turretId: turret.config.id,
+              life: 0,
+              maxLife: 4.0,
+              direction: turret.config.direction,
+              angle: nozzle.angle,
+            });
+
+            this.audio.playLaserShoot();
+            this.particles.emitLaserMuzzle(nozzle.x, nozzle.y, nozzle.dirX, nozzle.dirY, turret.themeColor);
+          }
+        }
+      }
+    }
+
+    // Integrate and collide in-flight projectiles
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life += dt;
+
+      if (p.life >= p.maxLife || p.x < -20 || p.x > FACE_SIZE + 20 || p.y < -20 || p.y > FACE_SIZE + 20) {
+        projectiles.splice(i, 1);
+        continue;
+      }
+
+      // Check collision with solid tiles
+      const checkX = p.x + Math.cos(p.angle) * p.width * 0.5;
+      const checkY = p.y + Math.sin(p.angle) * p.width * 0.5;
+      const tileR = Math.floor(checkY / TILE_SIZE);
+      const tileC = Math.floor(checkX / TILE_SIZE);
+
+      let hit = false;
+      if (tileR >= 0 && tileR < room.tiles.length && tileC >= 0 && tileC < room.tiles[0].length) {
+        const tile = room.tiles[tileR][tileC];
+        if (tile === TileType.SOLID || tile === TileType.CRUMBLE) {
+          hit = true;
+          this.audio.playLaserImpact();
+          this.particles.emitLaserSparks(
+            checkX,
+            checkY,
+            8,
+            p.color,
+            -Math.sign(p.vx),
+            -Math.sign(p.vy)
+          );
+          projectiles.splice(i, 1);
+          continue;
+        }
+      }
+
+      // Check collision with moving platforms
+      for (const plat of platforms) {
+        if (
+          (plat.x <= checkX && checkX <= plat.x + plat.width && plat.y <= checkY && checkY <= plat.y + plat.height) ||
+          (plat.x <= p.x && p.x <= plat.x + plat.width && plat.y <= p.y && p.y <= plat.y + plat.height)
+        ) {
+          hit = true;
+          this.audio.playLaserImpact();
+          this.particles.emitLaserSparks(
+            checkX,
+            checkY,
+            8,
+            p.color,
+            -Math.sign(p.vx),
+            -Math.sign(p.vy)
+          );
+          projectiles.splice(i, 1);
+          break;
+        }
+      }
+      if (hit) continue;
+
+      // Check collision with player
+      const tailX = p.x - Math.cos(p.angle) * p.width * 0.5;
+      const tailY = p.y - Math.sin(p.angle) * p.width * 0.5;
+      if (
+        LaserBarrier.lineIntersectsBox(
+          tailX,
+          tailY,
+          checkX,
+          checkY,
+          player.x,
+          player.y,
+          player.width,
+          player.height,
+          4
+        )
+      ) {
+        projectiles.splice(i, 1);
+        player.standingPlatform = null;
+        this.audio.playDeath();
+        this.particles.emitPlayerExplosion(
+          player.x + player.width * 0.5,
+          player.y + player.height * 0.5,
+          player.primaryColor,
+          p.color
+        );
+        if (onPlayerDeath) onPlayerDeath();
+        return true;
+      }
+    }
+
+    return false;
   }
 }

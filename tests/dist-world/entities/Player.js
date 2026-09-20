@@ -32,6 +32,8 @@ class Player {
     trailTimer = 0;
     primaryColor = '#00ffff';
     accentColor = '#ff007f';
+    isAlive = true;
+    resetHoldProgress = 0;
     constructor(startX = 120, startY = 660) {
         this.x = startX;
         this.y = startY;
@@ -64,6 +66,8 @@ class Player {
         this.animTimer += dt * 10;
     }
     render(ctx, particles) {
+        if (!this.isAlive)
+            return;
         ctx.save();
         // Subtle breathing/bounce scaling
         const bounce = this.isGrounded && Math.abs(this.vx) > 10 ? Math.sin(this.animTimer * 1.5) * 2 : 0;
@@ -141,6 +145,33 @@ class Player {
             ctx.moveTo(px + w * 0.7, legY);
             ctx.lineTo(px + w * 0.7, legY + 3);
             ctx.stroke();
+        }
+        // Radial hold-to-restart gauge around player
+        if (this.resetHoldProgress > 0) {
+            const centerX = px + w * 0.5;
+            const centerY = py + h * 0.5;
+            const radius = 26;
+            const progress = Math.min(1, Math.max(0, this.resetHoldProgress));
+            // Background track ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 3.5;
+            ctx.stroke();
+            // Foreground charging arc
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, -Math.PI * 0.5, -Math.PI * 0.5 + progress * Math.PI * 2);
+            ctx.strokeStyle = progress >= 1 ? '#00ffff' : '#ffe600';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = progress >= 1 ? '#00ffff' : '#ffe600';
+            ctx.shadowBlur = 12;
+            ctx.stroke();
+            // Inner pulsating core
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 3 + progress * 5, 0, Math.PI * 2);
+            ctx.fillStyle = progress >= 1 ? '#ffffff' : '#ffe600';
+            ctx.shadowBlur = 8;
+            ctx.fill();
         }
         ctx.restore();
     }

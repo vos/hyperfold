@@ -22,12 +22,20 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 * **Jump Buffering (120ms)**: Queue jumps immediately before touching down on solid ground.
 * **Moving Platforms & Passenger Physics**: Floating hover cruisers and vertical elevators that accurately carry players with horizontal momentum inheritance.
 * **Down + Jump Drop-Through**: Press `Down + Jump` while standing on one-way or moving platforms to drop through, mirroring classic platformer conventions.
-* **Hazard & Interactive Mechanics**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and hazard spikes with instant respawn.
+* **Dynamic Laser Barriers & Angled Turrets**: Mobile laser barriers that patrol on harmonic tracks and cycle between idle, telegraph warning, and lethal states; wall/ceiling/floor/pedestal turrets shooting at cardinal or diagonal angles with high-velocity laser bolts and continuous raycast beams that dynamically clip against moving platforms (allowing moving platforms to serve as dynamic shields!).
+* **Multi-Directional Spikes**: Hazard spikes mounted on floors, walls, ceilings/roofs, and solid floating platforms with forgiving apex-matched hitboxes and automatic geometric orientation detection.
+* **Interactive Elements**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and collectible Energy Prisms / Data Chips.
+
+### 💥 Explosive Death & Dual-Action Reset System
+* **360° Particle Burst**: On death, the player detonates with 72 high-velocity particles flying in all directions—concentric expanding shockwave rings, tumbling debris shards with aerodynamic drag physics ($0.94^{\Delta t \cdot 60}$), and billowing plasma motes.
+* **Sprite Hiding & Materialization**: Player chassis and eyes are hidden during the explosion, reappearing with materialization sparks upon sector respawn.
+* **Tap R to Die & Respawn**: Pressing `R` (or clicking `Reset [R]`) triggers an immediate player death sequence and sector respawn.
+* **Hold R to Restart Entire Level**: Long-pressing `R` ($\ge 0.8\text{s}$) renders an in-world holographic radial charging ring around the player avatar, converging particle motes, and a live HUD hold percentage banner. Holding to completion resets the entire level back to Genesis Core `[0, 0]`, restores all collected Energy Prisms, resets discovered rooms, snaps 3D cube rotation back to identity, and detonates a dimensional reboot warp effect.
 
 ### 🌌 Synthwave Atmosphere & Procedural Audio
 * **Cosmic Starfield**: Independent deep-space starfield and drifting wireframe octahedra that remain stationary relative to the camera to accentuate the cube's 3D rotation.
-* **Dynamic Particle Systems**: Landing dust, jump bursts, collectible pickup sparks, motion trails, and screen-edge boundary luminescence.
-* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, death bursts, and a low-pass ambient drone. No external audio files required.
+* **Dynamic Particle Systems**: Landing dust, jump bursts, collectible pickup sparks, motion trails, laser impact sparks, charging motes, muzzle flashes, 360° death explosions, expanding shockwaves, and screen-edge boundary luminescence.
+* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, blaster zaps, impact sizzles, warning telegraph chirps, a 3-layer cyberpunk synth explosion (sub-bass drop + detuned dual sawtooth/square filter sweep + filtered noise burst), an ascending 6-note level reboot fanfare, and a low-pass ambient drone. No external audio files required.
 
 ### 🎥 Interactive 3D Camera Controls
 * **Free Orbit**: Click and drag with the left mouse button to orbit around the cube from any angle.
@@ -42,17 +50,18 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ## 🎮 Controls
 
-| Action | Keyboard | Gamepad | Mouse |
+| Action | Keyboard | Gamepad | Mouse / Touch |
 | :--- | :--- | :--- | :--- |
 | **Move Left / Right** | `A` / `D` or `←` / `→` | D-Pad / Left Stick | — |
 | **Jump** | `Space` / `W` / `↑` | Button `A` / Cross | — |
 | **Drop Through Platform** | `S + Space` or `↓ + Jump` | `Down + Button A` | — |
-| **Reset Sector** | `R` | — | — |
+| **Reset Sector / Die (Tap)** | `R` (Tap) | Button `Select` / `Back` (Tap) | `Reset [R]` Button (Tap) |
+| **Restart Whole Level (Hold 0.8s)** | `Hold R` | `Hold Select` / `Back` | `Reset [R]` Button (Hold) |
 | **Toggle Sound** | `M` | — | HUD Button |
 | **Toggle 3D / Flat View** | `C` | — | HUD Button |
-| **Reset 3D Camera** | `V` | — | HUD Button |
+| **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Button |
 | **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Button |
-| **Orbit 3D Camera** | — | — | Left Click + Drag |
+| **Orbit 3D Camera** | `I` / `J` / `K` / `L` | Right Thumbstick | Left Click + Drag |
 | **Zoom In / Out** | — | — | Mouse Wheel |
 
 ---
@@ -108,7 +117,7 @@ Run the unit test suite powered by Node.js's native test runner:
 ```bash
 npm test
 ```
-Validates floor consistency across all 10 rooms, spawn safety, passenger physics, Down+Jump mechanics, non-Euclidean navigation invariants, and 3D transition face mappings (28 tests passing).
+Validates floor consistency across all 10 rooms, spawn safety, passenger physics, Down+Jump mechanics, dynamic laser barriers, shooting laser collisions and platform shielding, directional spikes on walls/roofs/platforms, 360° player death explosion with drag physics, tap-to-die & hold-to-restart level mechanics, non-Euclidean navigation invariants, and 3D transition face mappings (52 tests passing across 7 test suites).
 
 ---
 
@@ -127,8 +136,10 @@ hyperfold/
 │   │   ├── AudioManager.ts        # Procedural Web Audio API sound synthesizer
 │   │   ├── InputManager.ts        # Keyboard, mouse, and Gamepad API handlers
 │   │   ├── ParticleSystem.ts      # 2D canvas particle emitter and trail effects
-│   │   └── PhysicsEngine.ts       # AABB collision, moving platforms, and seam crossing
+│   │   └── PhysicsEngine.ts       # AABB collision, moving platforms, lasers, and seam crossing
 │   ├── entities/
+│   │   ├── LaserBarrier.ts        # Mobile and timed laser barriers with warning telegraphs
+│   │   ├── LaserTurret.ts         # Wall/ceiling turrets with projectile and raycast beam collision
 │   │   ├── MovingPlatform.ts      # Harmonic moving platforms with displacement tracking
 │   │   └── Player.ts              # Player state, kinematics, and rendering
 │   ├── graphics/
@@ -142,10 +153,13 @@ hyperfold/
 │       ├── LevelMap.ts            # Dynamic coordinate-based room map and visited states
 │       └── ScreenData.ts          # Tile definitions, room schemas, and exits
 └── tests/
+    ├── danger-spikes.test.mjs     # Directional spikes (walls, roof, platform) collision & detection
     ├── floor.test.mjs             # Floor integrity and safe spawn points
+    ├── laser-hazards.test.mjs     # Laser barrier cycles, movement, raycasts, & projectiles
     ├── moving-platforms.test.mjs  # Moving platform kinematics & 3D pre-render face mapping
     ├── navigation.test.mjs        # Infinite non-Euclidean topology invariants
-    └── perf-tracker.test.mjs      # Telemetry statistics and ring buffer behavior
+    ├── perf-tracker.test.mjs      # Telemetry statistics and ring buffer behavior
+    └── player-explosion.test.mjs # 360° death explosion, synth sound, & R tap/hold reset logic
 ```
 
 ---

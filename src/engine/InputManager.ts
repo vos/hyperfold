@@ -6,7 +6,9 @@ export interface InputState {
   jump: boolean;
   jumpJustPressed: boolean;
   dashJustPressed: boolean;
+  restart: boolean;
   restartJustPressed: boolean;
+  restartJustReleased: boolean;
   cameraOrbitX: number;
   cameraOrbitY: number;
   cameraResetJustPressed: boolean;
@@ -15,6 +17,7 @@ export interface InputState {
 export class InputManager {
   private keysDown: Set<string> = new Set();
   private keysJustPressed: Set<string> = new Set();
+  private keysJustReleased: Set<string> = new Set();
   private gamepadConnected: boolean = false;
   private prevGamepadButtons: boolean[] = [];
 
@@ -46,6 +49,7 @@ export class InputManager {
 
   private handleKeyUp = (e: KeyboardEvent) => {
     this.keysDown.delete(e.code);
+    this.keysJustReleased.add(e.code);
   };
 
   public update(): InputState {
@@ -56,7 +60,9 @@ export class InputManager {
     let jump = this.keysDown.has('Space') || this.keysDown.has('ArrowUp') || this.keysDown.has('KeyW');
     let jumpJustPressed = this.keysJustPressed.has('Space') || this.keysJustPressed.has('ArrowUp') || this.keysJustPressed.has('KeyW');
     let dashJustPressed = this.keysJustPressed.has('ShiftLeft') || this.keysJustPressed.has('ShiftRight') || this.keysJustPressed.has('KeyJ');
+    let restart = this.keysDown.has('KeyR');
     let restartJustPressed = this.keysJustPressed.has('KeyR');
+    let restartJustReleased = this.keysJustReleased.has('KeyR');
 
     // Camera orbit inputs
     let cameraOrbitX = 0;
@@ -105,17 +111,25 @@ export class InputManager {
           cameraOrbitY = (rStickY - Math.sign(rStickY) * deadzone) / (1 - deadzone);
         }
 
-        // R3 (Right stick click = button 11) or Select (button 8/9) to reset camera
-        const gpReset = !!gp.buttons[11]?.pressed || !!gp.buttons[9]?.pressed;
+        // R3 (Right stick click = button 11) to reset camera
+        const gpReset = !!gp.buttons[11]?.pressed;
         if (gpReset && !this.prevGamepadButtons[11]) {
           cameraResetJustPressed = true;
         }
         this.prevGamepadButtons[11] = gpReset;
+
+        // Select / Back (button 8) or Start (button 9) for restart
+        const gpRestart = !!gp.buttons[8]?.pressed;
+        if (gpRestart) restart = true;
+        if (gpRestart && !this.prevGamepadButtons[8]) restartJustPressed = true;
+        if (!gpRestart && this.prevGamepadButtons[8]) restartJustReleased = true;
+        this.prevGamepadButtons[8] = gpRestart;
       }
     }
 
     // Clear one-frame flags
     this.keysJustPressed.clear();
+    this.keysJustReleased.clear();
 
     return {
       left,
@@ -125,7 +139,9 @@ export class InputManager {
       jump,
       jumpJustPressed,
       dashJustPressed,
+      restart,
       restartJustPressed,
+      restartJustReleased,
       cameraOrbitX,
       cameraOrbitY,
       cameraResetJustPressed,

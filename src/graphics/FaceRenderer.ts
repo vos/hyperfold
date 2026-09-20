@@ -1,8 +1,10 @@
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType } from '../world/ScreenData';
+import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection } from '../world/ScreenData';
 import { Player } from '../entities/Player';
 import { ParticleSystem } from '../engine/ParticleSystem';
 import { LevelMap } from '../world/LevelMap';
 import { MovingPlatform } from '../entities/MovingPlatform';
+import { LaserBarrier } from '../entities/LaserBarrier';
+import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
 
 export class FaceRenderer {
   public canvas: HTMLCanvasElement;
@@ -23,10 +25,11 @@ export class FaceRenderer {
     levelMap: LevelMap,
     player?: Player,
     particles?: ParticleSystem,
-    dt: number = 0.016
+    dt: number = 0.016,
+    projectiles?: LaserProjectile[]
   ): HTMLCanvasElement {
     this.time += dt;
-    this.renderRoomToContext(this.ctx, room, levelMap, player, particles, this.time);
+    this.renderRoomToContext(this.ctx, room, levelMap, player, particles, this.time, projectiles);
     return this.canvas;
   }
 
@@ -36,7 +39,8 @@ export class FaceRenderer {
     levelMap: LevelMap,
     player?: Player,
     particles?: ParticleSystem,
-    animTime?: number
+    animTime?: number,
+    projectiles?: LaserProjectile[]
   ): void {
     if (animTime !== undefined) {
       this.time = animTime;
@@ -81,9 +85,11 @@ export class FaceRenderer {
           case TileType.ONE_WAY:
             this.drawOneWayTile(ctx, x, y, primary);
             break;
-          case TileType.SPIKE:
-            this.drawSpikeTile(ctx, x, y);
+          case TileType.SPIKE: {
+            const spikeDir = getSpikeDirection(room, r, c);
+            this.drawSpikeTile(ctx, x, y, spikeDir);
             break;
+          }
           case TileType.BOUNCE:
             this.drawBounceTile(ctx, x, y);
             break;
@@ -106,6 +112,16 @@ export class FaceRenderer {
     // 3.5 Render Moving Platforms (Holographic guide rails, hover chassis, thrusters)
     if (room.movingPlatforms && room.movingPlatforms.length > 0) {
       this.drawMovingPlatforms(ctx, room, particles);
+    }
+
+    // 3.6 Render Laser Barriers (Pylons, warning telegraph, high-voltage active beam)
+    if (room.laserBarriers && room.laserBarriers.length > 0) {
+      this.drawLaserBarriers(ctx, room, particles);
+    }
+
+    // 3.7 Render Laser Turrets & Shooting Lasers (Raycast beams, wall mounts, projectile bolts)
+    if ((room.laserTurrets && room.laserTurrets.length > 0) || (projectiles && projectiles.length > 0)) {
+      this.drawLaserTurrets(ctx, room, projectiles, particles);
     }
 
     // 4. Render Exit Boundary Portals / Indicators
@@ -171,7 +187,12 @@ export class FaceRenderer {
     ctx.restore();
   }
 
-  private drawSpikeTile(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  private drawSpikeTile(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    direction: 'up' | 'down' | 'left' | 'right' = 'up'
+  ): void {
     ctx.save();
     const pulse = 0.8 + Math.sin(this.time * 8) * 0.2;
     ctx.fillStyle = '#ff0055';
@@ -180,16 +201,102 @@ export class FaceRenderer {
     ctx.shadowBlur = 10 * pulse;
     ctx.lineWidth = 2;
 
-    // Two spikes per 40px tile
-    for (let s = 0; s < 2; s++) {
-      const sx = x + s * 20;
-      ctx.beginPath();
-      ctx.moveTo(sx, y + TILE_SIZE);
-      ctx.lineTo(sx + 10, y + 8);
-      ctx.lineTo(sx + 20, y + TILE_SIZE);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+    switch (direction) {
+      case 'up':
+        // Two spikes on floor/platform pointing up
+        for (let s = 0; s < 2; s++) {
+          const sx = x + s * 20;
+          ctx.beginPath();
+          ctx.moveTo(sx, y + TILE_SIZE);
+          ctx.lineTo(sx + 10, y + 8);
+          ctx.lineTo(sx + 20, y + TILE_SIZE);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Metallic apex highlight
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(sx + 8, y + TILE_SIZE);
+          ctx.lineTo(sx + 10, y + 14);
+          ctx.lineTo(sx + 12, y + TILE_SIZE);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ff0055';
+        }
+        break;
+
+      case 'down':
+        // Two spikes hanging from roof/ceiling pointing down
+        for (let s = 0; s < 2; s++) {
+          const sx = x + s * 20;
+          ctx.beginPath();
+          ctx.moveTo(sx, y);
+          ctx.lineTo(sx + 10, y + TILE_SIZE - 8);
+          ctx.lineTo(sx + 20, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Metallic apex highlight
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(sx + 8, y);
+          ctx.lineTo(sx + 10, y + TILE_SIZE - 14);
+          ctx.lineTo(sx + 12, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ff0055';
+        }
+        break;
+
+      case 'right':
+        // Two spikes projecting from left wall pointing right into room
+        for (let s = 0; s < 2; s++) {
+          const sy = y + s * 20;
+          ctx.beginPath();
+          ctx.moveTo(x, sy);
+          ctx.lineTo(x + TILE_SIZE - 8, sy + 10);
+          ctx.lineTo(x, sy + 20);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Metallic apex highlight
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(x, sy + 8);
+          ctx.lineTo(x + TILE_SIZE - 14, sy + 10);
+          ctx.lineTo(x, sy + 12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ff0055';
+        }
+        break;
+
+      case 'left':
+        // Two spikes projecting from right wall pointing left into room
+        for (let s = 0; s < 2; s++) {
+          const sy = y + s * 20;
+          ctx.beginPath();
+          ctx.moveTo(x + TILE_SIZE, sy);
+          ctx.lineTo(x + 8, sy + 10);
+          ctx.lineTo(x + TILE_SIZE, sy + 20);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Metallic apex highlight
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(x + TILE_SIZE, sy + 8);
+          ctx.lineTo(x + 14, sy + 10);
+          ctx.lineTo(x + TILE_SIZE, sy + 12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ff0055';
+        }
+        break;
     }
     ctx.restore();
   }
@@ -492,6 +599,301 @@ export class FaceRenderer {
       ctx.fillRect(px + 2, py + 3, 2, h - 6);
       ctx.fillRect(px + w - 4, py + 3, 2, h - 6);
 
+      ctx.restore();
+    }
+  }
+
+  private drawLaserBarriers(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    _particles?: ParticleSystem
+  ): void {
+    if (!room.laserBarriers || room.laserBarriers.length === 0) return;
+
+    for (const config of room.laserBarriers) {
+      const state = LaserBarrier.computeBarrierState(config, this.time);
+      const color = config.themeColor || '#ff0055';
+      const width = config.width ?? 4;
+
+      // 1. If moving, draw holographic guide track
+      if (config.speed && config.speed > 0 && (config.endX1 !== undefined || config.endY1 !== undefined)) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 5]);
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath();
+        ctx.moveTo(config.startX1, config.startY1);
+        ctx.lineTo(config.endX1 ?? config.startX1, config.endY1 ?? config.startY1);
+        ctx.moveTo(config.startX2, config.startY2);
+        ctx.lineTo(config.endX2 ?? config.startX2, config.endY2 ?? config.startY2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Render Beam (if warning or active)
+      if (state.state === 'WARNING') {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        const pulse = 0.3 + 0.5 * Math.sin(this.time * 24);
+        ctx.globalAlpha = Math.max(0.1, pulse * state.chargeProgress);
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8 * state.chargeProgress;
+
+        ctx.beginPath();
+        ctx.moveTo(state.x1, state.y1);
+        ctx.lineTo(state.x2, state.y2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (state.state === 'ACTIVE') {
+        ctx.save();
+        const jitter = Math.sin(this.time * 50 + state.x1) * 0.6;
+
+        // Outer glow
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width + 8 + Math.abs(jitter);
+        ctx.globalAlpha = 0.3;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.moveTo(state.x1, state.y1);
+        ctx.lineTo(state.x2, state.y2);
+        ctx.stroke();
+
+        // Mid core beam
+        ctx.lineWidth = width + 2;
+        ctx.globalAlpha = 0.85;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(state.x1, state.y1);
+        ctx.lineTo(state.x2, state.y2);
+        ctx.stroke();
+
+        // Inner white-hot plasma filament
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1.5, width * 0.4);
+        ctx.globalAlpha = 0.95;
+        ctx.shadowBlur = 2;
+        ctx.beginPath();
+        ctx.moveTo(state.x1, state.y1);
+        ctx.lineTo(state.x2, state.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3. Render Emitter Pylons at both ends
+      this.drawPylon(ctx, state.x1, state.y1, color, state.state, state.chargeProgress);
+      this.drawPylon(ctx, state.x2, state.y2, color, state.state, state.chargeProgress);
+    }
+  }
+
+  private drawPylon(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    color: string,
+    state: 'INACTIVE' | 'WARNING' | 'ACTIVE',
+    chargeProgress: number
+  ): void {
+    ctx.save();
+    // Pylon metallic base
+    ctx.fillStyle = '#080e1a';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Center emitter diode
+    if (state === 'ACTIVE') {
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (state === 'WARNING') {
+      const pulse = 0.5 + 0.5 * Math.sin(this.time * 20);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.4 + 0.6 * pulse * chargeProgress;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8 * chargeProgress;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private drawLaserTurrets(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    projectiles?: LaserProjectile[],
+    _particles?: ParticleSystem
+  ): void {
+    // 1. Render Turrets
+    if (room.laserTurrets && room.laserTurrets.length > 0) {
+      // Pre-compute moving platforms for raycast collision
+      const platforms: MovingPlatform[] = [];
+      if (room.movingPlatforms) {
+        for (const cfg of room.movingPlatforms) {
+          platforms.push(new MovingPlatform(cfg, this.time));
+        }
+      }
+
+      for (const config of room.laserTurrets) {
+        const color = config.themeColor || '#ff0055';
+        const mode = config.mode ?? 'projectile';
+        const { x, y } = config;
+        const turret = new LaserTurret(config);
+        const nozzle = turret.getNozzlePosition();
+
+        // A. If beam mode, render dynamic beam
+        if (mode === 'beam') {
+          const beam = turret.getBeamState(this.time);
+          const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, room.tiles, platforms);
+
+          if (beam.state === 'WARNING') {
+            // Telegraph warning guide line
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 6]);
+            const pulse = 0.3 + 0.5 * Math.sin(this.time * 24);
+            ctx.globalAlpha = Math.max(0.1, pulse * beam.chargeProgress);
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8 * beam.chargeProgress;
+            ctx.beginPath();
+            ctx.moveTo(nozzle.x, nozzle.y);
+            ctx.lineTo(ray.hitX, ray.hitY);
+            ctx.stroke();
+            ctx.restore();
+          } else if (beam.isActive) {
+            // High-voltage continuous beam
+            ctx.save();
+            const jitter = Math.sin(this.time * 45 + nozzle.x) * 0.5;
+
+            // Outer glow
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 10 + Math.abs(jitter);
+            ctx.globalAlpha = 0.3;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.moveTo(nozzle.x, nozzle.y);
+            ctx.lineTo(ray.hitX, ray.hitY);
+            ctx.stroke();
+
+            // Core beam
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.85;
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.moveTo(nozzle.x, nozzle.y);
+            ctx.lineTo(ray.hitX, ray.hitY);
+            ctx.stroke();
+
+            // Inner filament
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.8;
+            ctx.globalAlpha = 0.95;
+            ctx.shadowBlur = 2;
+            ctx.beginPath();
+            ctx.moveTo(nozzle.x, nozzle.y);
+            ctx.lineTo(ray.hitX, ray.hitY);
+            ctx.stroke();
+
+            // Impact scorch flare at collision point
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(ray.hitX, ray.hitY, 4 + Math.abs(jitter) * 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // B. Render Wall-Mount Turret Body (Oriented to Firing Angle)
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(nozzle.angle);
+
+        ctx.fillStyle = '#0a101d';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+
+        // Base chassis
+        ctx.beginPath();
+        ctx.roundRect(-10, -10, 20, 20, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cannon barrel nozzle along local +X
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(13, 0);
+        ctx.stroke();
+
+        // Status lens / LED
+        const lensColor = mode === 'beam'
+          ? (turret.getBeamState(this.time).isActive ? color : '#39ff14')
+          : color;
+        ctx.fillStyle = lensColor;
+        ctx.shadowColor = lensColor;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 2. Render In-Flight Projectiles (Oriented to Flight Angle)
+    if (projectiles && projectiles.length > 0) {
+      ctx.save();
+      for (const p of projectiles) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle ?? 0);
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+
+        const pLen = p.width || 20;
+        const pHalfL = pLen * 0.5;
+
+        // Plasma capsule body
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.roundRect(-pHalfL, -3, pLen, 6, 3);
+        ctx.fill();
+
+        // White-hot plasma core
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(-pHalfL + 2, -2, pLen - 4, 4, 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
       ctx.restore();
     }
   }

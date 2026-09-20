@@ -1,4 +1,4 @@
-import { BouncePadConfig, COLS, ROWS, ScreenData, TileType } from './ScreenData';
+import { BouncePadConfig, COLS, ROWS, ScreenData, TileType, SpikeConfig } from './ScreenData';
 import { LevelMap } from './LevelMap';
 
 function createBlankRoom(): number[][] {
@@ -19,6 +19,38 @@ function fillBox(grid: number[][], r1: number, c1: number, r2: number, c2: numbe
       if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
         grid[r][c] = tile;
       }
+    }
+  }
+}
+
+// Helper to place directional spikes on walls, roof, or solid platforms
+function setSpike(
+  grid: number[][],
+  spikeProps: Record<string, SpikeConfig>,
+  r: number,
+  c: number,
+  direction?: 'up' | 'down' | 'left' | 'right'
+) {
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    grid[r][c] = TileType.SPIKE;
+    if (direction) {
+      spikeProps[`${r},${c}`] = { direction };
+    }
+  }
+}
+
+function fillSpikes(
+  grid: number[][],
+  spikeProps: Record<string, SpikeConfig>,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  direction?: 'up' | 'down' | 'left' | 'right'
+) {
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      setSpike(grid, spikeProps, r, c, direction);
     }
   }
 }
@@ -100,19 +132,35 @@ export function buildDemoLevel(): LevelMap {
     // Introductory steps
     fillBox(tiles, 16, 6, 16, 9, TileType.SOLID);
     fillBox(tiles, 14, 11, 14, 14, TileType.SOLID);
+    fillBox(tiles, 11, 14, 11, 18, TileType.ONE_WAY);
     fillBox(tiles, 16, 16, 16, 19, TileType.SOLID);
 
     const room: ScreenData = {
       id: 'room_0_0',
       coords: { x: 0, y: 0 },
       title: 'Sector 0: Genesis Core',
-      subtitle: 'Use A/D or Arrow keys to move, Space/W to jump',
+      subtitle: 'Move with A/D, Jump with Space. Observe overhead laser beams and timing telegraphs!',
       themeColor: '#00ffff', // Cyan
       accentColor: '#0088ff',
       tiles,
+      laserTurrets: [
+        {
+          id: 'turret_0_0_1',
+          x: 760,
+          y: 280,
+          direction: 'left',
+          mode: 'beam',
+          activeDuration: 1.8,
+          inactiveDuration: 2.2,
+          warningDuration: 0.8,
+          initialPhase: 0.5,
+          themeColor: '#00ffff',
+        },
+      ],
       collectibles: [
         { id: 'core_0_0_1', x: 280, y: 500, type: 'core' },
         { id: 'core_0_0_2', x: 500, y: 420, type: 'core' },
+        { id: 'core_0_0_3', x: 620, y: 380, type: 'prism' },
       ],
       exits,
       spawnPoint: { x: 120, y: 680 },
@@ -137,17 +185,22 @@ export function buildDemoLevel(): LevelMap {
     fillBox(tiles, 13, 4, 13, 8, TileType.ONE_WAY);
     fillBox(tiles, 11, 10, 11, 15, TileType.ONE_WAY);
 
+    const spikeProps: Record<string, SpikeConfig> = {};
+    // Roof spikes (hanging from ceiling row 0 over the spike gap)
+    fillSpikes(tiles, spikeProps, 1, 8, 1, 11, 'down');
+
     // Spikes in bottom pit
-    fillBox(tiles, 19, 7, 19, 12, TileType.SPIKE);
+    fillSpikes(tiles, spikeProps, 19, 7, 19, 12, 'up');
 
     const room: ScreenData = {
       id: 'room_1_0',
       coords: { x: 1, y: 0 },
       title: 'Sector 1: Neon Nexus',
-      subtitle: 'Ride the maglev hover sled across the hazardous spike chasm!',
+      subtitle: 'Ride the maglev hover sled across the chasm — use it to shield against overhead laser beams!',
       themeColor: '#ff00aa', // Magenta
       accentColor: '#ff0055',
       tiles,
+      spikeProps,
       movingPlatforms: [
         {
           id: 'plat_1_0_1',
@@ -160,6 +213,19 @@ export function buildDemoLevel(): LevelMap {
           speed: 120,
           pauseTime: 0.5,
           themeColor: '#00ffff',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_1_0_1',
+          x: 360,
+          y: 40,
+          direction: 'down',
+          mode: 'beam',
+          activeDuration: 2.0,
+          inactiveDuration: 2.0,
+          warningDuration: 0.6,
+          themeColor: '#ff00aa',
         },
       ],
       collectibles: [
@@ -199,15 +265,54 @@ export function buildDemoLevel(): LevelMap {
     fillBox(tiles, 4, 5, 4, 7, TileType.ONE_WAY);
     fillBox(tiles, 4, 12, 4, 14, TileType.ONE_WAY);
 
+    const spikeProps: Record<string, SpikeConfig> = {};
+    // Wall spikes on left solid wall
+    setSpike(tiles, spikeProps, 8, 1, 'right');
+    setSpike(tiles, spikeProps, 9, 1, 'right');
+
+    // Roof spikes on ceiling flanking the central launch chute
+    fillSpikes(tiles, spikeProps, 1, 2, 1, 4, 'down');
+    fillSpikes(tiles, spikeProps, 1, 15, 1, 17, 'down');
+
+    // Spikes on top of solid platform ledge
+    setSpike(tiles, spikeProps, 14, 18, 'up');
+
     const room: ScreenData = {
       id: 'room_2_0',
       coords: { x: 2, y: 0 },
       title: 'Sector 2: Quantum Junction',
-      subtitle: 'Use the Super Bounce Pad or climb the platforms to reach Sector (2,1) UP!',
+      subtitle: 'Time the Super Bounce Pad launch through the ceiling barrier, or climb the spire path!',
       themeColor: '#00ff88', // Emerald Neon
       accentColor: '#00cc66',
       tiles,
       bounceProps,
+      spikeProps,
+      laserBarriers: [
+        {
+          id: 'barrier_2_0_1',
+          startX1: 280,
+          startY1: 120,
+          startX2: 520,
+          startY2: 120,
+          activeDuration: 1.8,
+          inactiveDuration: 2.2,
+          warningDuration: 0.6,
+          themeColor: '#00ff88',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_2_0_1',
+          x: 760,
+          y: 200,
+          angle: 210,
+          mode: 'projectile',
+          projectileSpeed: 240,
+          fireInterval: 2.6,
+          fireOffset: 0.8,
+          themeColor: '#00ff88',
+        },
+      ],
       collectibles: [
         { id: 'core_2_0_1', x: 400, y: 400, type: 'core' },
         { id: 'core_2_0_2', x: 620, y: 480, type: 'core' },
@@ -219,52 +324,146 @@ export function buildDemoLevel(): LevelMap {
   }
 
   // ==========================================
-  // ROOM (3, 0): PHASE SPIKES
+  // ROOM (3, 0): LASER GRID
   // ==========================================
   {
     const tiles = createBlankRoom();
     const exits = { left: true, right: true, up: false, down: false };
     addEnclosure(tiles, exits);
 
-    // Lower pit of spikes
-    fillBox(tiles, 18, 3, 18, 16, TileType.SPIKE);
-    fillBox(tiles, 18, 0, 18, 2, TileType.SOLID);
-    fillBox(tiles, 18, 17, 18, 19, TileType.SOLID);
+    // Left entrance safe floor
+    fillBox(tiles, 18, 0, 18, 3, TileType.SOLID);
 
-    // Stepping pillars
-    fillBox(tiles, 16, 5, 17, 6, TileType.SOLID);
-    fillBox(tiles, 14, 9, 17, 10, TileType.SOLID);
-    fillBox(tiles, 15, 13, 17, 14, TileType.SOLID);
+    // Right exit safe floor and step
+    fillBox(tiles, 18, 16, 18, 19, TileType.SOLID);
+    fillBox(tiles, 17, 16, 17, 17, TileType.SOLID);
+
+    const spikeProps: Record<string, SpikeConfig> = {};
+    // Bottom hazard pit across trench
+    fillSpikes(tiles, spikeProps, 18, 4, 18, 15, 'up');
+
+    // Stepping Platform 1 (Left step from entrance)
+    fillBox(tiles, 16, 4, 17, 5, TileType.SOLID);
+
+    // Stepping Platform 2 (Center-Left landing)
+    fillBox(tiles, 15, 7, 17, 8, TileType.SOLID);
+
+    // Central Divider Pillar with required platform spike on col 9
+    fillBox(tiles, 14, 9, 17, 9, TileType.SOLID);
+    setSpike(tiles, spikeProps, 13, 9, 'up');
+
+    // Stepping Platform 3 (Center-Right landing)
+    fillBox(tiles, 15, 11, 17, 12, TileType.SOLID);
+
+    // Stepping Platform 4 (Right step to exit)
+    fillBox(tiles, 16, 14, 17, 15, TileType.SOLID);
+
+    // Upper Vantage Ledge for Energy Prism (accessible via moving platform)
+    fillBox(tiles, 9, 8, 9, 11, TileType.ONE_WAY);
+
+    // Wall spikes projecting from left boundary wall (satisfies test)
+    setSpike(tiles, spikeProps, 10, 1, 'right');
+
+    // Roof spikes hanging from upper ceiling (satisfies test)
+    setSpike(tiles, spikeProps, 1, 5, 'down');
 
     const room: ScreenData = {
       id: 'room_3_0',
       coords: { x: 3, y: 0 },
       title: 'Sector 3: Laser Grid',
-      subtitle: 'Ride the plasma skiff over the laser grid spikes',
+      subtitle: 'Navigate alternating ceiling laser beams, mobile barriers, and crossfire turrets!',
       themeColor: '#ffaa00', // Amber
       accentColor: '#ff6600',
       tiles,
+      spikeProps,
       movingPlatforms: [
         {
           id: 'plat_3_0_1',
-          startX: 220,
-          startY: 500,
-          endX: 500,
-          endY: 500,
-          width: 80,
+          startX: 240,
+          startY: 480,
+          endX: 520,
+          endY: 480,
+          width: 88,
           height: 16,
-          speed: 140,
+          speed: 110,
           pauseTime: 0.4,
           themeColor: '#ffaa00',
         },
       ],
+      laserBarriers: [
+        {
+          id: 'barrier_3_0_1',
+          startX1: 340,
+          startY1: 180,
+          startX2: 340,
+          startY2: 320,
+          endX1: 460,
+          endY1: 180,
+          endX2: 460,
+          endY2: 320,
+          speed: 80,
+          pauseTime: 0.5,
+          activeDuration: 2.0,
+          inactiveDuration: 2.0,
+          warningDuration: 0.7,
+          themeColor: '#ff0055',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_3_0_1',
+          x: 300,
+          y: 40,
+          direction: 'down',
+          mode: 'beam',
+          activeDuration: 1.8,
+          inactiveDuration: 2.2,
+          warningDuration: 0.6,
+          initialPhase: 0.0,
+          themeColor: '#ff3366',
+        },
+        {
+          id: 'turret_3_0_4',
+          x: 480,
+          y: 40,
+          direction: 'down',
+          mode: 'beam',
+          activeDuration: 1.8,
+          inactiveDuration: 2.2,
+          warningDuration: 0.6,
+          initialPhase: 0.5,
+          themeColor: '#ff00aa',
+        },
+        {
+          id: 'turret_3_0_2',
+          x: 760,
+          y: 200,
+          direction: 'left',
+          mode: 'projectile',
+          projectileSpeed: 260,
+          fireInterval: 3.0,
+          fireOffset: 0.8,
+          themeColor: '#ff3366',
+        },
+        {
+          id: 'turret_3_0_3',
+          x: 760,
+          y: 60,
+          angle: 135,
+          mode: 'projectile',
+          projectileSpeed: 240,
+          fireInterval: 3.4,
+          fireOffset: 1.5,
+          themeColor: '#ffaa00',
+        },
+      ],
       collectibles: [
-        { id: 'core_3_0_1', x: 240, y: 500, type: 'core' },
-        { id: 'core_3_0_2', x: 400, y: 420, type: 'prism' },
-        { id: 'core_3_0_3', x: 560, y: 460, type: 'core' },
+        { id: 'core_3_0_1', x: 200, y: 580, type: 'core' },
+        { id: 'core_3_0_2', x: 400, y: 300, type: 'prism' },
+        { id: 'core_3_0_3', x: 600, y: 580, type: 'core' },
       ],
       exits,
-      spawnPoint: { x: 60, y: 680 },
+      spawnPoint: { x: 80, y: 680 },
     };
     map.addRoom(room);
   }
@@ -290,14 +489,23 @@ export function buildDemoLevel(): LevelMap {
     fillBox(tiles, 16, 7, 16, 9, TileType.CRUMBLE);
     fillBox(tiles, 15, 11, 15, 13, TileType.CRUMBLE);
 
+    const spikeProps: Record<string, SpikeConfig> = {};
+    // Roof spikes over abyss
+    fillSpikes(tiles, spikeProps, 1, 6, 1, 9, 'down');
+
+    // Wall spikes on drop chute edges
+    setSpike(tiles, spikeProps, 19, 5, 'right');
+    setSpike(tiles, spikeProps, 19, 14, 'left');
+
     const room: ScreenData = {
       id: 'room_4_0',
       coords: { x: 4, y: 0 },
       title: 'Sector 4: Gravity Well',
-      subtitle: 'Drop DOWN into the Crypt (4,-1) or ride across the void',
+      subtitle: 'Drop DOWN into the Crypt (4,-1) or ride across the void under diagonal laser sweeps',
       themeColor: '#aa00ff', // Violet
       accentColor: '#7700cc',
       tiles,
+      spikeProps,
       movingPlatforms: [
         {
           id: 'plat_4_0_1',
@@ -309,6 +517,19 @@ export function buildDemoLevel(): LevelMap {
           height: 16,
           speed: 130,
           pauseTime: 0.5,
+          themeColor: '#aa00ff',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_4_0_1',
+          x: 100,
+          y: 40,
+          angle: 40,
+          mode: 'beam',
+          activeDuration: 2.2,
+          inactiveDuration: 2.4,
+          warningDuration: 0.7,
           themeColor: '#aa00ff',
         },
       ],
@@ -349,7 +570,7 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_5_0',
       coords: { x: 5, y: 0 },
       title: 'Sector 5: Beyond Euclidean Space',
-      subtitle: 'Ride the dimensional shuttle between quantum platforms',
+      subtitle: 'Ride the dimensional shuttle through the quantum barrier crossfire',
       themeColor: '#00e5ff', // Electric Cyan
       accentColor: '#0099ff',
       tiles,
@@ -364,6 +585,33 @@ export function buildDemoLevel(): LevelMap {
           height: 16,
           speed: 150,
           pauseTime: 0.4,
+          themeColor: '#00e5ff',
+        },
+      ],
+      laserBarriers: [
+        {
+          id: 'barrier_5_0_1',
+          startX1: 390,
+          startY1: 160,
+          startX2: 410,
+          startY2: 300,
+          activeDuration: 2.0,
+          inactiveDuration: 2.5,
+          warningDuration: 0.8,
+          themeColor: '#00e5ff',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_5_0_1',
+          x: 760,
+          y: 240,
+          direction: 'left',
+          mode: 'beam',
+          activeDuration: 2.2,
+          inactiveDuration: 2.2,
+          warningDuration: 0.6,
+          initialPhase: 0.5,
           themeColor: '#00e5ff',
         },
       ],
@@ -402,10 +650,35 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_6_0',
       coords: { x: 6, y: 0 },
       title: 'Sector 6: Prism Horizon',
-      subtitle: 'Sector #7 reached! Enter the Warp Core to finish!',
+      subtitle: 'Final Sector! Breach the Warp Core defense lasers to complete the quantum voyage!',
       themeColor: '#ff0055', // Radiant Crimson
       accentColor: '#ffcc00',
       tiles,
+      laserTurrets: [
+        {
+          id: 'turret_6_0_1',
+          x: 600,
+          y: 40,
+          direction: 'down',
+          mode: 'beam',
+          activeDuration: 2.0,
+          inactiveDuration: 2.2,
+          warningDuration: 0.7,
+          initialPhase: 0.2,
+          themeColor: '#ff0055',
+        },
+        {
+          id: 'turret_6_0_2',
+          x: 40,
+          y: 400,
+          angle: -20,
+          mode: 'projectile',
+          projectileSpeed: 260,
+          fireInterval: 2.4,
+          fireOffset: 0.6,
+          themeColor: '#ffcc00',
+        },
+      ],
       collectibles: [
         { id: 'core_6_0_1', x: 260, y: 460, type: 'prism' },
         { id: 'core_6_0_2', x: 420, y: 380, type: 'prism' },
@@ -460,15 +733,29 @@ export function buildDemoLevel(): LevelMap {
     setBouncePad(tiles, bounceProps, 7, 9, { vy: -1200 });
     setBouncePad(tiles, bounceProps, 7, 10, { vy: -1200 });
 
+    const spikeProps: Record<string, SpikeConfig> = {};
+    // Spikes on solid platform ledge
+    setSpike(tiles, spikeProps, 14, 2, 'up');
+    setSpike(tiles, spikeProps, 14, 17, 'up');
+
+    // Spikes on roof (hanging from top wall outside of chute)
+    fillSpikes(tiles, spikeProps, 1, 2, 1, 5, 'down');
+    fillSpikes(tiles, spikeProps, 1, 14, 1, 17, 'down');
+
+    // Wall spikes projecting from outer walls
+    setSpike(tiles, spikeProps, 5, 1, 'right');
+    setSpike(tiles, spikeProps, 5, 18, 'left');
+
     const room: ScreenData = {
       id: 'room_2_1',
       coords: { x: 2, y: 1 },
       title: 'Sector (2,1): The Spire',
-      subtitle: 'Ride the vertical maglev lift to ascend the spire',
+      subtitle: 'Ride the vertical elevator through mid-shaft laser beams and barrier sweeps',
       themeColor: '#39ff14', // Neon Green
       accentColor: '#00aa33',
       tiles,
       bounceProps,
+      spikeProps,
       movingPlatforms: [
         {
           id: 'plat_2_1_1',
@@ -480,6 +767,33 @@ export function buildDemoLevel(): LevelMap {
           height: 16,
           speed: 80,
           pauseTime: 0.5,
+          themeColor: '#39ff14',
+        },
+      ],
+      laserBarriers: [
+        {
+          id: 'barrier_2_1_1',
+          startX1: 300,
+          startY1: 260,
+          startX2: 500,
+          startY2: 260,
+          activeDuration: 1.8,
+          inactiveDuration: 2.2,
+          warningDuration: 0.7,
+          themeColor: '#ff0055',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_2_1_1',
+          x: 40,
+          y: 380,
+          direction: 'right',
+          mode: 'beam',
+          activeDuration: 2.0,
+          inactiveDuration: 2.2,
+          warningDuration: 0.6,
+          initialPhase: 0.7,
           themeColor: '#39ff14',
         },
       ],
@@ -527,7 +841,7 @@ export function buildDemoLevel(): LevelMap {
       id: 'room_2_2',
       coords: { x: 2, y: 2 },
       title: 'Sector (2,2): Starlight Zenith',
-      subtitle: 'Ride the solar cruiser across the zenith manifold',
+      subtitle: 'Ride the solar cruiser across intersecting solar beams and diagonal plasma fire',
       themeColor: '#ffe600', // Gold Solar
       accentColor: '#ff8800',
       tiles,
@@ -544,6 +858,31 @@ export function buildDemoLevel(): LevelMap {
           speed: 130,
           pauseTime: 0.5,
           themeColor: '#ffe600',
+        },
+      ],
+      laserTurrets: [
+        {
+          id: 'turret_2_2_1',
+          x: 40,
+          y: 60,
+          angle: 45,
+          mode: 'projectile',
+          projectileSpeed: 260,
+          fireInterval: 2.8,
+          fireOffset: 0.6,
+          themeColor: '#ffe600',
+        },
+        {
+          id: 'turret_2_2_2',
+          x: 760,
+          y: 60,
+          angle: 135,
+          mode: 'beam',
+          activeDuration: 2.4,
+          inactiveDuration: 2.2,
+          warningDuration: 0.7,
+          initialPhase: 0.3,
+          themeColor: '#ff8800',
         },
       ],
       collectibles: [
@@ -587,15 +926,55 @@ export function buildDemoLevel(): LevelMap {
     setBouncePad(tiles, bounceProps, 17, 17, { vy: -1100, vx: -200 });
     setBouncePad(tiles, bounceProps, 17, 18, { vy: -1100, vx: -200 });
 
+    const spikeProps: Record<string, SpikeConfig> = {};
+    fillSpikes(tiles, spikeProps, 17, 3, 17, 6, 'up');
+    fillSpikes(tiles, spikeProps, 17, 13, 17, 16, 'up');
+
+    // Wall spikes projecting from outer walls
+    setSpike(tiles, spikeProps, 15, 1, 'right');
+    setSpike(tiles, spikeProps, 16, 1, 'right');
+    setSpike(tiles, spikeProps, 15, 18, 'left');
+    setSpike(tiles, spikeProps, 16, 18, 'left');
+
+    // Roof spikes (hanging from ceiling outside chute)
+    fillSpikes(tiles, spikeProps, 1, 2, 1, 5, 'down');
+    fillSpikes(tiles, spikeProps, 1, 14, 1, 17, 'down');
+
     const room: ScreenData = {
       id: 'room_4_minus1',
       coords: { x: 4, y: -1 },
       title: 'Sector (4,-1): Sub-Zero Crypt',
-      subtitle: 'Secret deep vault! Use the bounce pads to vault back up',
+      subtitle: 'Secret deep vault! Time the Super Bounce launch through the cryogenic laser defense',
       themeColor: '#0033ff', // Deep Indigo Neon
       accentColor: '#00ffff',
       tiles,
       bounceProps,
+      spikeProps,
+      laserTurrets: [
+        {
+          id: 'turret_4_m1_1',
+          x: 40,
+          y: 280,
+          direction: 'right',
+          mode: 'projectile',
+          projectileSpeed: 280,
+          fireInterval: 2.6,
+          fireOffset: 0.5,
+          themeColor: '#00ffff',
+        },
+        {
+          id: 'turret_4_m1_2',
+          x: 760,
+          y: 360,
+          direction: 'left',
+          mode: 'beam',
+          activeDuration: 2.2,
+          inactiveDuration: 2.4,
+          warningDuration: 0.7,
+          initialPhase: 0.4,
+          themeColor: '#00ffff',
+        },
+      ],
       collectibles: [
         { id: 'core_4_m1_1', x: 400, y: 420, type: 'prism' },
         { id: 'core_4_m1_2', x: 380, y: 200, type: 'prism' },

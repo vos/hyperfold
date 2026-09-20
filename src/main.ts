@@ -29,6 +29,10 @@ class Game {
   private camera3DMode: boolean = true;
   private pendingNextRoom: ScreenData | null = null;
   private bannerTimeout: number | null = null;
+  private rHoldTime: number = 0;
+  private readonly R_HOLD_THRESHOLD: number = 0.8;
+  private rLongPressTriggered: boolean = false;
+  private isButtonResetHeld: boolean = false;
 
   // DOM Elements
   private hudSectorEl: HTMLElement;
@@ -99,9 +103,19 @@ class Game {
       this.btnCameraEl.textContent = this.camera3DMode ? 'View: 3D Depth' : 'View: Flat Face';
     });
 
-    document.getElementById('btn-reset')?.addEventListener('click', () => {
-      this.respawnPlayer();
-    });
+    const btnReset = document.getElementById('btn-reset');
+    if (btnReset) {
+      btnReset.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this.isButtonResetHeld = true;
+      });
+      window.addEventListener('pointerup', () => {
+        this.isButtonResetHeld = false;
+      });
+      window.addEventListener('pointercancel', () => {
+        this.isButtonResetHeld = false;
+      });
+    }
 
     document.getElementById('btn-play-again')?.addEventListener('click', () => {
       this.winModalEl.style.display = 'none';
@@ -143,8 +157,49 @@ class Game {
 
     const inputState = this.input.update();
 
-    if (inputState.restartJustPressed) {
-      this.respawnPlayer();
+    // Handle R reset input (tap to die & respawn, long-press 0.8s to reset whole level to start)
+    const isRestarting = inputState.restart || this.isButtonResetHeld;
+
+    // Handle ultra-fast sub-frame tap (pressed and released within a single frame interval)
+    if (inputState.restartJustPressed && !isRestarting) {
+      this.triggerPlayerDeath();
+    } else if (isRestarting) {
+      this.rHoldTime += dt;
+      this.player.resetHoldProgress = Math.min(1, this.rHoldTime / this.R_HOLD_THRESHOLD);
+
+      // Subtle charging particles & banner feedback while holding
+      if (this.rHoldTime > 0.15 && !this.rLongPressTriggered) {
+        if (Math.random() < 0.35) {
+          this.particles.emitLaserCharge(
+            this.player.x + this.player.width * 0.5,
+            this.player.y + this.player.height * 0.5,
+            '#ffe600'
+          );
+        }
+        const pct = Math.round(this.player.resetHoldProgress * 100);
+        this.bannerEl.textContent = `RESTARTING WHOLE LEVEL... HOLD [R] (${pct}%)`;
+        this.bannerEl.style.opacity = '1';
+      }
+
+      if (this.rHoldTime >= this.R_HOLD_THRESHOLD && !this.rLongPressTriggered) {
+        this.rLongPressTriggered = true;
+        this.player.resetHoldProgress = 0;
+        this.resetWholeLevel();
+      }
+    } else {
+      // Key / button released
+      if (this.rHoldTime > 0) {
+        // If released before threshold and not already triggered long-press, trigger player death
+        if (!this.rLongPressTriggered && this.rHoldTime < this.R_HOLD_THRESHOLD) {
+          this.triggerPlayerDeath();
+          if (this.bannerEl.textContent?.startsWith('RESTARTING WHOLE LEVEL')) {
+            this.bannerEl.style.opacity = '0';
+          }
+        }
+        this.rHoldTime = 0;
+        this.rLongPressTriggered = false;
+        this.player.resetHoldProgress = 0;
+      }
     }
 
     // Gamepad right stick & keyboard camera orbit control
@@ -182,6 +237,12 @@ class Game {
     this.particles.update(dt);
 
     // 5. Render active front face (Canvas 2D -> WebGL CanvasTexture)
+    const activeProjectiles = this.physics.getProjectilesForRoom(
+      this.gameState === 'ROTATING' && this.pendingNextRoom
+        ? this.pendingNextRoom.id
+        : this.currentRoom.id
+    );
+
     if (this.gameState === 'ROTATING' && this.pendingNextRoom) {
       this.cubeRenderer.updateFaceCanvas(
         this.cubeRenderer.transitionTargetFace,
@@ -189,7 +250,8 @@ class Game {
         this.levelMap,
         this.player,
         this.particles,
-        dt
+        dt,
+        activeProjectiles
       );
     } else {
       this.cubeRenderer.updateFaceCanvas(
@@ -198,7 +260,8 @@ class Game {
         this.levelMap,
         this.player,
         this.particles,
-        dt
+        dt,
+        activeProjectiles
       );
     }
 
@@ -332,8 +395,80 @@ class Game {
     });
   }
 
+  private triggerPlayerDeath(): void {
+    if (this.gameState === 'RESPAWNING') return;
+    this.audio.playDeath();
+    this.particles.emitPlayerExplosion(
+      this.player.x + this.player.width * 0.5,
+      this.player.y + this.player.height * 0.5,
+      this.player.primaryColor,
+      this.player.accentColor
+    );
+    this.onPlayerDeath();
+  }
+
+  private resetWholeLevel(): void {
+    // 1. Rebuild fresh level map with all prisms restored and rooms unvisited
+    this.levelMap = buildDemoLevel();
+    this.currentCoords = { x: 0, y: 0 };
+    const initialRoom = this.levelMap.getRoom(0, 0)!;
+    this.currentRoom = initialRoom;
+    this.pendingNextRoom = null;
+    this.levelMap.markVisited(0, 0);
+
+    // 2. Reset traversal count
+    this.sidesTraversed = 1;
+
+    // 3. Reset 3D Cube rotation and re-bind all 6 faces to Genesis Core & its neighbors
+    this.cubeRenderer.resetRotationToZero();
+    this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+
+    // 4. Reset physics engine state
+    this.physics.resetCrumblingTiles();
+    this.physics.clearProjectiles();
+
+    // 5. Reset player position and kinematics to start spawn
+    const spawn = initialRoom.spawnPoint || { x: 120, y: 660 };
+    this.player.setPosition(spawn.x, spawn.y);
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.standingPlatform = null;
+    this.player.isGrounded = true;
+    this.player.wasGrounded = true;
+    this.player.isBouncePropelled = false;
+    this.player.isAlive = true;
+    this.player.resetHoldProgress = 0;
+
+    // 6. Reset particles and trigger dimensional reboot warp effect
+    this.particles.clear();
+    this.particles.emitPlayerExplosion(spawn.x, spawn.y, '#00ffff', '#ffe600');
+    this.particles.emitSparks(spawn.x, spawn.y, 30, '#ff00aa');
+
+    // 7. Audio: play level reset fanfare
+    this.audio.playLevelReset();
+
+    // 8. Close win modal if open
+    this.winModalEl.style.display = 'none';
+
+    // 9. Reset game state
+    this.gameState = 'PLAYING';
+    this.updateHUD();
+
+    // 10. Display dynamic announcement banner
+    if (this.bannerTimeout !== null) {
+      window.clearTimeout(this.bannerTimeout);
+    }
+    this.bannerEl.textContent = 'LEVEL RESTARTED: GENESIS CORE [0, 0]';
+    this.bannerEl.style.opacity = '1';
+    this.bannerTimeout = window.setTimeout(() => {
+      this.bannerEl.style.opacity = '0';
+      this.bannerTimeout = null;
+    }, 3000);
+  }
+
   private onPlayerDeath(): void {
     this.gameState = 'RESPAWNING';
+    this.player.isAlive = false;
     setTimeout(() => {
       this.respawnPlayer();
       this.gameState = 'PLAYING';
@@ -341,6 +476,7 @@ class Game {
   }
 
   private respawnPlayer(): void {
+    this.player.isAlive = true;
     this.physics.resetCrumblingTiles();
     const spawn = this.currentRoom.spawnPoint || { x: 80, y: 660 };
     this.player.setPosition(spawn.x, spawn.y);

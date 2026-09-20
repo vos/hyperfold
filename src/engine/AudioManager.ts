@@ -182,22 +182,79 @@ export class AudioManager {
     const ctx = this.initCtx();
     if (!ctx) return;
 
-    // Glitchy downward square burst
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const t = ctx.currentTime;
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(300, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.3);
+    // 1. Sub-Bass Thump (Punchy low-end impact drop)
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(160, t);
+    subOsc.frequency.exponentialRampToValueAtTime(28, t + 0.35);
+    subGain.gain.setValueAtTime(0.48, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(t);
+    subOsc.stop(t + 0.4);
 
-    gain.gain.setValueAtTime(0.22, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+    // 2. Detuned Dual Synth Screech (Descending retro cyberpunk explosion)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const synthGain = ctx.createGain();
+    const synthFilter = ctx.createBiquadFilter();
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    synthFilter.type = 'lowpass';
+    synthFilter.frequency.setValueAtTime(1500, t);
+    synthFilter.frequency.exponentialRampToValueAtTime(80, t + 0.55);
+    synthFilter.Q.setValueAtTime(5.0, t);
 
-    osc.start();
-    osc.stop(ctx.currentTime + 0.35);
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(520, t);
+    osc1.frequency.exponentialRampToValueAtTime(32, t + 0.5);
+
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(540, t); // detuned chorus
+    osc2.frequency.exponentialRampToValueAtTime(36, t + 0.5);
+
+    synthGain.gain.setValueAtTime(0.36, t);
+    synthGain.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+
+    osc1.connect(synthFilter);
+    osc2.connect(synthFilter);
+    synthFilter.connect(synthGain);
+    synthGain.connect(ctx.destination);
+
+    osc1.start(t);
+    osc2.start(t);
+    osc1.stop(t + 0.55);
+    osc2.stop(t + 0.55);
+
+    // 3. Filtered Noise Blast (Sizzling explosive debris burst)
+    const bufferSize = Math.floor(ctx.sampleRate * 0.4);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(850, t);
+    noiseFilter.frequency.exponentialRampToValueAtTime(120, t + 0.38);
+    noiseFilter.Q.setValueAtTime(2.0, t);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.34, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noise.start(t);
+    noise.stop(t + 0.4);
   }
 
   public playWin(): void {
@@ -222,6 +279,153 @@ export class AudioManager {
       osc.start();
       osc.stop(ctx.currentTime + 0.85);
     });
+  }
+
+  public playLevelReset(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    // Rapid ascending synth fanfare chord (C4, E4, G4, C5, E5, G5)
+    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq * 0.8, t + idx * 0.04);
+      osc.frequency.exponentialRampToValueAtTime(freq, t + idx * 0.04 + 0.08);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, t + idx * 0.04);
+      filter.frequency.exponentialRampToValueAtTime(2400, t + idx * 0.04 + 0.1);
+      filter.frequency.exponentialRampToValueAtTime(400, t + idx * 0.04 + 0.35);
+
+      gain.gain.setValueAtTime(0.01, t + idx * 0.04);
+      gain.gain.linearRampToValueAtTime(0.14, t + idx * 0.04 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.04 + 0.35);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t + idx * 0.04);
+      osc.stop(t + idx * 0.04 + 0.38);
+    });
+
+    // Sub-bass dimensional sweep
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(80, t);
+    subOsc.frequency.exponentialRampToValueAtTime(160, t + 0.15);
+    subOsc.frequency.exponentialRampToValueAtTime(45, t + 0.45);
+    subGain.gain.setValueAtTime(0.25, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(t);
+    subOsc.stop(t + 0.48);
+  }
+
+  public playLaserShoot(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Sci-fi high-energy blaster zap
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.14, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.14);
+  }
+
+  public playLaserImpact(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Plasma impact sizzle
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(320, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.08);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1200, ctx.currentTime);
+    filter.Q.setValueAtTime(3, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+  }
+
+  public playLaserWarning(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Electronic telegraph chirp
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(980, ctx.currentTime + 0.07);
+
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+  }
+
+  public playLaserHum(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Resonant power-on buzz
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
   }
 
   private startAmbientDrone(): void {
