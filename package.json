@@ -1,7 +1,17 @@
 {
-  "name": "infinite-cube-platformer",
-  "private": true,
+  "name": "hyperfold",
+  "description": "Traverse infinite sectors folded across the faces of a rotating 3D hypercube.",
   "version": "1.0.0",
+  "author": "Alexander Vos <alex@8bit.info>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vos/hyperfold.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vos/hyperfold/issues"
+  },
+  "homepage": "https://github.com/vos/hyperfold#readme",
   "type": "module",
   "scripts": {
     "dev": "vite",

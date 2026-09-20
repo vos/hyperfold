@@ -1,121 +1,170 @@
-# Walkthrough: Infinite 3D Cube Platformer
+# Hyperfold: Infinite Cube
 
-We have designed, implemented, and verified the **Infinite 3D Cube Platformer** game.
+> Traverse infinite sectors folded across the faces of a rotating 3D hypercube.
 
 The game combines classic 2D jump & run platforming mechanics with a pseudo-3D cube world that tumbles 90° whenever the player crosses any of the four screen edges. While physically appearing as a 3D cube tumbling in deep space, topologically the game world is an **infinite non-Euclidean manifold** featuring fixed, hand-crafted screens that never loop in circles (unless specifically designed) and always preserve round-trip navigation.
 
-![Infinite 3D Cube Platformer Gameplay](./screenshot.jpg)
+![Hyperfold Gameplay](./screenshot.jpg)
 
 ---
 
-## What Was Built
+## 🌟 Key Features
 
-### 1. The Infinite Pseudo-Cube Rebinding Engine
-- **Logical Manifold**: Rooms exist on an arbitrary 2D grid $(X, Y)$ mapped in [`LevelMap.ts`](file:///root/container_test/src/world/LevelMap.ts).
-- **Dynamic 3D Face Rebinding**:
-  - The player interacts on the **Front Face** ($+Z$) of a 3D beveled cube built in Three.js in [`CubeRenderer.ts`](file:///root/container_test/src/graphics/CubeRenderer.ts).
-  - When an edge boundary is crossed, the destination room is pre-rendered onto the adjacent 3D face (Right, Left, Top, or Bottom).
-  - The cube executes a smooth 90° slerp rotation using `easeInOutCubic` (~420ms).
-  - Upon reaching 90°, the coordinate state is updated, the cube rotation is instantaneously reset to 0, and all neighbor faces are re-bound to the new room's neighbors.
-  - This allows levels with **more than 6 screens** to be explored continuously without ever looping back to old screens, while walking back in reverse leads to the exact previous room.
+### 🎲 Infinite Non-Euclidean Cube Rebinding Engine
+* **Higher-Dimensional Topology**: Rooms exist on an open $(X, Y)$ coordinate manifold. Traversing 6 consecutive screens yields unique sectors without looping back to old screens, while traveling backward deterministically returns to your exact origin.
+* **Seamless 3D Tumble Transitions**: When crossing an edge boundary, the cube executes a smooth 90° slerp rotation (`easeInOutCubic`, ~420ms).
+* **Zero Pop-In Predictive Pre-Rendering**: The destination face, the incoming trailing face (Face 5: $-Z$), and all perpendicular adjacent faces are dynamically pre-rendered *before* the tumble begins, eliminating texture pop-in or mid-turn replacements.
+* **Canvas-to-WebGL Pipeline**: Crisp 2D Canvas tilemaps and dynamic sprites rendered directly onto Three.js `CanvasTexture` materials with dynamic player point lighting.
 
-### 2. Snappy 2D Platformer Kinematics
-- Implemented in [`PhysicsEngine.ts`](file:///root/container_test/src/engine/PhysicsEngine.ts) and [`Player.ts`](file:///root/container_test/src/entities/Player.ts):
-  - Tight acceleration and deceleration with variable jump height (cutting vertical velocity on early button release).
-  - **Coyote Time** (100ms tolerance) allowing jumps right after running off edges.
-  - **Jump Buffering** (120ms tolerance) registering jump presses right before landing.
-  - One-way jump-through platforms, bounce pads with high propulsion, crumble blocks, and spikes with respawn.
-  - Preserved velocity and momentum across edge transitions.
+### 🏃 Precision 2D Platforming Kinematics
+* **Fluid Movement**: Smooth acceleration, deceleration, and variable jump height (cutting vertical velocity on early jump release).
+* **Coyote Time (100ms)**: Jump gracefully even after walking off a platform edge.
+* **Jump Buffering (120ms)**: Queue jumps immediately before touching down on solid ground.
+* **Moving Platforms & Passenger Physics**: Floating hover cruisers and vertical elevators that accurately carry players with horizontal momentum inheritance.
+* **Down + Jump Drop-Through**: Press `Down + Jump` while standing on one-way or moving platforms to drop through, mirroring classic platformer conventions.
+* **Hazard & Interactive Mechanics**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and hazard spikes with instant respawn.
 
-### 3. Retro Neon / Synth Void Visuals & Procedural Audio
-- **Cosmic Void**: Fixed 3D starfield with drifting wireframe octahedra in [`VoidBackground.ts`](file:///root/container_test/src/graphics/VoidBackground.ts) that stay stationary relative to the camera, emphasizing the 3D rotation of the cube.
-- **Particle System**: Glowing jump/landing dust, collectible pickup sparks, motion trails, and boundary glow in [`ParticleSystem.ts`](file:///root/container_test/src/engine/ParticleSystem.ts).
-- **Procedural Synthesizer**: Web Audio API audio engine in [`AudioManager.ts`](file:///root/container_test/src/engine/AudioManager.ts) providing resonant 3D rotation whooshes, synth jumps, landing thuds, collectible chimes, death bursts, and a low-pass ambient drone.
+### 🌌 Synthwave Atmosphere & Procedural Audio
+* **Cosmic Starfield**: Independent deep-space starfield and drifting wireframe octahedra that remain stationary relative to the camera to accentuate the cube's 3D rotation.
+* **Dynamic Particle Systems**: Landing dust, jump bursts, collectible pickup sparks, motion trails, and screen-edge boundary luminescence.
+* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, death bursts, and a low-pass ambient drone. No external audio files required.
 
-### 4. Hand-Crafted 10-Sector Demo Level
-Created in [`DemoLevel.ts`](file:///root/container_test/src/world/DemoLevel.ts) demonstrating all mechanics:
-- **Sectors (0,0) through (6,0)**: A continuous 7-screen horizontal run exceeding the 6 faces of a physical cube.
-- **Sectors (2,1) & (2,2)**: Vertical climb rooms testing Up/Down 90° cube tumble transitions.
-- **Sector (4,-1)**: Hidden underground crypt accessed by falling through a chasm, containing secret energy prisms.
-- **Sector (6,0)**: The Warp Core Goal Portal completing the stage.
+### 🎥 Interactive 3D Camera Controls
+* **Free Orbit**: Click and drag with the left mouse button to orbit around the cube from any angle.
+* **Zoom**: Scroll the mouse wheel to inspect details up close or view the cosmic void.
+* **Camera Reset & Flat Mode**: Hit `V` to reset the camera to the default dramatic angle, or `C` to toggle between 3D Depth View and Orthographic 2D Flat Face View.
 
----
-
-## Key Files Created
-
-| File | Description |
-| :--- | :--- |
-| [`src/world/ScreenData.ts`](file:///root/container_test/src/world/ScreenData.ts) | Tile types, room exit flags, and screen data interfaces |
-| [`src/world/LevelMap.ts`](file:///root/container_test/src/world/LevelMap.ts) | Coordinate-based room manager with persistent item tracking |
-| [`src/world/DemoLevel.ts`](file:///root/container_test/src/world/DemoLevel.ts) | 10 hand-crafted demo sectors showcasing infinite cube turns |
-| [`src/engine/InputManager.ts`](file:///root/container_test/src/engine/InputManager.ts) | Keyboard (WASD/Arrows/Space) and Gamepad API controller |
-| [`src/engine/PhysicsEngine.ts`](file:///root/container_test/src/engine/PhysicsEngine.ts) | AABB platformer collision detection and edge crossing events |
-| [`src/engine/AudioManager.ts`](file:///root/container_test/src/engine/AudioManager.ts) | Procedural Web Audio API sound effects and synth ambient |
-| [`src/engine/ParticleSystem.ts`](file:///root/container_test/src/engine/ParticleSystem.ts) | 2D neon particle effects, dust puffs, and trails |
-| [`src/entities/Player.ts`](file:///root/container_test/src/entities/Player.ts) | Cyber runner character with animated legs and glowing core |
-| [`src/graphics/FaceRenderer.ts`](file:///root/container_test/src/graphics/FaceRenderer.ts) | 2D canvas room and HUD renderer for cube face textures |
-| [`src/graphics/VoidBackground.ts`](file:///root/container_test/src/graphics/VoidBackground.ts) | Stationary 3D starfield and ambient polyhedra in deep space |
-| [`src/graphics/CubeRenderer.ts`](file:///root/container_test/src/graphics/CubeRenderer.ts) | Three.js scene, beveled cube, and 90° slerp rotation tweens |
-| [`src/main.ts`](file:///root/container_test/src/main.ts) | Game loop, state coordinator, and UI overlays |
-| [`index.html`](file:///root/container_test/index.html) | Viewport shell, HUD sector/prism cards, and victory modal |
-| [`tests/navigation.test.mjs`](file:///root/container_test/tests/navigation.test.mjs) | Topology unit test validating non-Euclidean navigation |
-| [`tests/floor.test.mjs`](file:///root/container_test/tests/floor.test.mjs) | Automated floor & spawn point verification for all 10 sectors |
+### 📊 Real-Time Performance & Telemetry HUD
+* **Built-In Profiler**: Real-time FPS graph, average/min/max frame-time tracking, sample ring buffers, and memory telemetry.
+* **Toggle Shortcut**: Press `P`, `F3`, or `` ` `` anytime during gameplay to view diagnostic stats.
 
 ---
 
-## Verification Results
+## 🎮 Controls
 
-### 1. Automated Floor, Topology & Kinematics Test
-Executed with Node's native test runner:
+| Action | Keyboard | Gamepad | Mouse |
+| :--- | :--- | :--- | :--- |
+| **Move Left / Right** | `A` / `D` or `←` / `→` | D-Pad / Left Stick | — |
+| **Jump** | `Space` / `W` / `↑` | Button `A` / Cross | — |
+| **Drop Through Platform** | `S + Space` or `↓ + Jump` | `Down + Button A` | — |
+| **Reset Sector** | `R` | — | — |
+| **Toggle Sound** | `M` | — | HUD Button |
+| **Toggle 3D / Flat View** | `C` | — | HUD Button |
+| **Reset 3D Camera** | `V` | — | HUD Button |
+| **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Button |
+| **Orbit 3D Camera** | — | — | Left Click + Drag |
+| **Zoom In / Out** | — | — | Mouse Wheel |
+
+---
+
+## 🗺️ Demo Level: 10 Non-Euclidean Sectors
+
+The included demo campaign illustrates the infinite hypercube topology:
+
+* **Sectors $(0,0) \rightarrow (6,0)$**: A continuous 7-screen horizontal voyage exceeding the 6 physical faces of a 3D cube.
+* **Sector $(2,1)$ The Spire & $(2,2)$ Starlight Zenith**: Vertical climb chambers testing Up/Down 90° tumble rotations.
+* **Sector $(4,-1)$ Sub-Zero Crypt**: Secret subterranean vault accessed by falling through a chasm, containing hidden Energy Prisms and high-power launch pads.
+* **Sector $(6,0)$ Prism Horizon**: The Warp Core Goal Portal completing the stage.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+* [Node.js](https://nodejs.org/) (version 18.0 or higher recommended)
+* `npm` (bundled with Node.js)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/vos/hyperfold.git
+cd hyperfold
+
+# Install dependencies
+npm install
+```
+
+### Development Server
+Run Vite's local dev server with Hot Module Replacement (HMR):
+```bash
+npm run dev
+```
+Open `http://localhost:5173` in your browser.
+
+### Production Build & Preview
+Build the TypeScript source and preview the optimized production bundle:
+```bash
+# Build & preview with one command
+npm start
+
+# Or run separately
+npm run build
+npm run preview
+```
+
+### Running Automated Tests
+Run the unit test suite powered by Node.js's native test runner:
 ```bash
 npm test
 ```
-```
-▶ Screen Floor & Topology Verification
-  ✔ All 10 rooms exist and have solid floor on row 18
-  ✔ Sector (2,1) The Spire has floor ledges, bounce pads, and vertical chute
-  ✔ Sector (2,2) Starlight Zenith has floor ledges and one-way entry platform
-  ✔ Sector (4,0) Tesseract Chasm has valid stepping stones and crumble blocks
-  ✔ All rooms have grounded, safe spawn points
-✔ Screen Floor & Topology Verification
-✔ Infinite Cube Topology Invariants
-ℹ tests 7
-ℹ suites 0
-ℹ pass 7
-ℹ fail 0
-```
-- Proved all 10 demo sectors have solid floors at row 18.
-- Proved all spawn points are safely grounded.
-- Proved that traversing 6 consecutive turns yields 7 unique sectors (exceeding standard 6-sided dice limits).
-- Proved that traversing back left returns to $(0,0)$ deterministically.
-- Proved vertical branch and underground crypt round-trips.
-
-### 2. TypeScript Type-Checking & Vite Production Build
-```bash
-npm run build
-```
-- `tsc`: Passed with zero type errors.
-- `vite build`: Successfully bundled HTML and minified assets into `dist/`.
-
-### 3. Server Verification
-The preview server was started and verified responding to HTTP requests:
-```bash
-curl -s http://localhost:3000/ | head -n 30
-```
-- HTTP status 200 with complete HUD overlay and canvas container.
+Validates floor consistency across all 10 rooms, spawn safety, passenger physics, Down+Jump mechanics, non-Euclidean navigation invariants, and 3D transition face mappings (28 tests passing).
 
 ---
 
-## How to Play
+## 📁 Project Architecture
 
-1. **Controls**:
-   - **Move Left / Right**: `A` / `D` or `Left` / `Right` Arrow keys
-   - **Jump**: `Space` or `W` or `Up` Arrow key (variable jump height)
-   - **Reset Room**: `R` key
-   - **Toggle Sound**: `M` key or HUD button
-   - **Toggle View Mode**: `C` key (switches between 3D Depth View and Flat Face View)
-   - **Gamepad**: Standard USB/Bluetooth gamepads automatically supported!
-2. **Objective**:
-   - Run and jump across the platforms to reach the screen edge to trigger the 3D cube rotation.
-   - Collect the glowing **Energy Prisms** scattered across the sectors.
-   - Reach **Sector 6 (Prism Horizon)** to enter the Warp Core!
+```
+hyperfold/
+├── index.html                     # WebGL viewport, HUD overlays, and styling
+├── package.json                   # Project metadata and build scripts
+├── tsconfig.json                  # Strict TypeScript configuration
+├── vite.config.ts                 # Vite bundler configuration
+├── screenshot.jpg                 # Gameplay showcase image
+├── src/
+│   ├── main.ts                    # Game loop, state coordinator, and transition manager
+│   ├── engine/
+│   │   ├── AudioManager.ts        # Procedural Web Audio API sound synthesizer
+│   │   ├── InputManager.ts        # Keyboard, mouse, and Gamepad API handlers
+│   │   ├── ParticleSystem.ts      # 2D canvas particle emitter and trail effects
+│   │   └── PhysicsEngine.ts       # AABB collision, moving platforms, and seam crossing
+│   ├── entities/
+│   │   ├── MovingPlatform.ts      # Harmonic moving platforms with displacement tracking
+│   │   └── Player.ts              # Player state, kinematics, and rendering
+│   ├── graphics/
+│   │   ├── CubeRenderer.ts        # Three.js 3D beveled cube, orbit camera, and tumble slerp
+│   │   ├── FaceRenderer.ts        # 2D Canvas tilemap and HUD compositor for cube faces
+│   │   └── VoidBackground.ts      # Deep space starfield and floating polyhedra
+│   ├── ui/
+│   │   └── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
+│   └── world/
+│       ├── DemoLevel.ts           # 10 hand-crafted sectors with collectibles and hazards
+│       ├── LevelMap.ts            # Dynamic coordinate-based room map and visited states
+│       └── ScreenData.ts          # Tile definitions, room schemas, and exits
+└── tests/
+    ├── floor.test.mjs             # Floor integrity and safe spawn points
+    ├── moving-platforms.test.mjs  # Moving platform kinematics & 3D pre-render face mapping
+    ├── navigation.test.mjs        # Infinite non-Euclidean topology invariants
+    └── perf-tracker.test.mjs      # Telemetry statistics and ring buffer behavior
+```
+
+---
+
+## 📐 How the Non-Euclidean Cube Works
+
+In Euclidean space, a cube has exactly 6 faces. If you walk across 4 faces in one direction, you return to where you started.
+
+**Hyperfold** decouples the physical 3D representation from the logical room topology:
+1. The player always plays on the **Front Face ($+Z$)** of a 3D cube.
+2. The world is an open coordinate plane $\mathbb{Z}^2$.
+3. When crossing an exit seam in direction $\vec{d}$, the target room $(x + d_x, y + d_y)$ is rendered onto the corresponding adjacent face.
+4. The cube rotates 90° toward $\vec{d}$.
+5. Once rotation completes, the coordinate state updates, the cube's rotation quaternion is instantaneously reset to identity $(0, 0, 0, 1)$, and all surrounding faces are immediately rebound to the new room's logical neighbors.
+
+The visual illusion is a seamless tumble in 3D space; the mathematical reality is an infinite, navigable plane folded across a 6-sided die.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
