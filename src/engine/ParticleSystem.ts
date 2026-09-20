@@ -120,4 +120,8 @@ export class ParticleSystem {
   public clear(): void {
     this.particles = [];
   }
+
+  public get count(): number {
+    return this.particles.length;
+  }
 }

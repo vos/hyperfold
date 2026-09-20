@@ -7,6 +7,7 @@ import { AudioManager } from './engine/AudioManager';
 import { ParticleSystem } from './engine/ParticleSystem';
 import { PhysicsEngine } from './engine/PhysicsEngine';
 import { CubeRenderer, RotationDirection } from './graphics/CubeRenderer';
+import { PerformanceDebugView } from './ui/PerformanceDebugView';
 
 type GameState = 'PLAYING' | 'ROTATING' | 'GOAL_REACHED' | 'RESPAWNING';
 
@@ -35,6 +36,8 @@ class Game {
   private winStatsEl: HTMLElement;
   private btnMuteEl: HTMLElement;
   private btnCameraEl: HTMLElement;
+  private btnPerfEl: HTMLElement | null;
+  private perfDebug: PerformanceDebugView;
 
   constructor() {
     const container = document.getElementById('game-container')!;
@@ -46,6 +49,17 @@ class Game {
     this.winStatsEl = document.getElementById('win-stats')!;
     this.btnMuteEl = document.getElementById('btn-mute')!;
     this.btnCameraEl = document.getElementById('btn-camera')!;
+    this.btnPerfEl = document.getElementById('btn-perf');
+
+    this.perfDebug = new PerformanceDebugView({
+      initialVisible: false,
+      onToggle: (visible) => {
+        if (this.btnPerfEl) {
+          this.btnPerfEl.textContent = visible ? 'Perf: ON [P]' : 'Perf: OFF [P]';
+          this.btnPerfEl.classList.toggle('active', visible);
+        }
+      },
+    });
 
     this.levelMap = buildDemoLevel();
     const initialRoom = this.levelMap.getRoom(0, 0);
@@ -95,6 +109,10 @@ class Game {
       this.cubeRenderer.resetCameraToDefault();
     });
 
+    this.btnPerfEl?.addEventListener('click', () => {
+      this.perfDebug.toggle();
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') {
         const muted = this.audio.toggleMute();
@@ -110,6 +128,8 @@ class Game {
   }
 
   private gameLoop = (time: number) => {
+    this.perfDebug.recordFrame(time);
+
     if (this.lastTime === 0) this.lastTime = time;
     const dt = Math.min((time - this.lastTime) / 1000, 0.05);
     this.lastTime = time;
@@ -168,6 +188,19 @@ class Game {
 
     // 7. Update 3D scene & render
     this.cubeRenderer.update(dt);
+
+    // 8. Update performance debug telemetry
+    const renderStats = this.cubeRenderer.getRenderStats();
+    this.perfDebug.update(time, {
+      drawCalls: renderStats.drawCalls,
+      triangles: renderStats.triangles,
+      geometries: renderStats.geometries,
+      textures: renderStats.textures,
+      particleCount: this.particles.count,
+      sectorName: this.currentRoom.title,
+      coords: this.currentCoords,
+      cameraMode: this.camera3DMode ? '3D Orbit' : '2D Flat',
+    });
 
     requestAnimationFrame(this.gameLoop);
   };

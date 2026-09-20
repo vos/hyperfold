@@ -898,6 +898,15 @@ export class CubeRenderer {
     this.updateCameraLayout(false);
   };
 
+  public getRenderStats() {
+    return {
+      drawCalls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+      geometries: this.renderer.info.memory.geometries,
+      textures: this.renderer.info.memory.textures,
+    };
+  }
+
   public destroy(): void {
     window.removeEventListener('resize', this.onWindowResize);
     this.renderer.dispose();
