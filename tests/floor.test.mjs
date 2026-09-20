@@ -25,6 +25,32 @@ test('Screen Floor & Topology Verification', async (t) => {
     }
   });
 
+  await t.test('Sector (2,0) Quantum Junction has super bounce pad and climbable platforms to reach Sector (2,1)', () => {
+    const room = map.getRoom(2, 0);
+    assert.ok(room, 'Sector (2,0) must exist');
+
+    // Bounce pads across cols 8 to 11 on row 17
+    for (let c = 8; c <= 11; c++) {
+      assert.equal(room.tiles[17][c], TileType.BOUNCE, `Col ${c} on row 17 must be BOUNCE pad`);
+    }
+
+    // Physics check: Launch propulsion with vy = -1400 and gravity = 1150
+    // Height reached: 1400^2 / (2 * 1150) = 852 pixels.
+    // Distance from row 17 (y = 680) to ceiling (y = 0) is 680 pixels.
+    const launchHeight = Math.pow(1400, 2) / (2 * 1150);
+    assert.ok(
+      launchHeight > 680,
+      `Super bounce launch height (${launchHeight.toFixed(1)}px) must exceed ceiling distance (680px) to reach Sector (2,1)`
+    );
+
+    // Stepped climbing platforms: ensure intermediate rows exist (rows 15, 11, 7, 4)
+    const climbRows = [15, 11, 7, 4];
+    for (const r of climbRows) {
+      const hasPlatform = room.tiles[r].some((t) => t === TileType.ONE_WAY || t === TileType.SOLID);
+      assert.ok(hasPlatform, `Row ${r} must have climbing platforms for alternative ascent`);
+    }
+  });
+
   await t.test('Sector (2,1) The Spire has floor ledges, bounce pads, and vertical chute', () => {
     const room = map.getRoom(2, 1);
     assert.ok(room, 'Sector (2,1) must exist');

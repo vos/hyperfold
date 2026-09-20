@@ -124,16 +124,23 @@ function buildDemoLevel() {
         addEnclosure(tiles, exits);
         // Floor
         fillBox(tiles, 18, 0, 18, 19, ScreenData_1.TileType.SOLID);
-        // Bounce pad launching into the sky (room 2, 1)
-        tiles[17][9] = ScreenData_1.TileType.BOUNCE;
-        tiles[17][10] = ScreenData_1.TileType.BOUNCE;
+        // Super bounce pad launching straight into the sky through the ceiling into Sector (2,1)
+        fillBox(tiles, 17, 8, 17, 11, ScreenData_1.TileType.BOUNCE);
         // Stepping stones to right exit
         fillBox(tiles, 15, 14, 15, 19, ScreenData_1.TileType.SOLID);
+        // Stepped climbing platforms for alternative vertical ascent
+        fillBox(tiles, 15, 2, 15, 5, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 11, 3, 11, 6, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 11, 13, 11, 16, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 7, 4, 7, 7, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 7, 12, 7, 15, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 4, 5, 4, 7, ScreenData_1.TileType.ONE_WAY);
+        fillBox(tiles, 4, 12, 4, 14, ScreenData_1.TileType.ONE_WAY);
         const room = {
             id: 'room_2_0',
             coords: { x: 2, y: 0 },
             title: 'Sector 2: Quantum Junction',
-            subtitle: 'Bounce pad leads UP to Sector (2,1) or continue RIGHT',
+            subtitle: 'Use the Super Bounce Pad or climb the platforms to reach Sector (2,1) UP!',
             themeColor: '#00ff88', // Emerald Neon
             accentColor: '#00cc66',
             tiles,

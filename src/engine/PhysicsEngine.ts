@@ -128,9 +128,14 @@ export class PhysicsEngine {
       this.particles.emitDust(player.x + player.width * 0.5, player.y + player.height, 8, room.themeColor);
     }
 
-    // Variable Jump Cut (release jump early)
-    if (!input.jump && player.vy < player.MIN_JUMP_VELOCITY) {
+    // Variable Jump Cut (release jump early - only affects regular jumps, not bounce pads)
+    if (!input.jump && player.vy < player.MIN_JUMP_VELOCITY && !player.isBouncePropelled) {
       player.vy = player.MIN_JUMP_VELOCITY;
+    }
+
+    // Reset bounce propulsion once downward velocity begins or grounded
+    if (player.vy >= 0 || player.isGrounded) {
+      player.isBouncePropelled = false;
     }
 
     // 3. Gravity
@@ -231,12 +236,14 @@ export class PhysicsEngine {
             this.triggerCrumble(room, r, c);
           }
         } else if (tile === TileType.BOUNCE) {
-          if (player.vy > 0 && player.y + player.height >= tileTop) {
+          if (player.y + player.height >= tileTop && prevY + player.height <= tileBottom + 12) {
             player.y = tileTop - player.height;
-            player.vy = -720; // High super bounce!
+            player.vy = -1400; // Powerful vertical launch to reach sector above!
             player.isGrounded = false;
+            player.isBouncePropelled = true;
             this.audio.playBounce();
-            this.particles.emitDust(player.x + player.width * 0.5, player.y + player.height, 12, '#39ff14');
+            this.particles.emitDust(player.x + player.width * 0.5, player.y + player.height, 16, '#39ff14');
+            this.particles.emitSparks(player.x + player.width * 0.5, player.y + player.height, 12, '#00ffff');
           }
         } else if (tile === TileType.SPIKE) {
           // Spike hazard hit

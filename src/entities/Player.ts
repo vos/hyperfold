@@ -17,6 +17,7 @@ export class Player {
 
   public isGrounded: boolean = false;
   public wasGrounded: boolean = false;
+  public isBouncePropelled: boolean = false;
   public facing: number = 1; // 1 = right, -1 = left
 
   // Kinematics tuning constants
