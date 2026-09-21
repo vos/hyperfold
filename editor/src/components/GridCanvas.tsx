@@ -796,10 +796,32 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         TILE_PIXEL_SIZE * bSize
       );
     }
+
+    // 8. Hairline Coordinate Guidelines
+    if (showCoordinates && hoverPos) {
+      ctx.strokeStyle = '#00f0ff44';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+
+      // Horizontal crosshair
+      ctx.beginPath();
+      ctx.moveTo(0, hoverPos.row * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2);
+      ctx.lineTo(ROOM_PIXEL_SIZE, hoverPos.row * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2);
+      ctx.stroke();
+
+      // Vertical crosshair
+      ctx.beginPath();
+      ctx.moveTo(hoverPos.col * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2, 0);
+      ctx.lineTo(hoverPos.col * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2, ROOM_PIXEL_SIZE);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    }
   }, [
     room,
     showGrid,
     showEntities,
+    showCoordinates,
     currentTool,
     selectedGlyph,
     selectedEntity,
@@ -813,24 +835,92 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     <div className="flex-1 flex flex-col bg-cyber-bg overflow-hidden relative" ref={containerRef}>
       {/* Canvas Viewport Container */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-6 select-none">
-        <div
-          className="relative rounded-lg shadow-2xl border border-cyber-border overflow-hidden bg-black"
-          style={{
-            width: `${ROOM_PIXEL_SIZE * zoom}px`,
-            height: `${ROOM_PIXEL_SIZE * zoom}px`,
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full block cursor-crosshair"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => {
-              setIsMouseDown(false);
-              setHoverPos(null);
-            }}
-          />
+        <div className="flex flex-col items-center">
+          {/* Top Ruler Bar */}
+          {showCoordinates && (
+            <div
+              className="flex items-center"
+              style={{ width: `${(ROOM_PIXEL_SIZE * zoom) + 28}px` }}
+            >
+              {/* Corner Coordinate Label */}
+              <div className="w-7 h-6 bg-cyber-card border-t border-l border-b border-cyber-border rounded-tl flex items-center justify-center text-[9px] font-mono font-bold text-slate-500">
+                R\C
+              </div>
+
+              {/* Column Numbers 0..19 */}
+              <div
+                className="h-6 bg-cyber-card border-t border-b border-r border-cyber-border rounded-tr flex overflow-hidden font-mono text-[9px]"
+                style={{ width: `${ROOM_PIXEL_SIZE * zoom}px` }}
+              >
+                {Array.from({ length: GRID_COLS }).map((_, c) => {
+                  const isHovered = hoverPos?.col === c;
+                  return (
+                    <div
+                      key={c}
+                      className={`flex-1 flex flex-col items-center justify-center border-r border-cyber-border/40 transition-colors ${
+                        isHovered
+                          ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
+                          : 'text-slate-500'
+                      }`}
+                      title={`Column ${c} (Pixels ${c * 40}..${(c + 1) * 40})`}
+                    >
+                      <span>{c}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center">
+            {/* Left Ruler Bar (Row Numbers 0..19) */}
+            {showCoordinates && (
+              <div
+                className="w-7 bg-cyber-card border-l border-r border-b border-cyber-border rounded-bl flex flex-col overflow-hidden font-mono text-[9px]"
+                style={{ height: `${ROOM_PIXEL_SIZE * zoom}px` }}
+              >
+                {Array.from({ length: GRID_ROWS }).map((_, r) => {
+                  const isHovered = hoverPos?.row === r;
+                  return (
+                    <div
+                      key={r}
+                      className={`flex-1 flex items-center justify-center border-b border-cyber-border/40 transition-colors ${
+                        isHovered
+                          ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
+                          : 'text-slate-500'
+                      }`}
+                      title={`Row ${r} (Pixels ${r * 40}..${(r + 1) * 40})`}
+                    >
+                      <span>{r}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Canvas Box */}
+            <div
+              className={`relative shadow-2xl border border-cyber-border overflow-hidden bg-black ${
+                showCoordinates ? 'rounded-br' : 'rounded-lg'
+              }`}
+              style={{
+                width: `${ROOM_PIXEL_SIZE * zoom}px`,
+                height: `${ROOM_PIXEL_SIZE * zoom}px`,
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                className="w-full h-full block cursor-crosshair"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={() => {
+                  setIsMouseDown(false);
+                  setHoverPos(null);
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
