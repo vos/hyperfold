@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperfold.dev/schemas/room.schema.json",
+  "title": "Hyperfold Room Schema",
+  "description": "Schema for a single sector/room in Hyperfold with 20x20 tile grid and dynamic hazards.",
+  "type": "object",
+  "required": ["id", "coords", "title", "themeColor", "accentColor", "exits", "grid"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference URI"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique room identifier (e.g. 'room_0_0')",
+      "pattern": "^room_[a-zA-Z0-9_-]+$"
+    },
+    "coords": {
+      "description": "Grid coordinate of the room in the hypercube world graph",
+      "oneOf": [
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer" },
+            { "type": "integer" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "integer" },
+            "y": { "type": "integer" }
+          }
+        }
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Sector title displayed on entry and in HUD (e.g. 'Sector 0: Genesis Core')"
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "Optional hint or narrative lore shown on sector entry"
+    },
+    "themeColor": {
+      "type": "string",
+      "description": "Primary neon color in hex format (e.g. '#00ffff')"
+    },
+    "accentColor": {
+      "type": "string",
+      "description": "Secondary accent color in hex format (e.g. '#0088ff')"
+    },
+    "exits": {
+      "type": "object",
+      "description": "Accessible border exits to adjacent hypercube faces",
+      "required": ["left", "right", "up", "down"],
+      "properties": {
+        "left": { "type": "boolean" },
+        "right": { "type": "boolean" },
+        "up": { "type": "boolean" },
+        "down": { "type": "boolean" }
+      }
+    },
+    "spawnPoint": {
+      "description": "Player spawn pixel coordinates (x, y). Default: [120, 680]",
+      "oneOf": [
+        {
+          "type": "array",
+          "prefixItems": [{ "type": "number" }, { "type": "number" }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "grid": {
+      "type": "array",
+      "description": "20 rows of 20 characters representing the tile layout. Glyphs: '#' solid, '=' one-way, '^' spike up, 'v' spike down, '<' spike left, '>' spike right, 'B' bounce pad, 'C' crumble block, 'G' goal, '.' or ' ' empty air.",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 20
+      }
+    },
+    "collectibles": {
+      "type": "array",
+      "description": "Collectibles placed within the sector (cores, prisms, keys)",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["core", "prism", "key"] },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "pos": {
+            "type": "array",
+            "prefixItems": [{ "type": "number" }, { "type": "number" }],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "bounceProps": {
+      "type": "object",
+      "description": "Custom launch velocities for bounce pads, keyed by 'row,col' (e.g. '17,1')",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "vy": { "type": "number", "description": "Vertical velocity (e.g. -1400)" },
+          "vx": { "type": "number", "description": "Horizontal velocity (e.g. 200)" }
+        }
+      }
+    },
+
+    "movingPlatforms": {
+      "type": "array",
+      "description": "Dynamic moving hover platforms",
+      "items": {
+        "type": "object",
+        "required": ["id", "startX", "startY", "endX", "endY", "width", "speed"],
+        "properties": {
+          "id": { "type": "string" },
+          "startX": { "type": "number" },
+          "startY": { "type": "number" },
+          "endX": { "type": "number" },
+          "endY": { "type": "number" },
+          "width": { "type": "number" },
+          "height": { "type": "number" },
+          "speed": { "type": "number" },
+          "pauseTime": { "type": "number" },
+          "initialProgress": { "type": "number" },
+          "themeColor": { "type": "string" },
+          "oneWay": { "type": "boolean" }
+        }
+      }
+    },
+    "laserBarriers": {
+      "type": "array",
+      "description": "Timed pulsing or moving laser barriers",
+      "items": {
+        "type": "object",
+        "required": ["id", "startX1", "startY1", "startX2", "startY2", "activeDuration", "inactiveDuration"],
+        "properties": {
+          "id": { "type": "string" },
+          "startX1": { "type": "number" },
+          "startY1": { "type": "number" },
+          "startX2": { "type": "number" },
+          "startY2": { "type": "number" },
+          "endX1": { "type": "number" },
+          "endY1": { "type": "number" },
+          "endX2": { "type": "number" },
+          "endY2": { "type": "number" },
+          "speed": { "type": "number" },
+          "pauseTime": { "type": "number" },
+          "initialProgress": { "type": "number" },
+          "activeDuration": { "type": "number" },
+          "inactiveDuration": { "type": "number" },
+          "warningDuration": { "type": "number" },
+          "initialPhase": { "type": "number" },
+          "themeColor": { "type": "string" },
+          "width": { "type": "number" }
+        }
+      }
+    },
+    "laserTurrets": {
+      "type": "array",
+      "description": "Stationary or timed laser turrets (projectile or continuous beam)",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "y"],
+        "properties": {
+          "id": { "type": "string" },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "direction": { "type": "string", "enum": ["left", "right", "up", "down"] },
+          "angle": { "type": "number" },
+          "mode": { "type": "string", "enum": ["projectile", "beam"] },
+          "fireInterval": { "type": "number" },
+          "fireOffset": { "type": "number" },
+          "projectileSpeed": { "type": "number" },
+          "projectileLength": { "type": "number" },
+          "activeDuration": { "type": "number" },
+          "inactiveDuration": { "type": "number" },
+          "warningDuration": { "type": "number" },
+          "initialPhase": { "type": "number" },
+          "themeColor": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+

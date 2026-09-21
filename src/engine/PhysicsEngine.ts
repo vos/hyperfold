@@ -35,14 +35,16 @@ export class PhysicsEngine {
       return [];
     }
     let platforms = this.roomPlatforms.get(room.id);
-    if (!platforms || platforms.length !== room.movingPlatforms.length) {
+    const matches = platforms && platforms.length === room.movingPlatforms.length &&
+      platforms.every((plat, idx) => plat.config === room.movingPlatforms![idx]);
+    if (!matches) {
       platforms = room.movingPlatforms.map((cfg) => new MovingPlatform(cfg, t));
       this.roomPlatforms.set(room.id, platforms);
     }
-    for (const plat of platforms) {
+    for (const plat of platforms!) {
       plat.update(t);
     }
-    return platforms;
+    return platforms!;
   }
 
   public getBarriersForRoom(room: ScreenData, time?: number): LaserBarrier[] {
@@ -51,14 +53,16 @@ export class PhysicsEngine {
       return [];
     }
     let barriers = this.roomBarriers.get(room.id);
-    if (!barriers || barriers.length !== room.laserBarriers.length) {
+    const matches = barriers && barriers.length === room.laserBarriers.length &&
+      barriers.every((bar, idx) => bar.config === room.laserBarriers![idx]);
+    if (!matches) {
       barriers = room.laserBarriers.map((cfg) => new LaserBarrier(cfg, t));
       this.roomBarriers.set(room.id, barriers);
     }
-    for (const barrier of barriers) {
+    for (const barrier of barriers!) {
       barrier.update(t);
     }
-    return barriers;
+    return barriers!;
   }
 
   public getTurretsForRoom(room: ScreenData): LaserTurret[] {
@@ -66,11 +70,13 @@ export class PhysicsEngine {
       return [];
     }
     let turrets = this.roomTurrets.get(room.id);
-    if (!turrets || turrets.length !== room.laserTurrets.length) {
+    const matches = turrets && turrets.length === room.laserTurrets.length &&
+      turrets.every((tur, idx) => tur.config === room.laserTurrets![idx]);
+    if (!matches) {
       turrets = room.laserTurrets.map((cfg) => new LaserTurret(cfg));
       this.roomTurrets.set(room.id, turrets);
     }
-    return turrets;
+    return turrets!;
   }
 
   public getProjectilesForRoom(roomId: string): LaserProjectile[] {
@@ -79,6 +85,14 @@ export class PhysicsEngine {
 
   public clearProjectiles(): void {
     this.roomProjectiles.clear();
+  }
+
+  public clearAllRoomsCache(): void {
+    this.roomPlatforms.clear();
+    this.roomBarriers.clear();
+    this.roomTurrets.clear();
+    this.roomProjectiles.clear();
+    this.resetCrumblingTiles();
   }
 
   public resetCrumblingTiles(): void {

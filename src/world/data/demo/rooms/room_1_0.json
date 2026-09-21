@@ -1,0 +1,102 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_1_0",
+  "coords": [
+    1,
+    0
+  ],
+  "title": "Sector 1: Neon Nexus",
+  "subtitle": "Time your crossing through alternating ceiling beams — the hover sled blocks them!",
+  "themeColor": "#ff00aa",
+  "accentColor": "#ff0055",
+  "exits": {
+    "left": true,
+    "right": true,
+    "up": false,
+    "down": false
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#    vvvv  vvvv    #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#       ====       #",
+    "#>                <#",
+    "#>                <#",
+    "   ====      ====   ",
+    "                    ",
+    "                    ",
+    "  ====        ====  ",
+    "                    ",
+    "                    ",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_1_0_1",
+      "type": "core",
+      "pos": [
+        200,
+        420
+      ]
+    },
+    {
+      "id": "core_1_0_2",
+      "type": "prism",
+      "pos": [
+        400,
+        280
+      ]
+    }
+  ],
+  "movingPlatforms": [
+    {
+      "id": "plat_1_0_1",
+      "startX": 180,
+      "startY": 520,
+      "endX": 560,
+      "endY": 520,
+      "width": 80,
+      "height": 16,
+      "speed": 110,
+      "pauseTime": 0.5,
+      "themeColor": "#00ffff"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_1_0_1",
+      "x": 260,
+      "y": 40,
+      "direction": "down",
+      "mode": "beam",
+      "activeDuration": 2,
+      "inactiveDuration": 2.4,
+      "warningDuration": 0.6,
+      "initialPhase": 0,
+      "themeColor": "#ff00aa"
+    },
+    {
+      "id": "turret_1_0_2",
+      "x": 540,
+      "y": 40,
+      "direction": "down",
+      "mode": "beam",
+      "activeDuration": 2,
+      "inactiveDuration": 2.4,
+      "warningDuration": 0.6,
+      "initialPhase": 0.5,
+      "themeColor": "#ff0055"
+    }
+  ]
+}

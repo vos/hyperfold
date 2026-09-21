@@ -107,6 +107,34 @@
         box-shadow: 0 0 8px rgba(0, 255, 170, 0.4);
       }
 
+      .hud-select {
+        pointer-events: auto;
+        background: rgba(10, 20, 36, 0.9);
+        border: 1px solid #00ffff;
+        color: #00ffff;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-right: 8px;
+        outline: none;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
+      }
+
+      .hud-select:hover, .hud-select:focus {
+        border-color: #ffe600;
+        color: #ffe600;
+        box-shadow: 0 0 12px rgba(255, 230, 0, 0.3);
+      }
+
+      .hud-select option {
+        background: #060b16;
+        color: #00ffff;
+      }
+
       /* Performance Debug Overlay */
       .perf-overlay-card {
         position: absolute;
@@ -388,6 +416,12 @@
       </div>
 
       <div style="display: flex; align-items: center;">
+        <select class="hud-select" id="world-select" title="Switch World or Load Custom Map">
+          <option value="demo">World: Infinite Tesseract (10 Sectors)</option>
+          <option value="mini">World: Mini Hypercube (3 Sectors)</option>
+          <option value="__load_custom__">+ Load Custom World (.json)...</option>
+        </select>
+        <input type="file" id="world-file-input" accept=".json" style="display: none;" />
         <button class="hud-btn" id="btn-perf">Perf: OFF [P]</button>
         <button class="hud-btn" id="btn-mute">Sound: ON</button>
         <button class="hud-btn" id="btn-camera">View: 3D Depth</button>

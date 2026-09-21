@@ -149,9 +149,12 @@ hyperfold/
 │   ├── ui/
 │   │   └── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
 │   └── world/
-│       ├── DemoLevel.ts           # 10 hand-crafted sectors with collectibles and hazards
+│       ├── data/                  # Declarative JSON worlds & rooms (modular & bundles)
+│       ├── schemas/               # JSON schemas for room and world validation
+│       ├── LevelLoader.ts         # ASCII grid parser and JSON loader
 │       ├── LevelMap.ts            # Dynamic coordinate-based room map and visited states
-│       └── ScreenData.ts          # Tile definitions, room schemas, and exits
+│       ├── ScreenData.ts          # Tile definitions, room schemas, and exits
+│       └── WorldRegistry.ts       # Auto-discovery and registration of worlds
 └── tests/
     ├── danger-spikes.test.mjs     # Directional spikes (walls, roof, platform) collision & detection
     ├── floor.test.mjs             # Floor integrity and safe spawn points

@@ -1,0 +1,102 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_2_0",
+  "coords": [
+    2,
+    0
+  ],
+  "title": "Sector 2: Quantum Junction",
+  "subtitle": "Time the Super Bounce Pad launch through the ceiling barrier, or climb the spire path!",
+  "themeColor": "#00ff88",
+  "accentColor": "#00cc66",
+  "exits": {
+    "left": true,
+    "right": true,
+    "up": true,
+    "down": false
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "#######      #######",
+    "# vvv          vvv #",
+    "#                  #",
+    "#                  #",
+    "#    ===    ===    #",
+    "#                  #",
+    "#                  #",
+    "#   ====    ====   #",
+    "#>                 #",
+    "#>                 #",
+    "#                  #",
+    "#  ====      ====  #",
+    "                    ",
+    "                    ",
+    "                  ^ ",
+    "  ====        ######",
+    "                    ",
+    "        BBBB        ",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_2_0_1",
+      "type": "core",
+      "pos": [
+        400,
+        400
+      ]
+    },
+    {
+      "id": "core_2_0_2",
+      "type": "core",
+      "pos": [
+        620,
+        480
+      ]
+    }
+  ],
+  "bounceProps": {
+    "17,8": {
+      "vy": -1550
+    },
+    "17,9": {
+      "vy": -1550
+    },
+    "17,10": {
+      "vy": -1550
+    },
+    "17,11": {
+      "vy": -1550
+    }
+  },
+  "laserBarriers": [
+    {
+      "id": "barrier_2_0_1",
+      "startX1": 280,
+      "startY1": 120,
+      "startX2": 520,
+      "startY2": 120,
+      "activeDuration": 1.8,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.6,
+      "themeColor": "#00ff88"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_2_0_1",
+      "x": 760,
+      "y": 200,
+      "angle": 210,
+      "mode": "projectile",
+      "projectileSpeed": 240,
+      "fireInterval": 2.6,
+      "fireOffset": 0.8,
+      "themeColor": "#00ff88"
+    }
+  ]
+}

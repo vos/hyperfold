@@ -1,6 +1,6 @@
-import { buildDemoLevel } from './world/DemoLevel';
 import { LevelMap } from './world/LevelMap';
 import { ScreenData } from './world/ScreenData';
+import { WorldRegistry } from './world/WorldRegistry';
 import { Player } from './entities/Player';
 import { InputManager } from './engine/InputManager';
 import { AudioManager } from './engine/AudioManager';
@@ -33,6 +33,7 @@ class Game {
   private readonly R_HOLD_THRESHOLD: number = 0.8;
   private rLongPressTriggered: boolean = false;
   private isButtonResetHeld: boolean = false;
+  private currentWorldId: string = 'demo';
 
   // DOM Elements
   private hudSectorEl: HTMLElement;
@@ -44,6 +45,8 @@ class Game {
   private btnMuteEl: HTMLElement;
   private btnCameraEl: HTMLElement;
   private btnPerfEl: HTMLElement | null;
+  private worldSelectEl: HTMLSelectElement;
+  private worldFileInputEl: HTMLInputElement;
   private perfDebug: PerformanceDebugView;
 
   constructor() {
@@ -57,6 +60,8 @@ class Game {
     this.btnMuteEl = document.getElementById('btn-mute')!;
     this.btnCameraEl = document.getElementById('btn-camera')!;
     this.btnPerfEl = document.getElementById('btn-perf');
+    this.worldSelectEl = document.getElementById('world-select') as HTMLSelectElement;
+    this.worldFileInputEl = document.getElementById('world-file-input') as HTMLInputElement;
 
     this.perfDebug = new PerformanceDebugView({
       initialVisible: false,
@@ -68,11 +73,40 @@ class Game {
       },
     });
 
-    this.levelMap = buildDemoLevel();
-    const initialRoom = this.levelMap.getRoom(0, 0);
-    if (!initialRoom) throw new Error('Genesis room not found');
+    // Dynamically populate world select options from discovered worlds
+    if (this.worldSelectEl) {
+      this.worldSelectEl.innerHTML = '';
+      for (const w of WorldRegistry.getAvailableWorlds()) {
+        const opt = document.createElement('option');
+        opt.value = w.id;
+        opt.textContent = `World: ${w.name}`;
+        this.worldSelectEl.appendChild(opt);
+      }
+      const customOpt = document.createElement('option');
+      customOpt.value = '__load_custom__';
+      customOpt.textContent = '+ Load Custom World (.json)...';
+      this.worldSelectEl.appendChild(customOpt);
+    }
+
+    // Check for ?world= URL query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramWorld = urlParams.get('world');
+    if (paramWorld && WorldRegistry.getWorld(paramWorld)) {
+      this.currentWorldId = paramWorld;
+    }
+    if (this.worldSelectEl) {
+      this.worldSelectEl.value = this.currentWorldId;
+    }
+
+    const worldEntry = WorldRegistry.getWorld(this.currentWorldId) || WorldRegistry.getWorld('demo')!;
+    this.levelMap = worldEntry.load();
+    const sx = worldEntry.startingCoords?.x ?? 0;
+    const sy = worldEntry.startingCoords?.y ?? 0;
+    const initialRoom = this.levelMap.getRoom(sx, sy) || this.levelMap.getAllRooms()[0];
+    if (!initialRoom) throw new Error('Initial room not found');
+    this.currentCoords = { x: initialRoom.coords.x, y: initialRoom.coords.y };
     this.currentRoom = initialRoom;
-    this.levelMap.markVisited(0, 0);
+    this.levelMap.markVisited(this.currentCoords.x, this.currentCoords.y);
 
     const spawn = initialRoom.spawnPoint || { x: 120, y: 660 };
     this.player = new Player(spawn.x, spawn.y);
@@ -128,6 +162,94 @@ class Game {
 
     this.btnPerfEl?.addEventListener('click', () => {
       this.perfDebug.toggle();
+    });
+
+    // World Selection Dropdown
+    this.worldSelectEl?.addEventListener('change', () => {
+      const selected = this.worldSelectEl.value;
+      if (selected === '__load_custom__') {
+        this.worldSelectEl.value = this.currentWorldId;
+        this.worldFileInputEl?.click();
+        return;
+      }
+      const entry = WorldRegistry.getWorld(selected);
+      if (entry) {
+        this.currentWorldId = selected;
+        this.loadWorld(entry.load(), entry.name, entry.startingCoords);
+      }
+    });
+
+    // Local JSON File Upload
+    this.worldFileInputEl?.addEventListener('change', () => {
+      const file = this.worldFileInputEl.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const loaded = WorldRegistry.loadWorldFromJsonString(content);
+          const customId = `custom_${Date.now()}`;
+          WorldRegistry.registerWorld({
+            id: customId,
+            name: loaded.title,
+            source: 'custom',
+            load: () => WorldRegistry.loadWorldFromJsonString(content).map,
+            startingCoords: loaded.startingCoords,
+          });
+
+          // Add to select dropdown before the custom option
+          const option = document.createElement('option');
+          option.value = customId;
+          option.textContent = `Custom: ${loaded.title}`;
+          this.worldSelectEl.insertBefore(option, this.worldSelectEl.lastElementChild);
+          this.worldSelectEl.value = customId;
+          this.currentWorldId = customId;
+
+          this.loadWorld(loaded.map, loaded.title, loaded.startingCoords);
+        } catch (err: any) {
+          alert(`Failed to load world JSON: ${err?.message || err}`);
+        }
+      };
+      reader.readAsText(file);
+      this.worldFileInputEl.value = '';
+    });
+
+    // Drag-and-Drop JSON Maps
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const content = ev.target?.result as string;
+            const loaded = WorldRegistry.loadWorldFromJsonString(content);
+            const customId = `custom_${Date.now()}`;
+            WorldRegistry.registerWorld({
+              id: customId,
+              name: loaded.title,
+              source: 'custom',
+              load: () => WorldRegistry.loadWorldFromJsonString(content).map,
+              startingCoords: loaded.startingCoords,
+            });
+
+            const option = document.createElement('option');
+            option.value = customId;
+            option.textContent = `Custom: ${loaded.title}`;
+            this.worldSelectEl.insertBefore(option, this.worldSelectEl.lastElementChild);
+            this.worldSelectEl.value = customId;
+            this.currentWorldId = customId;
+
+            this.loadWorld(loaded.map, loaded.title, loaded.startingCoords);
+          } catch (err: any) {
+            alert(`Failed to load dropped JSON: ${err?.message || err}`);
+          }
+        };
+        reader.readAsText(file);
+      }
     });
 
     window.addEventListener('keydown', (e) => {
@@ -407,27 +529,28 @@ class Game {
     this.onPlayerDeath();
   }
 
-  private resetWholeLevel(): void {
-    // 1. Rebuild fresh level map with all prisms restored and rooms unvisited
-    this.levelMap = buildDemoLevel();
-    this.currentCoords = { x: 0, y: 0 };
-    const initialRoom = this.levelMap.getRoom(0, 0)!;
+  public loadWorld(map: LevelMap, title: string, startCoords?: { x: number; y: number }): void {
+    this.levelMap = map;
+    const sx = startCoords?.x ?? 0;
+    const sy = startCoords?.y ?? 0;
+    const initialRoom = this.levelMap.getRoom(sx, sy) || this.levelMap.getAllRooms()[0];
+    if (!initialRoom) throw new Error('No valid rooms found in world');
+
+    this.currentCoords = { x: initialRoom.coords.x, y: initialRoom.coords.y };
     this.currentRoom = initialRoom;
     this.pendingNextRoom = null;
-    this.levelMap.markVisited(0, 0);
-
-    // 2. Reset traversal count
+    this.levelMap.markVisited(this.currentCoords.x, this.currentCoords.y);
     this.sidesTraversed = 1;
 
-    // 3. Reset 3D Cube rotation and re-bind all 6 faces to Genesis Core & its neighbors
+    // Reset rotation & face binding
     this.cubeRenderer.resetRotationToZero();
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
 
-    // 4. Reset physics engine state
-    this.physics.resetCrumblingTiles();
-    this.physics.clearProjectiles();
+    // Reset physics & particles
+    this.physics.clearAllRoomsCache();
+    this.particles.clear();
 
-    // 5. Reset player position and kinematics to start spawn
+    // Reset player position & state
     const spawn = initialRoom.spawnPoint || { x: 120, y: 660 };
     this.player.setPosition(spawn.x, spawn.y);
     this.player.vx = 0;
@@ -439,31 +562,34 @@ class Game {
     this.player.isAlive = true;
     this.player.resetHoldProgress = 0;
 
-    // 6. Reset particles and trigger dimensional reboot warp effect
-    this.particles.clear();
+    // Visual & audio reset feedback
     this.particles.emitPlayerExplosion(spawn.x, spawn.y, '#00ffff', '#ffe600');
     this.particles.emitSparks(spawn.x, spawn.y, 30, '#ff00aa');
-
-    // 7. Audio: play level reset fanfare
     this.audio.playLevelReset();
 
-    // 8. Close win modal if open
     this.winModalEl.style.display = 'none';
-
-    // 9. Reset game state
     this.gameState = 'PLAYING';
     this.updateHUD();
 
-    // 10. Display dynamic announcement banner
     if (this.bannerTimeout !== null) {
       window.clearTimeout(this.bannerTimeout);
     }
-    this.bannerEl.textContent = 'LEVEL RESTARTED: GENESIS CORE [0, 0]';
+    this.bannerEl.textContent = `WORLD LOADED: ${title.toUpperCase()}`;
     this.bannerEl.style.opacity = '1';
     this.bannerTimeout = window.setTimeout(() => {
       this.bannerEl.style.opacity = '0';
       this.bannerTimeout = null;
     }, 3000);
+  }
+
+  private resetWholeLevel(): void {
+    const worldEntry = WorldRegistry.getWorld(this.currentWorldId);
+    if (worldEntry) {
+      this.loadWorld(worldEntry.load(), worldEntry.name, worldEntry.startingCoords);
+    } else {
+      const fallback = WorldRegistry.getWorld('demo')!;
+      this.loadWorld(fallback.load(), fallback.name, fallback.startingCoords);
+    }
   }
 
   private onPlayerDeath(): void {

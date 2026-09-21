@@ -1,0 +1,87 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_6_0",
+  "coords": [
+    6,
+    0
+  ],
+  "title": "Sector 6: Prism Horizon",
+  "subtitle": "Final Sector! Breach the Warp Core defense lasers to complete the quantum voyage!",
+  "themeColor": "#ff0055",
+  "accentColor": "#ffcc00",
+  "exits": {
+    "left": true,
+    "right": false,
+    "up": false,
+    "down": false
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "                   #",
+    "         ===       #",
+    "                   #",
+    "     ====      G   #",
+    "              ###  #",
+    "             ##### #",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_6_0_1",
+      "type": "prism",
+      "pos": [
+        260,
+        460
+      ]
+    },
+    {
+      "id": "core_6_0_2",
+      "type": "prism",
+      "pos": [
+        420,
+        380
+      ]
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_6_0_1",
+      "x": 600,
+      "y": 40,
+      "direction": "down",
+      "mode": "beam",
+      "activeDuration": 2,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.7,
+      "initialPhase": 0.2,
+      "themeColor": "#ff0055"
+    },
+    {
+      "id": "turret_6_0_2",
+      "x": 40,
+      "y": 400,
+      "angle": -20,
+      "mode": "projectile",
+      "projectileSpeed": 260,
+      "fireInterval": 2.4,
+      "fireOffset": 0.6,
+      "themeColor": "#ffcc00"
+    }
+  ]
+}

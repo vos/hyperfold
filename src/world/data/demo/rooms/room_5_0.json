@@ -1,0 +1,111 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_5_0",
+  "coords": [
+    5,
+    0
+  ],
+  "title": "Sector 5: Beyond Euclidean Space",
+  "subtitle": "Ride the dimensional shuttle through the quantum barrier crossfire",
+  "themeColor": "#00e5ff",
+  "accentColor": "#0099ff",
+  "exits": {
+    "left": true,
+    "right": true,
+    "up": false,
+    "down": false
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "        ====        ",
+    "                    ",
+    "    ====    ====    ",
+    "                    ",
+    "  ====        ====  ",
+    "                    ",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_5_0_1",
+      "type": "prism",
+      "pos": [
+        220,
+        460
+      ]
+    },
+    {
+      "id": "core_5_0_2",
+      "type": "prism",
+      "pos": [
+        400,
+        340
+      ]
+    },
+    {
+      "id": "core_5_0_3",
+      "type": "core",
+      "pos": [
+        580,
+        460
+      ]
+    }
+  ],
+  "movingPlatforms": [
+    {
+      "id": "plat_5_0_1",
+      "startX": 220,
+      "startY": 400,
+      "endX": 580,
+      "endY": 400,
+      "width": 80,
+      "height": 16,
+      "speed": 150,
+      "pauseTime": 0.4,
+      "themeColor": "#00e5ff"
+    }
+  ],
+  "laserBarriers": [
+    {
+      "id": "barrier_5_0_1",
+      "startX1": 390,
+      "startY1": 160,
+      "startX2": 410,
+      "startY2": 300,
+      "activeDuration": 2,
+      "inactiveDuration": 2.5,
+      "warningDuration": 0.8,
+      "themeColor": "#00e5ff"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_5_0_1",
+      "x": 760,
+      "y": 240,
+      "direction": "left",
+      "mode": "beam",
+      "activeDuration": 2.2,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.6,
+      "initialPhase": 0.5,
+      "themeColor": "#00e5ff"
+    }
+  ]
+}

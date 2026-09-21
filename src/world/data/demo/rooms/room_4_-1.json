@@ -1,0 +1,123 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_4_-1",
+  "coords": [
+    4,
+    -1
+  ],
+  "title": "Sector (4,-1): Sub-Zero Crypt",
+  "subtitle": "Secret deep vault! Time the Super Bounce launch through the cryogenic laser defense",
+  "themeColor": "#0033ff",
+  "accentColor": "#00ffff",
+  "exits": {
+    "left": false,
+    "right": false,
+    "up": true,
+    "down": false
+  },
+  "spawnPoint": [
+    400,
+    520
+  ],
+  "grid": [
+    "#######      #######",
+    "# vvvv        vvvv #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#       ====       #",
+    "#>  ===      ===  <#",
+    "#>                <#",
+    "#BB^^^^BBBBBB^^^^BB#",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_4_m1_1",
+      "type": "prism",
+      "pos": [
+        400,
+        420
+      ]
+    },
+    {
+      "id": "core_4_m1_2",
+      "type": "prism",
+      "pos": [
+        380,
+        200
+      ]
+    }
+  ],
+  "bounceProps": {
+    "17,7": {
+      "vy": -1550
+    },
+    "17,8": {
+      "vy": -1550
+    },
+    "17,9": {
+      "vy": -1550
+    },
+    "17,10": {
+      "vy": -1550
+    },
+    "17,11": {
+      "vy": -1550
+    },
+    "17,12": {
+      "vy": -1550
+    },
+    "17,1": {
+      "vy": -1100,
+      "vx": 200
+    },
+    "17,2": {
+      "vy": -1100,
+      "vx": 200
+    },
+    "17,17": {
+      "vy": -1100,
+      "vx": -200
+    },
+    "17,18": {
+      "vy": -1100,
+      "vx": -200
+    }
+  },
+  "laserTurrets": [
+    {
+      "id": "turret_4_m1_1",
+      "x": 40,
+      "y": 280,
+      "direction": "right",
+      "mode": "projectile",
+      "projectileSpeed": 280,
+      "fireInterval": 2.6,
+      "fireOffset": 0.5,
+      "themeColor": "#00ffff"
+    },
+    {
+      "id": "turret_4_m1_2",
+      "x": 760,
+      "y": 360,
+      "direction": "left",
+      "mode": "beam",
+      "activeDuration": 2.2,
+      "inactiveDuration": 2.4,
+      "warningDuration": 0.7,
+      "initialPhase": 0.4,
+      "themeColor": "#00ffff"
+    }
+  ]
+}

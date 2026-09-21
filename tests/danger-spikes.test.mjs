@@ -3,13 +3,13 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { buildDemoLevel } = require('./dist-world/DemoLevel.js');
+const { WorldRegistry } = require('./dist-world/WorldRegistry.js');
 const { TileType, ROWS, COLS, getSpikeDirection } = require('./dist-world/ScreenData.js');
 const { Player } = require('./dist-world/Player.js');
 const { PhysicsEngine } = require('./dist-world/engine/PhysicsEngine.js');
 
 test('Directional Spikes (Walls, Roof, Solid Platforms) Verification', async (t) => {
-  const map = buildDemoLevel();
+  const map = WorldRegistry.getWorld('demo').load();
 
   await t.test('getSpikeDirection accurately resolves explicit and auto-detected directions', () => {
     // Room with custom spikeProps

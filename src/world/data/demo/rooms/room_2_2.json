@@ -1,0 +1,117 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_2_2",
+  "coords": [
+    2,
+    2
+  ],
+  "title": "Sector (2,2): Starlight Zenith",
+  "subtitle": "Ride the solar cruiser across intersecting solar beams and diagonal plasma fire",
+  "themeColor": "#ffe600",
+  "accentColor": "#ff8800",
+  "exits": {
+    "left": false,
+    "right": false,
+    "up": false,
+    "down": true
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#       ####       #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#  #####    #####  #",
+    "#                  #",
+    "#   ###      ###   #",
+    "#      ======      #",
+    "# B              B #",
+    "#######      #######",
+    "#######      #######"
+  ],
+  "collectibles": [
+    {
+      "id": "core_2_2_1",
+      "type": "prism",
+      "pos": [
+        200,
+        380
+      ]
+    },
+    {
+      "id": "core_2_2_2",
+      "type": "prism",
+      "pos": [
+        600,
+        380
+      ]
+    },
+    {
+      "id": "core_2_2_3",
+      "type": "prism",
+      "pos": [
+        400,
+        220
+      ]
+    }
+  ],
+  "bounceProps": {
+    "17,2": {
+      "vy": -1400
+    },
+    "17,17": {
+      "vy": -1400
+    }
+  },
+  "movingPlatforms": [
+    {
+      "id": "plat_2_2_1",
+      "startX": 220,
+      "startY": 460,
+      "endX": 580,
+      "endY": 460,
+      "width": 80,
+      "height": 16,
+      "speed": 130,
+      "pauseTime": 0.5,
+      "themeColor": "#ffe600"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_2_2_1",
+      "x": 40,
+      "y": 60,
+      "angle": 45,
+      "mode": "projectile",
+      "projectileSpeed": 260,
+      "fireInterval": 2.8,
+      "fireOffset": 0.6,
+      "themeColor": "#ffe600"
+    },
+    {
+      "id": "turret_2_2_2",
+      "x": 760,
+      "y": 60,
+      "angle": 135,
+      "mode": "beam",
+      "activeDuration": 2.4,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.7,
+      "initialPhase": 0.3,
+      "themeColor": "#ff8800"
+    }
+  ]
+}

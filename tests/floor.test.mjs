@@ -3,11 +3,11 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { buildDemoLevel } = require('./dist-world/DemoLevel.js');
+const { WorldRegistry } = require('./dist-world/WorldRegistry.js');
 const { TileType, ROWS, COLS } = require('./dist-world/ScreenData.js');
 
 test('Screen Floor & Topology Verification', async (t) => {
-  const map = buildDemoLevel();
+  const map = WorldRegistry.getWorld('demo').load();
   const rooms = map.getAllRooms();
 
   await t.test('All 10 rooms exist and have solid floor on row 18', () => {

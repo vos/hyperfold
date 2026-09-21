@@ -1,0 +1,89 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_4_0",
+  "coords": [
+    4,
+    0
+  ],
+  "title": "Sector 4: Gravity Well",
+  "subtitle": "Drop DOWN into the Crypt (4,-1) or ride across the void under diagonal laser sweeps",
+  "themeColor": "#aa00ff",
+  "accentColor": "#7700cc",
+  "exits": {
+    "left": true,
+    "right": true,
+    "up": false,
+    "down": true
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#     vvvv         #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "                    ",
+    "                    ",
+    "                    ",
+    "           CCC      ",
+    "       CCC          ",
+    "     #        #     ",
+    "######        ######",
+    "#####>#      #<#####"
+  ],
+  "collectibles": [
+    {
+      "id": "core_4_0_1",
+      "type": "core",
+      "pos": [
+        320,
+        440
+      ]
+    },
+    {
+      "id": "core_4_0_2",
+      "type": "core",
+      "pos": [
+        480,
+        400
+      ]
+    }
+  ],
+  "movingPlatforms": [
+    {
+      "id": "plat_4_0_1",
+      "startX": 240,
+      "startY": 520,
+      "endX": 520,
+      "endY": 520,
+      "width": 80,
+      "height": 16,
+      "speed": 130,
+      "pauseTime": 0.5,
+      "themeColor": "#aa00ff"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_4_0_1",
+      "x": 100,
+      "y": 40,
+      "angle": 40,
+      "mode": "beam",
+      "activeDuration": 2.2,
+      "inactiveDuration": 2.4,
+      "warningDuration": 0.7,
+      "themeColor": "#aa00ff"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/world.schema.json",
+  "id": "demo",
+  "title": "Infinite Tesseract (10 Sectors)",
+  "description": "Traverse infinite sectors folded across the rotating faces of a 3D hypercube.",
+  "startingCoords": [
+    0,
+    0
+  ],
+  "rooms": [
+    "./rooms/room_0_0.json",
+    "./rooms/room_1_0.json",
+    "./rooms/room_2_0.json",
+    "./rooms/room_3_0.json",
+    "./rooms/room_4_0.json",
+    "./rooms/room_5_0.json",
+    "./rooms/room_6_0.json",
+    "./rooms/room_2_1.json",
+    "./rooms/room_2_2.json",
+    "./rooms/room_4_-1.json"
+  ]
+}

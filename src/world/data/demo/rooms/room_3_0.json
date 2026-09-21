@@ -1,0 +1,151 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_3_0",
+  "coords": [
+    3,
+    0
+  ],
+  "title": "Sector 3: Laser Grid",
+  "subtitle": "Navigate alternating ceiling laser beams, mobile barriers, and crossfire turrets!",
+  "themeColor": "#ffaa00",
+  "accentColor": "#ff6600",
+  "exits": {
+    "left": true,
+    "right": true,
+    "up": false,
+    "down": false
+  },
+  "spawnPoint": [
+    80,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#    v             #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#       ====       #",
+    "#>                 #",
+    "#                  #",
+    "                    ",
+    "         ^          ",
+    "         #          ",
+    "       ### ##       ",
+    "    ## ### ## ##    ",
+    "    ## ### ## ####  ",
+    "####^^^^^^^^^^^^####",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_3_0_1",
+      "type": "core",
+      "pos": [
+        200,
+        580
+      ]
+    },
+    {
+      "id": "core_3_0_2",
+      "type": "prism",
+      "pos": [
+        400,
+        300
+      ]
+    },
+    {
+      "id": "core_3_0_3",
+      "type": "core",
+      "pos": [
+        600,
+        580
+      ]
+    }
+  ],
+  "movingPlatforms": [
+    {
+      "id": "plat_3_0_1",
+      "startX": 240,
+      "startY": 480,
+      "endX": 520,
+      "endY": 480,
+      "width": 88,
+      "height": 16,
+      "speed": 110,
+      "pauseTime": 0.4,
+      "themeColor": "#ffaa00"
+    }
+  ],
+  "laserBarriers": [
+    {
+      "id": "barrier_3_0_1",
+      "startX1": 340,
+      "startY1": 180,
+      "startX2": 340,
+      "startY2": 320,
+      "endX1": 460,
+      "endY1": 180,
+      "endX2": 460,
+      "endY2": 320,
+      "speed": 80,
+      "pauseTime": 0.5,
+      "activeDuration": 2,
+      "inactiveDuration": 2,
+      "warningDuration": 0.7,
+      "themeColor": "#ff0055"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_3_0_1",
+      "x": 300,
+      "y": 40,
+      "direction": "down",
+      "mode": "beam",
+      "activeDuration": 1.8,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.6,
+      "initialPhase": 0,
+      "themeColor": "#ff3366"
+    },
+    {
+      "id": "turret_3_0_4",
+      "x": 480,
+      "y": 40,
+      "direction": "down",
+      "mode": "beam",
+      "activeDuration": 1.8,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.6,
+      "initialPhase": 0.5,
+      "themeColor": "#ff00aa"
+    },
+    {
+      "id": "turret_3_0_2",
+      "x": 760,
+      "y": 200,
+      "direction": "left",
+      "mode": "projectile",
+      "projectileSpeed": 260,
+      "fireInterval": 3,
+      "fireOffset": 0.8,
+      "themeColor": "#ff3366"
+    },
+    {
+      "id": "turret_3_0_3",
+      "x": 760,
+      "y": 60,
+      "angle": 135,
+      "mode": "projectile",
+      "projectileSpeed": 240,
+      "fireInterval": 3.4,
+      "fireOffset": 1.5,
+      "themeColor": "#ffaa00"
+    }
+  ]
+}

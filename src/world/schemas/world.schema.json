@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperfold.dev/schemas/world.schema.json",
+  "title": "Hyperfold World Schema",
+  "description": "Schema for a complete world/level collection in Hyperfold, supporting both modular file references and single-file inlined rooms.",
+  "type": "object",
+  "required": ["id", "title", "rooms"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference URI"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique world identifier (e.g. 'demo_world')"
+    },
+    "title": {
+      "type": "string",
+      "description": "World title (e.g. 'Hyperfold Dimension Alpha')"
+    },
+    "description": {
+      "type": "string",
+      "description": "Narrative or gameplay overview for the world"
+    },
+    "startingCoords": {
+      "description": "Coordinates of the initial entry sector. Defaults to [0, 0].",
+      "oneOf": [
+        {
+          "type": "array",
+          "prefixItems": [{ "type": "integer" }, { "type": "integer" }],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "integer" },
+            "y": { "type": "integer" }
+          }
+        }
+      ]
+    },
+    "rooms": {
+      "description": "Either an array of relative file paths to modular room JSON files, or an inlined array of complete room objects.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Relative path to a room JSON file (e.g. './rooms/room_0_0.json')"
+          },
+          {
+            "$ref": "room.schema.json"
+          }
+        ]
+      }
+    }
+  }
+}
+

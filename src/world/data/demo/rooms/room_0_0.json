@@ -1,0 +1,84 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_0_0",
+  "coords": [
+    0,
+    0
+  ],
+  "title": "Sector 0: Genesis Core",
+  "subtitle": "Move with A/D, Jump with Space. Observe overhead laser beams and timing telegraphs!",
+  "themeColor": "#00ffff",
+  "accentColor": "#0088ff",
+  "exits": {
+    "left": false,
+    "right": true,
+    "up": false,
+    "down": false
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#             =====#",
+    "#                   ",
+    "#                   ",
+    "#          ####     ",
+    "#                   ",
+    "#     ####      ####",
+    "#                   ",
+    "####################",
+    "####################"
+  ],
+  "collectibles": [
+    {
+      "id": "core_0_0_1",
+      "type": "core",
+      "pos": [
+        280,
+        500
+      ]
+    },
+    {
+      "id": "core_0_0_2",
+      "type": "core",
+      "pos": [
+        500,
+        420
+      ]
+    },
+    {
+      "id": "core_0_0_3",
+      "type": "prism",
+      "pos": [
+        620,
+        380
+      ]
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_0_0_1",
+      "x": 760,
+      "y": 280,
+      "direction": "left",
+      "mode": "beam",
+      "activeDuration": 1.8,
+      "inactiveDuration": 2.2,
+      "warningDuration": 0.8,
+      "initialPhase": 0.5,
+      "themeColor": "#00ffff"
+    }
+  ]
+}

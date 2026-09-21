@@ -1,0 +1,125 @@
+{
+  "$schema": "../../schemas/room.schema.json",
+  "id": "room_2_1",
+  "coords": [
+    2,
+    1
+  ],
+  "title": "Sector (2,1): The Spire",
+  "subtitle": "Ascend the spire — time the elevator past laser beams and barriers to reach the Zenith!",
+  "themeColor": "#39ff14",
+  "accentColor": "#00aa33",
+  "exits": {
+    "left": false,
+    "right": false,
+    "up": true,
+    "down": true
+  },
+  "spawnPoint": [
+    120,
+    680
+  ],
+  "grid": [
+    "#######      #######",
+    "# vvvv        vvvv #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "#>                <#",
+    "#                  #",
+    "#      ==BB==      #",
+    "#                  #",
+    "#                  #",
+    "#   ====    ====   #",
+    "#                  #",
+    "#      ======      #",
+    "#                  #",
+    "# ^  ===    ===  ^ #",
+    "# #              # #",
+    "#                  #",
+    "#B                B#",
+    "#######      #######",
+    "#######      #######"
+  ],
+  "collectibles": [
+    {
+      "id": "core_2_1_1",
+      "type": "core",
+      "pos": [
+        160,
+        540
+      ]
+    },
+    {
+      "id": "core_2_1_2",
+      "type": "core",
+      "pos": [
+        640,
+        540
+      ]
+    },
+    {
+      "id": "core_2_1_3",
+      "type": "prism",
+      "pos": [
+        400,
+        200
+      ]
+    }
+  ],
+  "bounceProps": {
+    "17,1": {
+      "vy": -900
+    },
+    "17,18": {
+      "vy": -900
+    },
+    "7,9": {
+      "vy": -1200
+    },
+    "7,10": {
+      "vy": -1200
+    }
+  },
+  "movingPlatforms": [
+    {
+      "id": "plat_2_1_1",
+      "startX": 360,
+      "startY": 480,
+      "endX": 360,
+      "endY": 280,
+      "width": 80,
+      "height": 16,
+      "speed": 90,
+      "pauseTime": 0.5,
+      "themeColor": "#39ff14"
+    }
+  ],
+  "laserBarriers": [
+    {
+      "id": "barrier_2_1_1",
+      "startX1": 280,
+      "startY1": 220,
+      "startX2": 520,
+      "startY2": 220,
+      "activeDuration": 1.8,
+      "inactiveDuration": 2.5,
+      "warningDuration": 0.7,
+      "themeColor": "#ff0055"
+    }
+  ],
+  "laserTurrets": [
+    {
+      "id": "turret_2_1_1",
+      "x": 40,
+      "y": 380,
+      "direction": "right",
+      "mode": "beam",
+      "activeDuration": 2,
+      "inactiveDuration": 2.5,
+      "warningDuration": 0.6,
+      "initialPhase": 0.7,
+      "themeColor": "#39ff14"
+    }
+  ]
+}

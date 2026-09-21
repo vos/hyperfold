@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { buildDemoLevel } = require('./dist-world/world/DemoLevel.js');
+const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
 const { LaserBarrier } = require('./dist-world/entities/LaserBarrier.js');
 const { LaserTurret } = require('./dist-world/entities/LaserTurret.js');
 const { MovingPlatform } = require('./dist-world/entities/MovingPlatform.js');
@@ -12,7 +12,7 @@ const { Player } = require('./dist-world/entities/Player.js');
 const { PhysicsEngine } = require('./dist-world/engine/PhysicsEngine.js');
 
 test('Laser Hazards & Shooting Lasers Verification', async (t) => {
-  const map = buildDemoLevel();
+  const map = WorldRegistry.getWorld('demo').load();
 
   await t.test('LaserBarrier timing cycle correctly transitions between INACTIVE, WARNING, and ACTIVE', () => {
     const config = {
