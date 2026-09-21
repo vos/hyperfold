@@ -3,9 +3,9 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { WorldRegistry } = require('./dist-world/WorldRegistry.js');
-const { TileType, ROWS, COLS, getSpikeDirection } = require('./dist-world/ScreenData.js');
-const { Player } = require('./dist-world/Player.js');
+const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
+const { TileType, ROWS, COLS, getSpikeDirection } = require('./dist-world/world/ScreenData.js');
+const { Player } = require('./dist-world/entities/Player.js');
 const { PhysicsEngine } = require('./dist-world/engine/PhysicsEngine.js');
 
 test('Directional Spikes (Walls, Roof, Solid Platforms) Verification', async (t) => {

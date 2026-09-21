@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { WorldRegistry } = require('./dist-world/WorldRegistry.js');
-const { TileType, ROWS, COLS } = require('./dist-world/ScreenData.js');
+const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
+const { TileType, ROWS, COLS } = require('./dist-world/world/ScreenData.js');
 
 test('Screen Floor & Topology Verification', async (t) => {
   const map = WorldRegistry.getWorld('demo').load();

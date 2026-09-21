@@ -5,8 +5,8 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { LevelLoader } = require('./dist-world/LevelLoader.js');
-const { TileType, ROWS, COLS } = require('./dist-world/ScreenData.js');
+const { LevelLoader } = require('./dist-world/world/LevelLoader.js');
+const { TileType, ROWS, COLS } = require('./dist-world/world/ScreenData.js');
 
 const singleFilePath = path.resolve('src/world/data/demo-all-in-one.json');
 const modularDir = path.resolve('src/world/data/demo');

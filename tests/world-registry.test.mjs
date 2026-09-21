@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { WorldRegistry } = require('./dist-world/WorldRegistry.js');
-const { TileType } = require('./dist-world/ScreenData.js');
+const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
+const { TileType } = require('./dist-world/world/ScreenData.js');
 
 test('WorldRegistry & Dynamic World Loading', async (t) => {
   await t.test('Pre-registers demo and mini worlds', () => {

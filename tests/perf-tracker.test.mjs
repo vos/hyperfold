@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { PerformanceTracker } = require('./dist-world/PerformanceTracker.js');
+const { PerformanceTracker } = require('./dist-world/engine/PerformanceTracker.js');
 
 test('Performance Tracker & Telemetry Statistics', async (t) => {
   await t.test('Initial snapshot returns sensible baseline when uninitialized', () => {
