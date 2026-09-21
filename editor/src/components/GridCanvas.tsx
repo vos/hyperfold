@@ -834,8 +834,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-cyber-bg overflow-hidden relative" ref={containerRef}>
       {/* Canvas Viewport Container */}
-      <div className="flex-1 overflow-auto flex items-center justify-center p-6 select-none">
-        <div className="flex flex-col items-center">
+      <div className="flex-1 overflow-auto flex p-6 select-none">
+        <div className="m-auto flex flex-col items-center shrink-0">
           {/* Top Ruler Bar */}
           {showCoordinates && (
             <div
