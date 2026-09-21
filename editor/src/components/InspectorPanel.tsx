@@ -451,7 +451,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     }}
                     className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
                   />
-                  <span className="text-[9px] text-slate-500">Default: -1400, Super: -1800</span>
+                  <span className="text-[9px] text-slate-500">Default: -1400, Super: -1800, Mega: -2200</span>
                 </div>
 
                 <div>
@@ -471,6 +471,88 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     }}
                     className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
                   />
+                </div>
+
+                {/* Velocity Presets */}
+                <div className="pt-1 space-y-1">
+                  <span className="text-slate-500 text-[9px] uppercase font-bold tracking-wider">Presets</span>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          bounceProps: {
+                            ...(r.bounceProps || {}),
+                            [activeBouncePadKey]: { ...(r.bounceProps?.[activeBouncePadKey] || {}), vy: -1400, vx: 0 },
+                          },
+                        }))
+                      }
+                      className="px-1.5 py-0.5 bg-cyber-bg hover:bg-cyber-hover border border-cyber-border rounded text-[9px] text-slate-300"
+                    >
+                      Default (-1400)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          bounceProps: {
+                            ...(r.bounceProps || {}),
+                            [activeBouncePadKey]: { ...(r.bounceProps?.[activeBouncePadKey] || {}), vy: -1800, vx: 0 },
+                          },
+                        }))
+                      }
+                      className="px-1.5 py-0.5 bg-cyber-bg hover:bg-cyber-hover border border-cyber-cyan/40 rounded text-[9px] text-cyber-cyan"
+                    >
+                      Super (-1800)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          bounceProps: {
+                            ...(r.bounceProps || {}),
+                            [activeBouncePadKey]: { ...(r.bounceProps?.[activeBouncePadKey] || {}), vy: -2200, vx: 0 },
+                          },
+                        }))
+                      }
+                      className="px-1.5 py-0.5 bg-cyber-bg hover:bg-cyber-hover border border-purple-500/40 rounded text-[9px] text-cyber-neonPurple"
+                    >
+                      Mega (-2200)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          bounceProps: {
+                            ...(r.bounceProps || {}),
+                            [activeBouncePadKey]: { ...(r.bounceProps?.[activeBouncePadKey] || {}), vy: -1400, vx: 400 },
+                          },
+                        }))
+                      }
+                      className="px-1.5 py-0.5 bg-cyber-bg hover:bg-cyber-hover border border-amber-500/40 rounded text-[9px] text-amber-300"
+                    >
+                      Vault Right (+400)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          bounceProps: {
+                            ...(r.bounceProps || {}),
+                            [activeBouncePadKey]: { ...(r.bounceProps?.[activeBouncePadKey] || {}), vy: -1400, vx: -400 },
+                          },
+                        }))
+                      }
+                      className="px-1.5 py-0.5 bg-cyber-bg hover:bg-cyber-hover border border-amber-500/40 rounded text-[9px] text-amber-300"
+                    >
+                      Vault Left (-400)
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -547,6 +629,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Collectible ID</span>
+                  <input
+                    type="text"
+                    value={activeCollectible.id}
+                    onChange={(e) => {
+                      const newId = e.target.value.trim();
+                      if (!newId) return;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        collectibles: r.collectibles?.map((c) =>
+                          c.id === activeCollectible.id ? { ...c, id: newId } : c
+                        ),
+                      }));
+                      onSelectEntity({ type: 'collectible', id: newId });
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
                 </div>
 
                 <div>
@@ -627,6 +729,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Platform ID</span>
+                  <input
+                    type="text"
+                    value={activePlatform.id}
+                    onChange={(e) => {
+                      const newId = e.target.value.trim();
+                      if (!newId) return;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        movingPlatforms: r.movingPlatforms?.map((p) =>
+                          p.id === activePlatform.id ? { ...p, id: newId } : p
+                        ),
+                      }));
+                      onSelectEntity({ type: 'movingPlatform', id: newId });
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -718,6 +840,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     />
                   </div>
                   <div>
+                    <span className="text-slate-500 text-[10px]">Height (px)</span>
+                    <input
+                      type="number"
+                      value={activePlatform.height ?? 16}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 16;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          movingPlatforms: r.movingPlatforms?.map((p) =>
+                            p.id === activePlatform.id ? { ...p, height: val } : p
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
                     <span className="text-slate-500 text-[10px]">Speed (px/s)</span>
                     <input
                       type="number"
@@ -734,9 +876,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                       className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-slate-500 text-[10px]">Pause Time (s)</span>
                     <input
@@ -749,6 +888,29 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           ...r,
                           movingPlatforms: r.movingPlatforms?.map((p) =>
                             p.id === activePlatform.id ? { ...p, pauseTime: val } : p
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-500 text-[10px]">Initial Progress (0-1)</span>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0"
+                      max="1"
+                      value={activePlatform.initialProgress ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          movingPlatforms: r.movingPlatforms?.map((p) =>
+                            p.id === activePlatform.id ? { ...p, initialProgress: val } : p
                           ),
                         }));
                       }}
@@ -770,8 +932,62 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           }));
                         }}
                       />
-                      <span className="text-[10px] text-slate-300">Jump-Through</span>
+                      <span className="text-[10px] text-slate-300">Jump-Through (One-Way)</span>
                     </label>
+                  </div>
+                </div>
+
+                {/* Platform Custom Color Override */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-[10px]">Neon Color Override</span>
+                    {activePlatform.themeColor && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            movingPlatforms: r.movingPlatforms?.map((p) =>
+                              p.id === activePlatform.id ? { ...p, themeColor: undefined } : p
+                            ),
+                          }))
+                        }
+                        className="text-[9px] text-cyber-cyan hover:underline"
+                      >
+                        Reset to Sector
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="color"
+                      value={activePlatform.themeColor || room.themeColor}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          movingPlatforms: r.movingPlatforms?.map((p) =>
+                            p.id === activePlatform.id ? { ...p, themeColor: color } : p
+                          ),
+                        }));
+                      }}
+                      className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={activePlatform.themeColor || ''}
+                      placeholder={`${room.themeColor} (Sector Default)`}
+                      onChange={(e) => {
+                        const color = e.target.value.trim();
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          movingPlatforms: r.movingPlatforms?.map((p) =>
+                            p.id === activePlatform.id ? { ...p, themeColor: color || undefined } : p
+                          ),
+                        }));
+                      }}
+                      className="flex-1 bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
                   </div>
                 </div>
               </div>
@@ -795,6 +1011,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Barrier ID</span>
+                  <input
+                    type="text"
+                    value={activeBarrier.id}
+                    onChange={(e) => {
+                      const newId = e.target.value.trim();
+                      if (!newId) return;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        laserBarriers: r.laserBarriers?.map((b) =>
+                          b.id === activeBarrier.id ? { ...b, id: newId } : b
+                        ),
+                      }));
+                      onSelectEntity({ type: 'laserBarrier', id: newId });
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -867,6 +1103,183 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </div>
 
+                {/* Moving Barrier Harmonic Endpoints */}
+                <div className="border border-cyber-border/70 rounded p-2 bg-cyber-bg/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-300">Pylon Movement (Harmonic)</span>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={activeBarrier.endX1 !== undefined}
+                        onChange={(e) => {
+                          const enable = e.target.checked;
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserBarriers: r.laserBarriers?.map((b) =>
+                              b.id === activeBarrier.id
+                                ? enable
+                                  ? {
+                                      ...b,
+                                      endX1: b.startX1,
+                                      endY1: b.startY1 + 100,
+                                      endX2: b.startX2,
+                                      endY2: b.startY2 + 100,
+                                      speed: b.speed || 80,
+                                      pauseTime: b.pauseTime ?? 0.4,
+                                      initialProgress: b.initialProgress ?? 0,
+                                    }
+                                  : {
+                                      ...b,
+                                      endX1: undefined,
+                                      endY1: undefined,
+                                      endX2: undefined,
+                                      endY2: undefined,
+                                      speed: undefined,
+                                      pauseTime: undefined,
+                                      initialProgress: undefined,
+                                    }
+                                : b
+                            ),
+                          }));
+                        }}
+                      />
+                      <span className="text-[10px] text-cyber-cyan">Enabled</span>
+                    </label>
+                  </div>
+
+                  {activeBarrier.endX1 !== undefined && (
+                    <div className="space-y-2 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-slate-500 text-[10px]">End Pylon 1 (X, Y)</span>
+                          <div className="flex space-x-1">
+                            <input
+                              type="number"
+                              value={activeBarrier.endX1 ?? activeBarrier.startX1}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  laserBarriers: r.laserBarriers?.map((b) =>
+                                    b.id === activeBarrier.id ? { ...b, endX1: val } : b
+                                  ),
+                                }));
+                              }}
+                              className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                            />
+                            <input
+                              type="number"
+                              value={activeBarrier.endY1 ?? activeBarrier.startY1}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  laserBarriers: r.laserBarriers?.map((b) =>
+                                    b.id === activeBarrier.id ? { ...b, endY1: val } : b
+                                  ),
+                                }));
+                              }}
+                              className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500 text-[10px]">End Pylon 2 (X, Y)</span>
+                          <div className="flex space-x-1">
+                            <input
+                              type="number"
+                              value={activeBarrier.endX2 ?? activeBarrier.startX2}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  laserBarriers: r.laserBarriers?.map((b) =>
+                                    b.id === activeBarrier.id ? { ...b, endX2: val } : b
+                                  ),
+                                }));
+                              }}
+                              className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                            />
+                            <input
+                              type="number"
+                              value={activeBarrier.endY2 ?? activeBarrier.startY2}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  laserBarriers: r.laserBarriers?.map((b) =>
+                                    b.id === activeBarrier.id ? { ...b, endY2: val } : b
+                                  ),
+                                }));
+                              }}
+                              className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div>
+                          <span className="text-slate-500 text-[10px]">Speed (px/s)</span>
+                          <input
+                            type="number"
+                            value={activeBarrier.speed ?? 80}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 80;
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                laserBarriers: r.laserBarriers?.map((b) =>
+                                  b.id === activeBarrier.id ? { ...b, speed: val } : b
+                                ),
+                              }));
+                            }}
+                            className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-slate-500 text-[10px]">Pause (s)</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={activeBarrier.pauseTime ?? 0.4}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                laserBarriers: r.laserBarriers?.map((b) =>
+                                  b.id === activeBarrier.id ? { ...b, pauseTime: val } : b
+                                ),
+                              }));
+                            }}
+                            className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-slate-500 text-[10px]">Phase (0-1)</span>
+                          <input
+                            type="number"
+                            step="0.05"
+                            min="0"
+                            max="1"
+                            value={activeBarrier.initialProgress ?? 0}
+                            onChange={(e) => {
+                              const val = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                laserBarriers: r.laserBarriers?.map((b) =>
+                                  b.id === activeBarrier.id ? { ...b, initialProgress: val } : b
+                                ),
+                              }));
+                            }}
+                            className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-slate-500 text-[10px]">Active Time (s)</span>
@@ -905,6 +1318,102 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-500 text-[10px]">Warning Duration (s)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={activeBarrier.warningDuration ?? 0.6}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserBarriers: r.laserBarriers?.map((b) =>
+                            b.id === activeBarrier.id ? { ...b, warningDuration: val } : b
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[10px]">Timing Phase (0-1)</span>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0"
+                      max="1"
+                      value={activeBarrier.initialPhase ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserBarriers: r.laserBarriers?.map((b) =>
+                            b.id === activeBarrier.id ? { ...b, initialPhase: val } : b
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-500 text-[10px]">Beam Width (px)</span>
+                    <input
+                      type="number"
+                      value={activeBarrier.width ?? 4}
+                      min="1"
+                      max="20"
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 4;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserBarriers: r.laserBarriers?.map((b) =>
+                            b.id === activeBarrier.id ? { ...b, width: val } : b
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[10px]">Beam Color</span>
+                    <div className="flex items-center space-x-1.5 pt-0.5">
+                      <input
+                        type="color"
+                        value={activeBarrier.themeColor || '#ff0055'}
+                        onChange={(e) => {
+                          const color = e.target.value;
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserBarriers: r.laserBarriers?.map((b) =>
+                              b.id === activeBarrier.id ? { ...b, themeColor: color } : b
+                            ),
+                          }));
+                        }}
+                        className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={activeBarrier.themeColor || '#ff0055'}
+                        onChange={(e) => {
+                          const color = e.target.value;
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserBarriers: r.laserBarriers?.map((b) =>
+                              b.id === activeBarrier.id ? { ...b, themeColor: color } : b
+                            ),
+                          }));
+                        }}
+                        className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -926,6 +1435,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Turret ID</span>
+                  <input
+                    type="text"
+                    value={activeTurret.id}
+                    onChange={(e) => {
+                      const newId = e.target.value.trim();
+                      if (!newId) return;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        laserTurrets: r.laserTurrets?.map((t) =>
+                          t.id === activeTurret.id ? { ...t, id: newId } : t
+                        ),
+                      }));
+                      onSelectEntity({ type: 'laserTurret', id: newId });
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -984,9 +1513,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Direction</span>
+                {/* Direction and Custom Angle */}
+                <div className="space-y-1.5 border border-cyber-border/70 rounded p-2 bg-cyber-bg/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-[10px] font-bold">Firing Angle & Direction</span>
+                    <span className="text-cyber-cyan font-mono text-[10px]">
+                      {activeTurret.angle !== undefined
+                        ? `${activeTurret.angle}°`
+                        : `Cardinal (${activeTurret.direction || 'down'})`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
                     <select
                       value={activeTurret.direction || 'down'}
                       onChange={(e) => {
@@ -998,41 +1536,337 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           ),
                         }));
                       }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white text-xs"
+                      className="w-24 bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white text-xs"
                     >
-                      <option value="down">Down</option>
-                      <option value="up">Up</option>
-                      <option value="left">Left</option>
-                      <option value="right">Right</option>
+                      <option value="down">Down (90°)</option>
+                      <option value="up">Up (270°)</option>
+                      <option value="left">Left (180°)</option>
+                      <option value="right">Right (0°)</option>
                     </select>
-                  </div>
 
-                  <div>
-                    <span className="text-slate-500 text-[10px]">
-                      {activeTurret.mode === 'beam' ? 'Active Duration (s)' : 'Fire Interval (s)'}
-                    </span>
                     <input
-                      type="number"
-                      step="0.1"
+                      type="range"
+                      min="0"
+                      max="359"
+                      step="1"
                       value={
-                        activeTurret.mode === 'beam'
-                          ? activeTurret.activeDuration ?? 2.0
-                          : activeTurret.fireInterval ?? 1.8
+                        activeTurret.angle ??
+                        (activeTurret.direction === 'up'
+                          ? 270
+                          : activeTurret.direction === 'left'
+                          ? 180
+                          : activeTurret.direction === 'right'
+                          ? 0
+                          : 90)
                       }
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 1.8;
+                        const val = parseInt(e.target.value);
                         onUpdateRoom((r) => ({
                           ...r,
                           laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id
-                              ? activeTurret.mode === 'beam'
-                                ? { ...t, activeDuration: val }
-                                : { ...t, fireInterval: val }
-                              : t
+                            t.id === activeTurret.id ? { ...t, angle: val } : t
                           ),
                         }));
                       }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                      className="flex-1 accent-cyber-cyan"
+                    />
+
+                    <input
+                      type="number"
+                      min="0"
+                      max="359"
+                      value={activeTurret.angle ?? ''}
+                      placeholder="Auto"
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserTurrets: r.laserTurrets?.map((t) =>
+                            t.id === activeTurret.id ? { ...t, angle: val } : t
+                          ),
+                        }));
+                      }}
+                      className="w-14 bg-cyber-bg border border-cyber-border rounded px-1 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+
+                  {/* Angle Presets */}
+                  <div className="grid grid-cols-4 gap-1 pt-1">
+                    {[
+                      { label: '0° R', angle: 0, dir: 'right' },
+                      { label: '45° ↘', angle: 45 },
+                      { label: '90° D', angle: 90, dir: 'down' },
+                      { label: '135° ↙', angle: 135 },
+                      { label: '180° L', angle: 180, dir: 'left' },
+                      { label: '225° ↖', angle: 225 },
+                      { label: '270° U', angle: 270, dir: 'up' },
+                      { label: '315° ↗', angle: 315 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserTurrets: r.laserTurrets?.map((t) =>
+                              t.id === activeTurret.id
+                                ? {
+                                    ...t,
+                                    angle: p.angle,
+                                    ...(p.dir ? { direction: p.dir as any } : {}),
+                                  }
+                                : t
+                            ),
+                          }));
+                        }}
+                        className={`px-1 py-0.5 rounded text-[9px] border transition-colors ${
+                          activeTurret.angle === p.angle
+                            ? 'bg-cyber-cyan/20 border-cyber-cyan text-cyber-cyan font-bold'
+                            : 'bg-cyber-bg border-cyber-border text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeTurret.angle !== undefined && (
+                    <div className="text-right pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserTurrets: r.laserTurrets?.map((t) =>
+                              t.id === activeTurret.id ? { ...t, angle: undefined } : t
+                            ),
+                          }));
+                        }}
+                        className="text-[9px] text-cyber-cyan hover:underline"
+                      >
+                        Reset to Cardinal Direction
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mode-Specific Settings */}
+                {activeTurret.mode === 'beam' ? (
+                  // Beam Mode Settings
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] font-bold text-slate-300 block">Beam Mode Cycle</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Active Time (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={activeTurret.activeDuration ?? 2.0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 2.0;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, activeDuration: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Inactive Time (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={activeTurret.inactiveDuration ?? 2.0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 2.0;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, inactiveDuration: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Warning Telegraph (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={activeTurret.warningDuration ?? 0.6}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, warningDuration: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Timing Phase (0-1)</span>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          max="1"
+                          value={activeTurret.initialPhase ?? 0}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, initialPhase: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Projectile Mode Settings
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] font-bold text-slate-300 block">Pulse Projectile Parameters</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Fire Interval (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={activeTurret.fireInterval ?? 1.8}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 1.8;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, fireInterval: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Initial Fire Offset (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={activeTurret.fireOffset ?? 0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, fireOffset: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Projectile Speed (px/s)</span>
+                        <input
+                          type="number"
+                          value={activeTurret.projectileSpeed ?? 320}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 320;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, projectileSpeed: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Projectile Length (px)</span>
+                        <input
+                          type="number"
+                          value={activeTurret.projectileLength ?? 20}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 20;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, projectileLength: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Turret Neon Color Override */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-[10px]">Turret Color Override</span>
+                    {activeTurret.themeColor && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserTurrets: r.laserTurrets?.map((t) =>
+                              t.id === activeTurret.id ? { ...t, themeColor: undefined } : t
+                            ),
+                          }))
+                        }
+                        className="text-[9px] text-cyber-cyan hover:underline"
+                      >
+                        Reset to Sector
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="color"
+                      value={activeTurret.themeColor || room.themeColor}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserTurrets: r.laserTurrets?.map((t) =>
+                            t.id === activeTurret.id ? { ...t, themeColor: color } : t
+                          ),
+                        }));
+                      }}
+                      className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={activeTurret.themeColor || ''}
+                      placeholder={`${room.themeColor} (Sector Default)`}
+                      onChange={(e) => {
+                        const color = e.target.value.trim();
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserTurrets: r.laserTurrets?.map((t) =>
+                            t.id === activeTurret.id ? { ...t, themeColor: color || undefined } : t
+                          ),
+                        }));
+                      }}
+                      className="flex-1 bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
                     />
                   </div>
                 </div>

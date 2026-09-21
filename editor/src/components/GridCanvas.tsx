@@ -674,7 +674,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
           // Laser beam line
           ctx.strokeStyle = color;
-          ctx.lineWidth = isSelected ? 5 : 3;
+          ctx.lineWidth = isSelected ? Math.max(5, (bar.width || 4) + 2) : (bar.width || 4);
           ctx.shadowColor = color;
           ctx.shadowBlur = 8;
           ctx.beginPath();
@@ -682,6 +682,40 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           ctx.lineTo(bar.startX2, bar.startY2);
           ctx.stroke();
           ctx.shadowBlur = 0;
+
+          // Harmonic movement preview if moving endpoints are configured
+          if (
+            bar.endX1 !== undefined &&
+            bar.endY1 !== undefined &&
+            bar.endX2 !== undefined &&
+            bar.endY2 !== undefined
+          ) {
+            ctx.strokeStyle = `${color}66`;
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(bar.startX1, bar.startY1);
+            ctx.lineTo(bar.endX1, bar.endY1);
+            ctx.moveTo(bar.startX2, bar.startY2);
+            ctx.lineTo(bar.endX2, bar.endY2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Ghost beam at end
+            ctx.strokeStyle = `${color}44`;
+            ctx.lineWidth = bar.width || 4;
+            ctx.beginPath();
+            ctx.moveTo(bar.endX1, bar.endY1);
+            ctx.lineTo(bar.endX2, bar.endY2);
+            ctx.stroke();
+
+            // End handles
+            ctx.fillStyle = `${color}aa`;
+            ctx.beginPath();
+            ctx.arc(bar.endX1, bar.endY1, 4, 0, Math.PI * 2);
+            ctx.arc(bar.endX2, bar.endY2, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           // Pylon 1 Handle
           ctx.fillStyle = '#ffffff';
