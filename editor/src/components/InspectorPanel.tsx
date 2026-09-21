@@ -1533,7 +1533,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 </div>
 
                 {/* Direction and Custom Angle */}
-                <div className="space-y-1.5 border border-cyber-border/70 rounded p-2 bg-cyber-bg/40">
+                <div className="space-y-2 border border-cyber-border/70 rounded p-2.5 bg-cyber-bg/40">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 text-[10px] font-bold">Firing Angle & Direction</span>
                     <span className="text-cyber-cyan font-mono text-[10px]">
@@ -1543,73 +1543,92 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={activeTurret.direction || 'down'}
-                      onChange={(e) => {
-                        const dir = e.target.value as 'left' | 'right' | 'up' | 'down';
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, direction: dir } : t
-                          ),
-                        }));
-                      }}
-                      className="w-24 bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white text-xs"
-                    >
-                      <option value="down">Down (90°)</option>
-                      <option value="up">Up (270°)</option>
-                      <option value="left">Left (180°)</option>
-                      <option value="right">Right (0°)</option>
-                    </select>
+                  {/* Top row: Cardinal Dropdown + Exact Degree Input */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-slate-500 text-[9px] block mb-0.5">Cardinal Preset</span>
+                      <select
+                        value={activeTurret.direction || 'down'}
+                        onChange={(e) => {
+                          const dir = e.target.value as 'left' | 'right' | 'up' | 'down';
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserTurrets: r.laserTurrets?.map((t) =>
+                              t.id === activeTurret.id ? { ...t, direction: dir } : t
+                            ),
+                          }));
+                        }}
+                        className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white text-xs"
+                      >
+                        <option value="down">Down (90°)</option>
+                        <option value="up">Up (270°)</option>
+                        <option value="left">Left (180°)</option>
+                        <option value="right">Right (0°)</option>
+                      </select>
+                    </div>
 
-                    <input
-                      type="range"
-                      min="0"
-                      max="359"
-                      step="1"
-                      value={
-                        activeTurret.angle ??
-                        (activeTurret.direction === 'up'
-                          ? 270
-                          : activeTurret.direction === 'left'
-                          ? 180
-                          : activeTurret.direction === 'right'
-                          ? 0
-                          : 90)
-                      }
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, angle: val } : t
-                          ),
-                        }));
-                      }}
-                      className="flex-1 accent-cyber-cyan"
-                    />
-
-                    <input
-                      type="number"
-                      min="0"
-                      max="359"
-                      value={activeTurret.angle ?? ''}
-                      placeholder="Auto"
-                      onChange={(e) => {
-                        const val = e.target.value === '' ? undefined : parseInt(e.target.value);
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, angle: val } : t
-                          ),
-                        }));
-                      }}
-                      className="w-14 bg-cyber-bg border border-cyber-border rounded px-1 py-1 text-white font-mono text-xs"
-                    />
+                    <div>
+                      <span className="text-slate-500 text-[9px] block mb-0.5">Exact Degrees (0–359)</span>
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="359"
+                          value={activeTurret.angle ?? ''}
+                          placeholder="Auto"
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, angle: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                        />
+                        {activeTurret.angle !== undefined && (
+                          <span className="absolute right-2 text-slate-400 text-[10px] pointer-events-none">°</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Angle Presets */}
+                  {/* Second row: Angle Slider */}
+                  <div className="pt-0.5">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-slate-500 text-[9px] font-mono">0°</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="359"
+                        step="1"
+                        value={
+                          activeTurret.angle ??
+                          (activeTurret.direction === 'up'
+                            ? 270
+                            : activeTurret.direction === 'left'
+                            ? 180
+                            : activeTurret.direction === 'right'
+                            ? 0
+                            : 90)
+                        }
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserTurrets: r.laserTurrets?.map((t) =>
+                              t.id === activeTurret.id ? { ...t, angle: val } : t
+                            ),
+                          }));
+                        }}
+                        className="flex-1 accent-cyber-cyan cursor-pointer"
+                      />
+                      <span className="text-slate-500 text-[9px] font-mono">359°</span>
+                    </div>
+                  </div>
+
+                  {/* Third row: Angle Presets */}
                   <div className="grid grid-cols-4 gap-1 pt-1">
                     {[
                       { label: '0° R', angle: 0, dir: 'right' },
@@ -1638,7 +1657,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             ),
                           }));
                         }}
-                        className={`px-1 py-0.5 rounded text-[9px] border transition-colors ${
+                        className={`px-1 py-1 rounded text-[9px] border transition-colors ${
                           activeTurret.angle === p.angle
                             ? 'bg-cyber-cyan/20 border-cyber-cyan text-cyber-cyan font-bold'
                             : 'bg-cyber-bg border-cyber-border text-slate-400 hover:text-white'
