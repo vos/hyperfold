@@ -106,18 +106,122 @@ export function normalizeGrid(grid: string[]): string[] {
   return normalized;
 }
 
+import { DEMO_ROOMS_MAP } from './demoWorldData.ts';
+
+/**
+ * Normalizes and parses raw Room JSON into a validated RoomData object.
+ */
+export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0]): RoomData {
+  if (!rm || typeof rm !== 'object') {
+    throw new Error('Invalid room data: object expected.');
+  }
+
+  const coords: [number, number] = Array.isArray(rm.coords)
+    ? [rm.coords[0], rm.coords[1]]
+    : rm.coords && typeof rm.coords === 'object'
+    ? [rm.coords.x, rm.coords.y]
+    : defaultCoords;
+
+  const spawnPoint: [number, number] | undefined = rm.spawnPoint
+    ? (Array.isArray(rm.spawnPoint)
+        ? [rm.spawnPoint[0], rm.spawnPoint[1]]
+        : [rm.spawnPoint.x, rm.spawnPoint.y])
+    : undefined;
+
+  const collectibles = (rm.collectibles || []).map((c: any) => ({
+    id: c.id,
+    type: c.type,
+    x: c.pos ? c.pos[0] : (c.x ?? 0),
+    y: c.pos ? c.pos[1] : (c.y ?? 0),
+  }));
+
+  return {
+    $schema: rm.$schema || './schemas/room.schema.json',
+    id: rm.id || `room_${coords[0]}_${coords[1]}`,
+    coords,
+    title: rm.title || `Sector ${coords[0]},${coords[1]}`,
+    subtitle: rm.subtitle,
+    themeColor: rm.themeColor || '#00e5ff',
+    accentColor: rm.accentColor || '#0066ff',
+    exits: {
+      left: !!rm.exits?.left,
+      right: !!rm.exits?.right,
+      up: !!rm.exits?.up,
+      down: !!rm.exits?.down,
+    },
+    spawnPoint,
+    grid: normalizeGrid(rm.grid || []),
+    collectibles,
+    bounceProps: rm.bounceProps || {},
+    spikeProps: rm.spikeProps || {},
+    movingPlatforms: rm.movingPlatforms || [],
+    laserBarriers: rm.laserBarriers || [],
+    laserTurrets: rm.laserTurrets || [],
+  };
+}
+
+/**
+ * Resolves a room file reference string against an external rooms lookup or built-in demo rooms.
+ */
+function resolveRoomReference(
+  ref: string,
+  externalRooms?: Record<string, any> | any[]
+): any | undefined {
+  const trimmed = ref.trim();
+  const cleanKey = trimmed.replace(/^\.\//, '');
+  const fileName = trimmed.split('/').pop() || '';
+  const idKey = fileName.replace(/\.json$/, '');
+
+  // 1. Check user-supplied external rooms
+  if (externalRooms) {
+    if (Array.isArray(externalRooms)) {
+      for (const item of externalRooms) {
+        if (!item || typeof item !== 'object') continue;
+        if (
+          item.id === idKey ||
+          item.id === cleanKey ||
+          item.fileName === fileName ||
+          item.path === trimmed ||
+          item.path === cleanKey
+        ) {
+          return item;
+        }
+      }
+    } else if (typeof externalRooms === 'object') {
+      const candidates = [trimmed, cleanKey, fileName, idKey, `./${cleanKey}`, `./rooms/${fileName}`];
+      for (const c of candidates) {
+        if (externalRooms[c]) return externalRooms[c];
+      }
+    }
+  }
+
+  // 2. Fall back to built-in demo rooms
+  const demoCandidates = [trimmed, cleanKey, fileName, idKey, `./rooms/${fileName}`];
+  for (const c of demoCandidates) {
+    if (DEMO_ROOMS_MAP[c]) return DEMO_ROOMS_MAP[c];
+  }
+
+  return undefined;
+}
+
 /**
  * Parses raw JSON string into WorldData.
- * Supports both single-file world bundle and standalone single room.
+ * Supports:
+ * - Single-file world bundle with inlined rooms
+ * - Modular world manifest referencing external room files (via externalRooms or built-in demo rooms)
+ * - Standalone single room
  */
-export function parseWorldJson(jsonString: string): WorldData {
+export function parseWorldJson(
+  jsonString: string,
+  externalRooms?: Record<string, any> | any[]
+): WorldData {
   const raw = JSON.parse(jsonString);
 
   if (!raw || typeof raw !== 'object') {
     throw new Error('Provided JSON is not an object.');
   }
 
-  // Case A: Full World Bundle
+  // Case A: Full World Bundle or Modular World Manifest
   if (Array.isArray(raw.rooms)) {
     const startingCoords: [number, number] = Array.isArray(raw.startingCoords)
       ? [raw.startingCoords[0], raw.startingCoords[1]]
@@ -125,50 +229,25 @@ export function parseWorldJson(jsonString: string): WorldData {
       ? [raw.startingCoords.x, raw.startingCoords.y]
       : [0, 0];
 
+    const missingRooms: string[] = [];
     const rooms: RoomData[] = raw.rooms.map((rm: any, index: number) => {
-      const coords: [number, number] = Array.isArray(rm.coords)
-        ? [rm.coords[0], rm.coords[1]]
-        : rm.coords && typeof rm.coords === 'object'
-        ? [rm.coords.x, rm.coords.y]
-        : [index, 0];
-
-      const spawnPoint: [number, number] | undefined = rm.spawnPoint
-        ? (Array.isArray(rm.spawnPoint)
-            ? [rm.spawnPoint[0], rm.spawnPoint[1]]
-            : [rm.spawnPoint.x, rm.spawnPoint.y])
-        : undefined;
-
-      const collectibles = (rm.collectibles || []).map((c: any) => ({
-        id: c.id,
-        type: c.type,
-        x: c.pos ? c.pos[0] : (c.x ?? 0),
-        y: c.pos ? c.pos[1] : (c.y ?? 0),
-      }));
-
-      return {
-        $schema: rm.$schema || './schemas/room.schema.json',
-        id: rm.id || `room_${coords[0]}_${coords[1]}`,
-        coords,
-        title: rm.title || `Sector ${coords[0]},${coords[1]}`,
-        subtitle: rm.subtitle,
-        themeColor: rm.themeColor || '#00e5ff',
-        accentColor: rm.accentColor || '#0066ff',
-        exits: {
-          left: !!rm.exits?.left,
-          right: !!rm.exits?.right,
-          up: !!rm.exits?.up,
-          down: !!rm.exits?.down,
-        },
-        spawnPoint,
-        grid: normalizeGrid(rm.grid || []),
-        collectibles,
-        bounceProps: rm.bounceProps || {},
-        spikeProps: rm.spikeProps || {},
-        movingPlatforms: rm.movingPlatforms || [],
-        laserBarriers: rm.laserBarriers || [],
-        laserTurrets: rm.laserTurrets || [],
-      };
+      let roomObj = rm;
+      if (typeof rm === 'string') {
+        const resolved = resolveRoomReference(rm, externalRooms);
+        if (!resolved) {
+          missingRooms.push(rm);
+          return null as any;
+        }
+        roomObj = resolved;
+      }
+      return parseRoomData(roomObj, [index, 0]);
     });
+
+    if (missingRooms.length > 0) {
+      throw new Error(
+        `World "${raw.title || raw.id || 'unnamed'}" references external room files that could not be resolved: ${missingRooms.join(', ')}. Please upload all room JSON files together with the world manifest, or choose the world folder.`
+      );
+    }
 
     return {
       $schema: raw.$schema || './schemas/world.schema.json',
@@ -188,35 +267,7 @@ export function parseWorldJson(jsonString: string): WorldData {
       ? [raw.coords.x, raw.coords.y]
       : [0, 0];
 
-    const spawnPoint: [number, number] | undefined = raw.spawnPoint
-      ? (Array.isArray(raw.spawnPoint)
-          ? [raw.spawnPoint[0], raw.spawnPoint[1]]
-          : [raw.spawnPoint.x, raw.spawnPoint.y])
-      : undefined;
-
-    const singleRoom: RoomData = {
-      $schema: raw.$schema || './schemas/room.schema.json',
-      id: raw.id || `room_${coords[0]}_${coords[1]}`,
-      coords,
-      title: raw.title || 'Standalone Sector',
-      subtitle: raw.subtitle,
-      themeColor: raw.themeColor || '#00e5ff',
-      accentColor: raw.accentColor || '#0066ff',
-      exits: {
-        left: !!raw.exits?.left,
-        right: !!raw.exits?.right,
-        up: !!raw.exits?.up,
-        down: !!raw.exits?.down,
-      },
-      spawnPoint,
-      grid: normalizeGrid(raw.grid),
-      collectibles: raw.collectibles || [],
-      bounceProps: raw.bounceProps || {},
-      spikeProps: raw.spikeProps || {},
-      movingPlatforms: raw.movingPlatforms || [],
-      laserBarriers: raw.laserBarriers || [],
-      laserTurrets: raw.laserTurrets || [],
-    };
+    const singleRoom = parseRoomData(raw, coords);
 
     return {
       $schema: './schemas/world.schema.json',

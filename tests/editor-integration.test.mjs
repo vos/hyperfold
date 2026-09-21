@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -196,5 +198,151 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(engineRoom.laserBarriers?.[0].warningDuration, 0.75);
     assert.equal(engineRoom.laserTurrets?.[0].angle, 45);
     assert.equal(engineRoom.laserTurrets?.[1].projectileSpeed, 380);
+  });
+
+  await t.test('parseWorldJson imports demo world.json manifest by resolving external room files', () => {
+    const demoWorldJsonPath = path.resolve('src/world/data/demo/world.json');
+    const demoWorldJson = fs.readFileSync(demoWorldJsonPath, 'utf8');
+
+    const world = parseWorldJson(demoWorldJson);
+    assert.equal(world.id, 'demo');
+    assert.equal(world.rooms.length, 10, 'Expected 10 rooms to be resolved from external room files');
+    assert.deepEqual(world.startingCoords, [0, 0]);
+
+    // Check specific rooms
+    const genesis = world.rooms.find((r) => r.id === 'room_0_0');
+    assert.ok(genesis, 'Genesis Core (room_0_0) must exist');
+    assert.equal(genesis.title, 'Sector 0: Genesis Core');
+    assert.equal(genesis.grid.length, 20);
+    assert.notEqual(genesis.grid[18].trim(), '', 'Genesis floor must not be blank');
+
+    const spire = world.rooms.find((r) => r.id === 'room_2_1');
+    assert.ok(spire, 'The Spire (room_2_1) must exist');
+    assert.deepEqual(spire.coords, [2, 1]);
+    assert.ok(spire.movingPlatforms && spire.movingPlatforms.length > 0, 'The Spire must have moving platform');
+
+    const crypt = world.rooms.find((r) => r.id === 'room_4_neg_1' || r.id === 'room_4_-1');
+    assert.ok(crypt, 'Sub-Zero Crypt must exist');
+    assert.deepEqual(crypt.coords, [4, -1]);
+
+    // Ensure validateWorld passes
+    const issues = validateWorld(world);
+    const errors = issues.filter((i) => i.severity === 'error');
+    assert.equal(errors.length, 0, `Expected 0 validation errors on imported demo world, got: ${JSON.stringify(errors)}`);
+  });
+
+  await t.test('parseWorldJson resolves custom external room files from externalRooms map', () => {
+    const customManifest = JSON.stringify({
+      id: 'custom_modular',
+      title: 'Custom Modular World',
+      startingCoords: [1, 2],
+      rooms: [
+        './rooms/custom_room_a.json',
+        './rooms/custom_room_b.json',
+      ],
+    });
+
+    const customRoomA = {
+      id: 'custom_room_a',
+      coords: [1, 2],
+      title: 'Sector Alpha',
+      themeColor: '#123456',
+      accentColor: '#654321',
+      exits: { left: false, right: true, up: false, down: false },
+      grid: [
+        '####################',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '####################',
+        '####################',
+      ],
+    };
+
+    const customRoomB = {
+      id: 'custom_room_b',
+      coords: [2, 2],
+      title: 'Sector Beta',
+      themeColor: '#aabbcc',
+      accentColor: '#ddeeff',
+      exits: { left: true, right: false, up: false, down: false },
+      grid: [
+        '####################',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '#                  #',
+        '####################',
+        '####################',
+      ],
+    };
+
+    const externalRooms = {
+      './rooms/custom_room_a.json': customRoomA,
+      './rooms/custom_room_b.json': customRoomB,
+    };
+
+    const world = parseWorldJson(customManifest, externalRooms);
+    assert.equal(world.rooms.length, 2);
+    assert.equal(world.rooms[0].title, 'Sector Alpha');
+    assert.equal(world.rooms[1].title, 'Sector Beta');
+    assert.deepEqual(world.rooms[0].coords, [1, 2]);
+    assert.deepEqual(world.rooms[1].coords, [2, 2]);
+  });
+
+  await t.test('parseWorldJson throws descriptive error when external room files are missing', () => {
+    const unresolvableManifest = JSON.stringify({
+      id: 'missing_world',
+      title: 'Missing World',
+      rooms: [
+        './rooms/missing_alpha.json',
+        './rooms/missing_beta.json',
+      ],
+    });
+
+    assert.throws(
+      () => parseWorldJson(unresolvableManifest),
+      /references external room files that could not be resolved: \.\/rooms\/missing_alpha\.json, \.\/rooms\/missing_beta\.json/
+    );
+  });
+
+  await t.test('Demo preset in PRESET_WORLDS loads 10 sectors cleanly and passes validation', () => {
+    const demoPreset = PRESET_WORLDS.find((p) => p.id === 'demo');
+    assert.ok(demoPreset, 'Demo preset must be registered in PRESET_WORLDS');
+
+    const world = demoPreset.get();
+    assert.equal(world.rooms.length, 10);
+    assert.equal(world.title, 'Infinite Tesseract (10 Sectors)');
+
+    const issues = validateWorld(world);
+    const errors = issues.filter((i) => i.severity === 'error');
+    assert.equal(errors.length, 0, `Expected 0 validation errors on demo preset, got: ${JSON.stringify(errors)}`);
   });
 });

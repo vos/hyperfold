@@ -197,7 +197,15 @@ const MINI_WORLD_JSON = JSON.stringify({
   ]
 });
 
+import { getDemoWorld } from './demoWorldData.ts';
+
 export const PRESET_WORLDS: { id: string; name: string; description: string; get: () => WorldData }[] = [
+  {
+    id: 'demo',
+    name: 'Infinite Tesseract (10 Sectors - Demo Level)',
+    description: 'Official 10-sector world traversing all faces of the 3D hypercube with full puzzles and hazards.',
+    get: () => getDemoWorld(),
+  },
   {
     id: 'mini',
     name: 'Mini Hypercube (3 Sectors)',
