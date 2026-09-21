@@ -949,7 +949,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         <div className="flex items-center space-x-2">
           <span>Zoom:</span>
           <div className="flex bg-cyber-bg p-0.5 rounded border border-cyber-border">
-            {[0.75, 1.0, 1.25].map((z) => (
+            {[0.75, 1.0, 1.25, 1.5].map((z) => (
               <button
                 key={z}
                 onClick={() => setZoom(z)}
