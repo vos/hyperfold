@@ -1360,58 +1360,77 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Beam Width (px)</span>
+                <div>
+                  <span className="text-slate-500 text-[10px]">Beam Width (px)</span>
+                  <input
+                    type="number"
+                    value={activeBarrier.width ?? 4}
+                    min="1"
+                    max="20"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 4;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        laserBarriers: r.laserBarriers?.map((b) =>
+                          b.id === activeBarrier.id ? { ...b, width: val } : b
+                        ),
+                      }));
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                  />
+                </div>
+
+                {/* Laser Barrier Neon Color Override */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-[10px]">Beam Color Override</span>
+                    {activeBarrier.themeColor && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            laserBarriers: r.laserBarriers?.map((b) =>
+                              b.id === activeBarrier.id ? { ...b, themeColor: undefined } : b
+                            ),
+                          }))
+                        }
+                        className="text-[9px] text-cyber-cyan hover:underline"
+                      >
+                        Reset to Default (#ff0055)
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <input
-                      type="number"
-                      value={activeBarrier.width ?? 4}
-                      min="1"
-                      max="20"
+                      type="color"
+                      value={activeBarrier.themeColor || '#ff0055'}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value) || 4;
+                        const color = e.target.value;
                         onUpdateRoom((r) => ({
                           ...r,
                           laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, width: val } : b
+                            b.id === activeBarrier.id ? { ...b, themeColor: color } : b
                           ),
                         }));
                       }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                      className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
                     />
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Beam Color</span>
-                    <div className="flex items-center space-x-1.5 pt-0.5">
-                      <input
-                        type="color"
-                        value={activeBarrier.themeColor || '#ff0055'}
-                        onChange={(e) => {
-                          const color = e.target.value;
-                          onUpdateRoom((r) => ({
-                            ...r,
-                            laserBarriers: r.laserBarriers?.map((b) =>
-                              b.id === activeBarrier.id ? { ...b, themeColor: color } : b
-                            ),
-                          }));
-                        }}
-                        className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={activeBarrier.themeColor || '#ff0055'}
-                        onChange={(e) => {
-                          const color = e.target.value;
-                          onUpdateRoom((r) => ({
-                            ...r,
-                            laserBarriers: r.laserBarriers?.map((b) =>
-                              b.id === activeBarrier.id ? { ...b, themeColor: color } : b
-                            ),
-                          }));
-                        }}
-                        className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={activeBarrier.themeColor || ''}
+                      placeholder="#ff0055 (Hazard Red Default)"
+                      onChange={(e) => {
+                        const color = e.target.value.trim();
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserBarriers: r.laserBarriers?.map((b) =>
+                            b.id === activeBarrier.id ? { ...b, themeColor: color || undefined } : b
+                          ),
+                        }));
+                      }}
+                      className="flex-1 bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
                   </div>
                 </div>
               </div>
