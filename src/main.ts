@@ -179,6 +179,47 @@ class Game {
       }
     });
 
+    // Check URL params for custom world or storage load (e.g. from editor Test in Game)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('load_custom')) {
+      try {
+        const stored = localStorage.getItem('hyperfold_custom_world');
+        if (stored) {
+          this.loadWorldFromJson(stored);
+        }
+      } catch (err) {
+        console.warn('Could not load custom world from localStorage:', err);
+      }
+    }
+
+    // Cross-window communication from World Editor ("Test in Game")
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'HYPERFOLD_LOAD_WORLD' && typeof event.data?.json === 'string') {
+        try {
+          this.loadWorldFromJson(event.data.json);
+          if (event.source && 'postMessage' in event.source) {
+            (event.source as Window).postMessage({ type: 'HYPERFOLD_WORLD_LOADED' }, '*');
+          }
+        } catch (err: any) {
+          console.error('Failed to load custom world from message:', err);
+        }
+      }
+    });
+
+    // Notify opener that game instance is ready to receive custom world
+    if (window.opener && 'postMessage' in window.opener) {
+      const sendReady = () => {
+        try {
+          window.opener.postMessage({ type: 'HYPERFOLD_GAME_READY' }, '*');
+        } catch {
+          // ignore cross-origin error
+        }
+      };
+      sendReady();
+      setTimeout(sendReady, 100);
+      setTimeout(sendReady, 350);
+    }
+
     // Local JSON File Upload
     this.worldFileInputEl?.addEventListener('change', () => {
       const file = this.worldFileInputEl.files?.[0];
@@ -187,25 +228,7 @@ class Game {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          const loaded = WorldRegistry.loadWorldFromJsonString(content);
-          const customId = `custom_${Date.now()}`;
-          WorldRegistry.registerWorld({
-            id: customId,
-            name: loaded.title,
-            source: 'custom',
-            load: () => WorldRegistry.loadWorldFromJsonString(content).map,
-            startingCoords: loaded.startingCoords,
-          });
-
-          // Add to select dropdown before the custom option
-          const option = document.createElement('option');
-          option.value = customId;
-          option.textContent = `Custom: ${loaded.title}`;
-          this.worldSelectEl.insertBefore(option, this.worldSelectEl.lastElementChild);
-          this.worldSelectEl.value = customId;
-          this.currentWorldId = customId;
-
-          this.loadWorld(loaded.map, loaded.title, loaded.startingCoords);
+          this.loadWorldFromJson(content);
         } catch (err: any) {
           alert(`Failed to load world JSON: ${err?.message || err}`);
         }
@@ -226,24 +249,7 @@ class Game {
         reader.onload = (ev) => {
           try {
             const content = ev.target?.result as string;
-            const loaded = WorldRegistry.loadWorldFromJsonString(content);
-            const customId = `custom_${Date.now()}`;
-            WorldRegistry.registerWorld({
-              id: customId,
-              name: loaded.title,
-              source: 'custom',
-              load: () => WorldRegistry.loadWorldFromJsonString(content).map,
-              startingCoords: loaded.startingCoords,
-            });
-
-            const option = document.createElement('option');
-            option.value = customId;
-            option.textContent = `Custom: ${loaded.title}`;
-            this.worldSelectEl.insertBefore(option, this.worldSelectEl.lastElementChild);
-            this.worldSelectEl.value = customId;
-            this.currentWorldId = customId;
-
-            this.loadWorld(loaded.map, loaded.title, loaded.startingCoords);
+            this.loadWorldFromJson(content);
           } catch (err: any) {
             alert(`Failed to load dropped JSON: ${err?.message || err}`);
           }
@@ -527,6 +533,41 @@ class Game {
       this.player.accentColor
     );
     this.onPlayerDeath();
+  }
+
+  public loadWorldFromJson(content: string): void {
+    const loaded = WorldRegistry.loadWorldFromJsonString(content);
+    const customId = `custom_${Date.now()}`;
+    WorldRegistry.registerWorld({
+      id: customId,
+      name: loaded.title,
+      source: 'custom',
+      load: () => WorldRegistry.loadWorldFromJsonString(content).map,
+      startingCoords: loaded.startingCoords,
+    });
+
+    if (this.worldSelectEl) {
+      const option = document.createElement('option');
+      option.value = customId;
+      option.textContent = `Custom: ${loaded.title}`;
+      this.worldSelectEl.insertBefore(option, this.worldSelectEl.lastElementChild);
+      this.worldSelectEl.value = customId;
+    }
+    this.currentWorldId = customId;
+
+    this.loadWorld(loaded.map, loaded.title, loaded.startingCoords);
+
+    if (this.bannerEl) {
+      this.bannerEl.textContent = `WORLD LOADED: ${loaded.title.toUpperCase()}`;
+      this.bannerEl.style.opacity = '1';
+      if (this.bannerTimeout !== null) {
+        window.clearTimeout(this.bannerTimeout);
+      }
+      this.bannerTimeout = window.setTimeout(() => {
+        this.bannerEl.style.opacity = '0';
+        this.bannerTimeout = null;
+      }, 4000);
+    }
   }
 
   public loadWorld(map: LevelMap, title: string, startCoords?: { x: number; y: number }): void {

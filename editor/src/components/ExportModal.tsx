@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, Copy, Check, Play, ExternalLink } from 'lucide-react';
 import { WorldData } from '../types/world';
 import { exportWorldJson } from '../utils/serialization';
@@ -10,7 +10,37 @@ interface ExportModalProps {
 
 export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [gamePort, setGamePort] = useState('3000');
+  const [testingStatus, setTestingStatus] = useState<'idle' | 'opening' | 'connected'>('idle');
+  const postIntervalRef = useRef<number | null>(null);
+
   const jsonContent = exportWorldJson(world);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'HYPERFOLD_GAME_READY') {
+        (event.source as Window)?.postMessage(
+          { type: 'HYPERFOLD_LOAD_WORLD', json: jsonContent },
+          '*'
+        );
+      } else if (event.data?.type === 'HYPERFOLD_WORLD_LOADED') {
+        setTestingStatus('connected');
+        if (postIntervalRef.current) {
+          window.clearInterval(postIntervalRef.current);
+          postIntervalRef.current = null;
+        }
+        setTimeout(() => setTestingStatus('idle'), 3000);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (postIntervalRef.current) {
+        window.clearInterval(postIntervalRef.current);
+      }
+    };
+  }, [jsonContent]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonContent);
@@ -29,11 +59,50 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
   };
 
   const handlePlayInGame = () => {
-    // Store in localStorage for game pickup
     try {
       localStorage.setItem('hyperfold_custom_world', jsonContent);
-      window.open('http://localhost:5173/?load_custom=storage', '_blank');
     } catch {
+      // LocalStorage fallback
+    }
+
+    const host = window.location.hostname || 'localhost';
+    const port = gamePort.trim() || '3000';
+    const targetUrl = `http://${host}:${port}/?load_custom=1`;
+
+    setTestingStatus('opening');
+
+    try {
+      const gameWin = window.open(targetUrl, '_blank');
+      if (!gameWin) {
+        setTestingStatus('idle');
+        alert('Popup was blocked by your browser. Please allow popups for this page or download the JSON.');
+        return;
+      }
+
+      // Periodically postMessage in case game loads or is already ready
+      let attempts = 0;
+      if (postIntervalRef.current) {
+        window.clearInterval(postIntervalRef.current);
+      }
+      postIntervalRef.current = window.setInterval(() => {
+        attempts++;
+        if (gameWin.closed) {
+          if (postIntervalRef.current) window.clearInterval(postIntervalRef.current);
+          setTestingStatus('idle');
+          return;
+        }
+        try {
+          gameWin.postMessage({ type: 'HYPERFOLD_LOAD_WORLD', json: jsonContent }, '*');
+        } catch {
+          // Cross-origin warning suppression
+        }
+        if (attempts > 25) { // 5s timeout
+          if (postIntervalRef.current) window.clearInterval(postIntervalRef.current);
+          setTestingStatus('idle');
+        }
+      }, 200);
+    } catch {
+      setTestingStatus('idle');
       handleDownload();
     }
   };
@@ -73,14 +142,38 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
 
         {/* Modal Footer: Action Buttons */}
         <div className="h-16 px-6 border-t border-cyber-border bg-cyber-bg/50 flex items-center justify-between shrink-0">
-          <button
-            onClick={handlePlayInGame}
-            className="flex items-center space-x-2 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-semibold transition-colors"
-            title="Send to game instance on port 5173"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Test in Game (Port 5173)</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handlePlayInGame}
+              disabled={testingStatus === 'opening'}
+              className="flex items-center space-x-2 px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+              title={`Send and launch world directly in game on port ${gamePort || '3000'}`}
+            >
+              {testingStatus === 'connected' ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400">Loaded in Game!</span>
+                </>
+              ) : (
+                <>
+                  <Play className={`w-4 h-4 fill-current ${testingStatus === 'opening' ? 'animate-pulse text-cyber-cyan' : ''}`} />
+                  <span>{testingStatus === 'opening' ? 'Launching Game...' : 'Test in Game'}</span>
+                </>
+              )}
+            </button>
+
+            <div className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-cyber-card border border-cyber-border rounded-lg text-xs text-slate-400 font-mono">
+              <span className="text-slate-500 text-[11px]">Port:</span>
+              <input
+                type="text"
+                value={gamePort}
+                onChange={(e) => setGamePort(e.target.value.replace(/\D/g, ''))}
+                className="w-12 bg-black/70 border border-cyber-border/70 rounded px-1.5 py-0.5 text-xs text-cyber-cyan font-bold text-center focus:outline-none focus:border-cyber-cyan"
+                placeholder="3000"
+                title="Port where Hyperfold game is running (default 3000)"
+              />
+            </div>
+          </div>
 
           <div className="flex items-center space-x-3">
             <button

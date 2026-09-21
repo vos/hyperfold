@@ -99,7 +99,7 @@ Run Vite's local dev server with Hot Module Replacement (HMR):
 ```bash
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3000` in your browser.
 
 ### Production Build & Preview
 Build the TypeScript source and preview the optimized production bundle:

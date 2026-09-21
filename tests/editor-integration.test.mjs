@@ -412,4 +412,40 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(adjCrypt.up.isConnected, true);
     assert.equal(adjCrypt.up.room?.id, 'room_4_0');
   });
+
+  await t.test('Test in Game export messaging protocol parses and loads custom world into game engine', () => {
+    const mini = PRESET_WORLDS.find((p) => p.id === 'mini')?.get();
+    assert.ok(mini);
+    const jsonStr = exportWorldJson(mini);
+
+    // Simulate the message payload sent by ExportModal's Test in Game on default port 3000
+    const messageEventData = {
+      type: 'HYPERFOLD_LOAD_WORLD',
+      json: jsonStr,
+    };
+
+    assert.equal(messageEventData.type, 'HYPERFOLD_LOAD_WORLD');
+    assert.ok(typeof messageEventData.json === 'string');
+
+    // Simulate game receiver: parses message and registers custom world
+    const parsed = WorldRegistry.loadWorldFromJsonString(messageEventData.json);
+    assert.equal(parsed.title, 'Mini Hypercube (3 Sectors)');
+    assert.equal(parsed.map.getAllRooms().length, 3);
+
+    const customId = `test_ingame_${Date.now()}`;
+    WorldRegistry.registerWorld({
+      id: customId,
+      name: parsed.title,
+      source: 'custom',
+      load: () => WorldRegistry.loadWorldFromJsonString(messageEventData.json).map,
+      startingCoords: parsed.startingCoords,
+    });
+
+    const registered = WorldRegistry.getWorld(customId);
+    assert.ok(registered);
+    assert.equal(registered.name, 'Mini Hypercube (3 Sectors)');
+    const loadedMap = registered.load();
+    assert.equal(loadedMap.getAllRooms().length, 3);
+  });
 });
+
