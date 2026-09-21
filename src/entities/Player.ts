@@ -16,14 +16,21 @@ export class Player {
   public width: number = 24;
   public height: number = 36;
 
+  public static readonly STANDING_HEIGHT = 36;
+  public static readonly DUCKING_HEIGHT = 18;
+  public readonly STANDING_HEIGHT = 36;
+  public readonly DUCKING_HEIGHT = 18;
+
   public isGrounded: boolean = false;
   public wasGrounded: boolean = false;
   public isBouncePropelled: boolean = false;
+  public isDucking: boolean = false;
   public standingPlatform: MovingPlatform | null = null;
   public facing: number = 1; // 1 = right, -1 = left
 
   // Kinematics tuning constants
   public readonly MOVE_SPEED = 280;
+  public readonly CRAWL_SPEED = 140;
   public readonly ACCELERATION = 1800;
   public readonly DECELERATION = 2000;
   public readonly GRAVITY = 1150;
@@ -63,6 +70,15 @@ export class Player {
       width: this.width,
       height: this.height,
     };
+  }
+
+  public setDucking(ducking: boolean): void {
+    if (this.isDucking === ducking) return;
+    this.isDucking = ducking;
+    const prevHeight = this.height;
+    this.height = ducking ? this.DUCKING_HEIGHT : this.STANDING_HEIGHT;
+    // Anchor feet: adjust y so (y + height) remains constant
+    this.y += (prevHeight - this.height);
   }
 
   public updateTimers(dt: number): void {
@@ -115,7 +131,7 @@ export class Player {
     ctx.lineWidth = 2.5;
 
     ctx.beginPath();
-    ctx.roundRect(px, py, w, h, 6);
+    ctx.roundRect(px, py, w, h, Math.min(6, Math.floor(h * 0.35)));
     ctx.fill();
     ctx.stroke();
 
@@ -124,9 +140,9 @@ export class Player {
     ctx.shadowColor = '#ffffff';
     ctx.shadowBlur = 8;
     const visorW = 10;
-    const visorH = 4;
+    const visorH = this.isDucking ? 3 : 4;
     const visorX = this.facing === 1 ? px + w - 12 : px + 2;
-    const visorY = py + 7;
+    const visorY = this.isDucking ? py + 3 : py + 7;
     ctx.fillRect(visorX, visorY, visorW, visorH);
 
     // Glowing Core Reactor (Chest)
@@ -134,16 +150,35 @@ export class Player {
     ctx.shadowColor = this.accentColor;
     ctx.shadowBlur = 12;
     ctx.beginPath();
-    ctx.arc(px + w * 0.5, py + h * 0.55, 4, 0, Math.PI * 2);
+    const coreRadius = this.isDucking ? 2.5 : 4;
+    ctx.arc(px + w * 0.5, py + h * 0.55, coreRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Animated Runner Legs
+    // Animated Runner / Ducking Legs
     ctx.shadowBlur = 4;
     ctx.strokeStyle = this.primaryColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = this.isDucking ? 2.5 : 3;
     const legY = py + h - 2;
 
-    if (this.isGrounded && Math.abs(this.vx) > 20) {
+    if (this.isDucking) {
+      // Ducking legs: tucked/crouched stance or crawling motion
+      if (Math.abs(this.vx) > 10) {
+        const crawl = Math.sin(this.animTimer * 2) * 3;
+        ctx.beginPath();
+        ctx.moveTo(px + w * 0.25, legY);
+        ctx.lineTo(px + w * 0.4 + crawl, legY + 2);
+        ctx.moveTo(px + w * 0.75, legY);
+        ctx.lineTo(px + w * 0.6 - crawl, legY + 2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(px + w * 0.25, legY);
+        ctx.lineTo(px + w * 0.4, legY + 2);
+        ctx.moveTo(px + w * 0.75, legY);
+        ctx.lineTo(px + w * 0.6, legY + 2);
+        ctx.stroke();
+      }
+    } else if (this.isGrounded && Math.abs(this.vx) > 20) {
       const stride = Math.sin(this.animTimer * 1.5) * 5;
       // Front leg
       ctx.beginPath();

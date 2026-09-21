@@ -559,6 +559,7 @@ class Game {
     this.player.isGrounded = true;
     this.player.wasGrounded = true;
     this.player.isBouncePropelled = false;
+    this.player.setDucking(false);
     this.player.isAlive = true;
     this.player.resetHoldProgress = 0;
 
@@ -603,6 +604,7 @@ class Game {
 
   private respawnPlayer(): void {
     this.player.isAlive = true;
+    this.player.setDucking(false);
     this.physics.resetCrumblingTiles();
     const spawn = this.currentRoom.spawnPoint || { x: 80, y: 660 };
     this.player.setPosition(spawn.x, spawn.y);

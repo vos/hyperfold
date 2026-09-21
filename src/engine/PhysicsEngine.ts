@@ -172,6 +172,15 @@ export class PhysicsEngine {
 
     const platforms = this.getPlatformsForRoom(room, this.gameTime);
 
+    // Handle ducking / crouching input & ceiling constraints
+    if (input.down) {
+      player.setDucking(true);
+    } else if (player.isDucking) {
+      if (this.canStandUp(player, room, platforms)) {
+        player.setDucking(false);
+      }
+    }
+
     // 0. Passenger carriage: carry player with platform movement
     if (player.standingPlatform) {
       const plat = player.standingPlatform;
@@ -204,12 +213,13 @@ export class PhysicsEngine {
 
     // 1. Horizontal Target Velocity
     let targetVx = 0;
+    const currentSpeed = player.isDucking ? player.CRAWL_SPEED : player.MOVE_SPEED;
     if (input.left) {
-      targetVx -= player.MOVE_SPEED;
+      targetVx -= currentSpeed;
       player.facing = -1;
     }
     if (input.right) {
-      targetVx += player.MOVE_SPEED;
+      targetVx += currentSpeed;
       player.facing = 1;
     }
 
@@ -236,7 +246,7 @@ export class PhysicsEngine {
           // Coast on launch momentum without ground friction
         } else if (Math.sign(targetVx) === Math.sign(player.vx)) {
           // Holding the launch direction: maintain boosted speed (do not forcibly brake to MOVE_SPEED)
-          if (Math.abs(player.vx) < player.MOVE_SPEED) {
+          if (Math.abs(player.vx) < currentSpeed) {
             player.vx = this.approach(player.vx, targetVx, player.ACCELERATION * dt);
           }
         } else {
@@ -340,6 +350,47 @@ export class PhysicsEngine {
 
     // 7. Check Edge Boundaries for 3D Cube Rotation
     return this.checkBoundaryTransitions(player, room);
+  }
+
+  public canStandUp(player: Player, room: ScreenData, platforms?: MovingPlatform[]): boolean {
+    if (!player.isDucking) return true;
+
+    const diff = player.STANDING_HEIGHT - player.height;
+    if (diff <= 0) return true;
+
+    const headY = player.y - diff;
+    const minCol = Math.floor((player.x + 2) / TILE_SIZE);
+    const maxCol = Math.floor((player.x + player.width - 2) / TILE_SIZE);
+    const minRow = Math.floor(headY / TILE_SIZE);
+    const maxRow = Math.floor((player.y - 1) / TILE_SIZE);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (r < 0) {
+          // Solid ceiling if room doesn't have an upward exit
+          if (!room.exits.up) return false;
+          continue;
+        }
+        if (r >= room.tiles.length || c < 0 || c >= room.tiles[0].length) continue;
+        const tile = room.tiles[r][c];
+        if (tile === TileType.SOLID) {
+          return false;
+        }
+      }
+    }
+
+    if (platforms) {
+      for (const plat of platforms) {
+        if (plat.oneWay) continue;
+        const overlapX = player.x + player.width - 2 > plat.x && player.x + 2 < plat.x + plat.width;
+        const overlapY = player.y > plat.y && headY < plat.y + plat.height;
+        if (overlapX && overlapY) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   private approach(current: number, target: number, maxDelta: number): number {
