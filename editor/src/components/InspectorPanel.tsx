@@ -88,7 +88,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       speed: 120,
       pauseTime: 0.4,
       initialProgress: 0,
-      themeColor: room.themeColor,
       oneWay: true,
     };
     onUpdateRoom((prev) => ({
@@ -110,7 +109,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       activeDuration: 2.0,
       inactiveDuration: 2.0,
       warningDuration: 0.6,
-      themeColor: '#ff0055',
       width: 4,
     };
     onUpdateRoom((prev) => ({
@@ -131,7 +129,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       mode: 'projectile',
       fireInterval: 1.8,
       projectileSpeed: 280,
-      themeColor: room.themeColor,
     };
     onUpdateRoom((prev) => ({
       ...prev,
@@ -941,7 +938,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 text-[10px]">Neon Color Override</span>
-                    {activePlatform.themeColor && (
+                    {activePlatform.themeColor &&
+                      activePlatform.themeColor.toLowerCase() !== room.themeColor.toLowerCase() && (
                       <button
                         type="button"
                         onClick={() =>
@@ -967,7 +965,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           movingPlatforms: r.movingPlatforms?.map((p) =>
-                            p.id === activePlatform.id ? { ...p, themeColor: color } : p
+                            p.id === activePlatform.id
+                              ? {
+                                  ...p,
+                                  themeColor:
+                                    color.toLowerCase() === room.themeColor.toLowerCase() ? undefined : color,
+                                }
+                              : p
                           ),
                         }));
                       }}
@@ -982,7 +986,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           movingPlatforms: r.movingPlatforms?.map((p) =>
-                            p.id === activePlatform.id ? { ...p, themeColor: color || undefined } : p
+                            p.id === activePlatform.id
+                              ? {
+                                  ...p,
+                                  themeColor:
+                                    !color || color.toLowerCase() === room.themeColor.toLowerCase()
+                                      ? undefined
+                                      : color,
+                                }
+                              : p
                           ),
                         }));
                       }}
@@ -1384,7 +1396,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 text-[10px]">Beam Color Override</span>
-                    {activeBarrier.themeColor && (
+                    {activeBarrier.themeColor &&
+                      activeBarrier.themeColor.toLowerCase() !== '#ff0055' && (
                       <button
                         type="button"
                         onClick={() =>
@@ -1410,7 +1423,12 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, themeColor: color } : b
+                            b.id === activeBarrier.id
+                              ? {
+                                  ...b,
+                                  themeColor: color.toLowerCase() === '#ff0055' ? undefined : color,
+                                }
+                              : b
                           ),
                         }));
                       }}
@@ -1425,7 +1443,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, themeColor: color || undefined } : b
+                            b.id === activeBarrier.id
+                              ? {
+                                  ...b,
+                                  themeColor:
+                                    !color || color.toLowerCase() === '#ff0055' ? undefined : color,
+                                }
+                              : b
                           ),
                         }));
                       }}
@@ -1859,7 +1883,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 text-[10px]">Turret Color Override</span>
-                    {activeTurret.themeColor && (
+                    {activeTurret.themeColor &&
+                      activeTurret.themeColor.toLowerCase() !== room.themeColor.toLowerCase() && (
                       <button
                         type="button"
                         onClick={() =>
@@ -1885,7 +1910,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, themeColor: color } : t
+                            t.id === activeTurret.id
+                              ? {
+                                  ...t,
+                                  themeColor:
+                                    color.toLowerCase() === room.themeColor.toLowerCase()
+                                      ? undefined
+                                      : color,
+                                }
+                              : t
                           ),
                         }));
                       }}
@@ -1900,7 +1933,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         onUpdateRoom((r) => ({
                           ...r,
                           laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, themeColor: color || undefined } : t
+                            t.id === activeTurret.id
+                              ? {
+                                  ...t,
+                                  themeColor:
+                                    !color || color.toLowerCase() === room.themeColor.toLowerCase()
+                                      ? undefined
+                                      : color,
+                                }
+                              : t
                           ),
                         }));
                       }}
