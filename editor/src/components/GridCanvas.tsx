@@ -13,7 +13,9 @@ import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
 
 interface GridCanvasProps {
   room: RoomData;
-  onUpdateRoom: (updater: (prev: RoomData) => RoomData) => void;
+  onUpdateRoom: (updater: (prev: RoomData) => RoomData, addToHistory?: boolean) => void;
+  onBeginStroke?: () => void;
+  onEndStroke?: () => void;
   currentTool: EditorTool;
   selectedGlyph: TileGlyph;
   onSelectGlyph: (glyph: TileGlyph) => void;
@@ -28,6 +30,8 @@ interface GridCanvasProps {
 export const GridCanvas: React.FC<GridCanvasProps> = ({
   room,
   onUpdateRoom,
+  onBeginStroke,
+  onEndStroke,
   currentTool,
   selectedGlyph,
   onSelectGlyph,
@@ -76,16 +80,20 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   const paintTiles = useCallback(
     (targetCells: { r: number; c: number }[], glyph: TileGlyph) => {
       onUpdateRoom((prev) => {
+        let changed = false;
         const newGrid = [...prev.grid];
         for (const cell of targetCells) {
           if (cell.r >= 0 && cell.r < GRID_ROWS && cell.c >= 0 && cell.c < GRID_COLS) {
-            const rowChars = newGrid[cell.r].split('');
-            rowChars[cell.c] = glyph;
-            newGrid[cell.r] = rowChars.join('');
+            if (newGrid[cell.r][cell.c] !== glyph) {
+              const rowChars = newGrid[cell.r].split('');
+              rowChars[cell.c] = glyph;
+              newGrid[cell.r] = rowChars.join('');
+              changed = true;
+            }
           }
         }
-        return { ...prev, grid: newGrid };
-      });
+        return changed ? { ...prev, grid: newGrid } : prev;
+      }, false);
     },
     [onUpdateRoom]
   );
@@ -181,6 +189,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     const coords = getCanvasCoords(e);
     if (!coords) return;
 
+    onBeginStroke?.();
     setIsMouseDown(true);
     setDragStart(coords);
 
@@ -342,7 +351,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           };
         }
         return prev;
-      });
+      }, false);
       return;
     }
 
@@ -361,22 +370,38 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
     if (draggingEntityHandle) {
       setDraggingEntityHandle(null);
+      onEndStroke?.();
       return;
     }
 
     const coords = getCanvasCoords(e);
-    if (!coords || !dragStart) return;
-
-    if (currentTool === 'line') {
-      const cells = getLineCells(dragStart.row, dragStart.col, coords.row, coords.col);
-      paintTiles(cells, selectedGlyph);
-    } else if (currentTool === 'rect') {
-      const cells = getRectCells(dragStart.row, dragStart.col, coords.row, coords.col);
-      paintTiles(cells, selectedGlyph);
+    if (coords && dragStart) {
+      if (currentTool === 'line') {
+        const cells = getLineCells(dragStart.row, dragStart.col, coords.row, coords.col);
+        paintTiles(cells, selectedGlyph);
+      } else if (currentTool === 'rect') {
+        const cells = getRectCells(dragStart.row, dragStart.col, coords.row, coords.col);
+        paintTiles(cells, selectedGlyph);
+      }
     }
 
     setDragStart(null);
+    onEndStroke?.();
   };
+
+  // Global window mouseup listener to ensure stroke commits even if mouse released outside canvas
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isMouseDown) {
+        setIsMouseDown(false);
+        setDraggingEntityHandle(null);
+        setDragStart(null);
+        onEndStroke?.();
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isMouseDown, onEndStroke]);
 
   // Canvas Render Loop
   useEffect(() => {

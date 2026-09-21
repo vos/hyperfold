@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WorldData, RoomData, EditorTool, TileGlyph, SelectedEntity } from './types/world';
 import { PRESET_WORLDS } from './utils/presets';
 import { createEmptyWorld } from './utils/serialization';
@@ -41,13 +41,18 @@ export const App: React.FC = () => {
   // Active Room Resolution
   const activeRoom = world.rooms.find((r) => r.id === activeRoomId) || world.rooms[0];
 
-  // Helper to commit world changes with history tracking
+  // Track active stroke snapshot
+  const strokeSnapshotRef = useRef<WorldData | null>(null);
+
+  // Helper to commit world changes with optional history tracking
   const updateWorldWithHistory = useCallback(
-    (updater: (prev: WorldData) => WorldData) => {
+    (updater: (prev: WorldData) => WorldData, addToHistory: boolean = true) => {
       setWorld((current) => {
         const next = updater(current);
-        setHistory((h) => [...h.slice(-30), current]);
-        setFuture([]);
+        if (addToHistory && !strokeSnapshotRef.current && next !== current) {
+          setHistory((h) => [...h.slice(-30), current]);
+          setFuture([]);
+        }
         return next;
       });
     },
@@ -56,20 +61,42 @@ export const App: React.FC = () => {
 
   // Helper to update current room
   const updateActiveRoom = useCallback(
-    (updater: (prev: RoomData) => RoomData) => {
+    (updater: (prev: RoomData) => RoomData, addToHistory: boolean = true) => {
       updateWorldWithHistory((prevWorld) => {
         const updatedRooms = prevWorld.rooms.map((r) =>
           r.id === activeRoom.id ? updater(r) : r
         );
         return { ...prevWorld, rooms: updatedRooms };
-      });
+      }, addToHistory);
     },
     [activeRoom.id, updateWorldWithHistory]
   );
 
+  // Stroke lifecycle handlers
+  const handleBeginStroke = useCallback(() => {
+    if (!strokeSnapshotRef.current) {
+      strokeSnapshotRef.current = world;
+    }
+  }, [world]);
+
+  const handleEndStroke = useCallback(() => {
+    if (strokeSnapshotRef.current) {
+      const snapshot = strokeSnapshotRef.current;
+      strokeSnapshotRef.current = null;
+      setWorld((current) => {
+        if (current !== snapshot) {
+          setHistory((h) => [...h.slice(-30), snapshot]);
+          setFuture([]);
+        }
+        return current;
+      });
+    }
+  }, []);
+
   // Undo / Redo Handlers
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
+    strokeSnapshotRef.current = null;
     const previous = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
     setFuture((f) => [world, ...f]);
@@ -78,6 +105,7 @@ export const App: React.FC = () => {
 
   const handleRedo = useCallback(() => {
     if (future.length === 0) return;
+    strokeSnapshotRef.current = null;
     const next = future[0];
     setFuture((f) => f.slice(1));
     setHistory((h) => [...h, world]);
@@ -193,6 +221,8 @@ export const App: React.FC = () => {
               <GridCanvas
                 room={activeRoom}
                 onUpdateRoom={updateActiveRoom}
+                onBeginStroke={handleBeginStroke}
+                onEndStroke={handleEndStroke}
                 currentTool={currentTool}
                 selectedGlyph={selectedGlyph}
                 onSelectGlyph={setSelectedGlyph}
