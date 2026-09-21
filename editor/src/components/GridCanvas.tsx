@@ -903,87 +903,59 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     <div className="flex-1 flex flex-col bg-cyber-bg overflow-hidden relative" ref={containerRef}>
       {/* Canvas Viewport Container */}
       <div className="flex-1 overflow-auto flex p-6 select-none">
-        <div className="m-auto flex flex-col items-center shrink-0">
-          {/* Top / North Adjacent Sector Navigation */}
-          {adjacent.up.room ? (
-            <button
-              type="button"
-              onClick={() => onSelectRoom(adjacent.up.room!.id)}
-              className={`mb-2.5 flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group ${
-                adjacent.up.isConnected
-                  ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
-                  : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
-              }`}
-              title={`Jump to Sector (${adjacent.up.room.coords[0]}, ${adjacent.up.room.coords[1]}): ${adjacent.up.room.title}`}
-            >
-              <ArrowUp className="w-3.5 h-3.5 text-cyber-cyan group-hover:-translate-y-0.5 transition-transform" />
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: adjacent.up.room.themeColor || '#00e5ff' }}
-              />
-              <span className="text-xs font-semibold text-slate-200 group-hover:text-white">
-                Sector ({adjacent.up.room.coords[0]}, {adjacent.up.room.coords[1]}): {adjacent.up.room.title}
-              </span>
-              <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+        <div
+          className="m-auto grid shrink-0"
+          style={{
+            gridTemplateColumns: '170px auto 170px',
+            gridTemplateRows: '48px auto 48px',
+          }}
+        >
+          {/* Top / North Adjacent Sector Navigation (Row 1, Col 2) */}
+          <div className={`col-start-2 row-start-1 min-w-0 flex items-end justify-center pb-2.5 self-stretch ${showCoordinates ? 'pl-7' : ''}`}>
+            {adjacent.up.room ? (
+              <button
+                type="button"
+                onClick={() => onSelectRoom(adjacent.up.room!.id)}
+                className={`flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group max-w-full ${
                   adjacent.up.isConnected
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                    ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                    : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
                 }`}
+                title={`Jump to Sector (${adjacent.up.room.coords[0]}, ${adjacent.up.room.coords[1]}): ${adjacent.up.room.title}`}
               >
-                {adjacent.up.isConnected ? 'Connected' : 'Exit Closed'}
-              </span>
-            </button>
-          ) : adjacent.up.isExitOpen ? (
-            <div className="mb-2.5 flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
-              <ArrowUp className="w-3.5 h-3.5" />
-              <span>Up Exit Open (No Sector at [{adjacent.up.targetCoords[0]}, {adjacent.up.targetCoords[1]}])</span>
-            </div>
-          ) : null}
-
-          {/* Top Ruler Bar */}
-          {showCoordinates && (
-            <div
-              className="flex items-center"
-              style={{ width: `${(ROOM_PIXEL_SIZE * zoom) + 28}px` }}
-            >
-              {/* Corner Coordinate Label */}
-              <div className="w-7 h-6 bg-cyber-card border-t border-l border-b border-cyber-border rounded-tl flex items-center justify-center text-[9px] font-mono font-bold text-slate-500">
-                R\C
+                <ArrowUp className="w-3.5 h-3.5 text-cyber-cyan group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: adjacent.up.room.themeColor || '#00e5ff' }}
+                />
+                <span className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
+                  Sector ({adjacent.up.room.coords[0]}, {adjacent.up.room.coords[1]}): {adjacent.up.room.title}
+                </span>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                    adjacent.up.isConnected
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                  }`}
+                >
+                  {adjacent.up.isConnected ? 'Connected' : 'Exit Closed'}
+                </span>
+              </button>
+            ) : adjacent.up.isExitOpen ? (
+              <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
+                <ArrowUp className="w-3.5 h-3.5 shrink-0" />
+                <span>Up Exit Open (No Sector at [{adjacent.up.targetCoords[0]}, {adjacent.up.targetCoords[1]}])</span>
               </div>
+            ) : null}
+          </div>
 
-              {/* Column Numbers 0..19 */}
-              <div
-                className="h-6 bg-cyber-card border-t border-b border-r border-cyber-border rounded-tr flex overflow-hidden font-mono text-[9px]"
-                style={{ width: `${ROOM_PIXEL_SIZE * zoom}px` }}
-              >
-                {Array.from({ length: GRID_COLS }).map((_, c) => {
-                  const isHovered = hoverPos?.col === c;
-                  return (
-                    <div
-                      key={c}
-                      className={`flex-1 flex flex-col items-center justify-center border-r border-cyber-border/40 transition-colors ${
-                        isHovered
-                          ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
-                          : 'text-slate-500'
-                      }`}
-                      title={`Column ${c} (Pixels ${c * 40}..${(c + 1) * 40})`}
-                    >
-                      <span>{c}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center">
-            {/* Left / West Adjacent Sector */}
+          {/* Left / West Adjacent Sector Navigation (Row 2, Col 1) */}
+          <div className={`col-start-1 row-start-2 min-h-0 flex items-center justify-end pr-3 self-stretch ${showCoordinates ? 'pt-6' : ''}`}>
             {adjacent.left.room ? (
               <button
                 type="button"
                 onClick={() => onSelectRoom(adjacent.left.room!.id)}
-                className={`mr-3 flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
+                className={`flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
                   adjacent.left.isConnected
                     ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
                     : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
@@ -1017,68 +989,112 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               </button>
             ) : adjacent.left.isExitOpen ? (
               <div
-                className="mr-3 flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
+                className="flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
                 title={`Left exit open, but no sector exists at [${adjacent.left.targetCoords[0]}, ${adjacent.left.targetCoords[1]}]`}
               >
                 <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Open (Void)</span>
               </div>
             ) : null}
+          </div>
 
-            {/* Left Ruler Bar (Row Numbers 0..19) */}
+          {/* Center Coordinate Grid Block (Row 2, Col 2) */}
+          <div className="col-start-2 row-start-2 flex flex-col shrink-0">
+            {/* Top Ruler Bar */}
             {showCoordinates && (
               <div
-                className="w-7 bg-cyber-card border-l border-r border-b border-cyber-border rounded-bl flex flex-col overflow-hidden font-mono text-[9px]"
-                style={{ height: `${ROOM_PIXEL_SIZE * zoom}px` }}
+                className="flex items-center"
+                style={{ width: `${(ROOM_PIXEL_SIZE * zoom) + 28}px` }}
               >
-                {Array.from({ length: GRID_ROWS }).map((_, r) => {
-                  const isHovered = hoverPos?.row === r;
-                  return (
-                    <div
-                      key={r}
-                      className={`flex-1 flex items-center justify-center border-b border-cyber-border/40 transition-colors ${
-                        isHovered
-                          ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
-                          : 'text-slate-500'
-                      }`}
-                      title={`Row ${r} (Pixels ${r * 40}..${(r + 1) * 40})`}
-                    >
-                      <span>{r}</span>
-                    </div>
-                  );
-                })}
+                {/* Corner Coordinate Label */}
+                <div className="w-7 h-6 bg-cyber-card border-t border-l border-b border-cyber-border rounded-tl flex items-center justify-center text-[9px] font-mono font-bold text-slate-500">
+                  R\C
+                </div>
+
+                {/* Column Numbers 0..19 */}
+                <div
+                  className="h-6 bg-cyber-card border-t border-b border-r border-cyber-border rounded-tr flex overflow-hidden font-mono text-[9px]"
+                  style={{ width: `${ROOM_PIXEL_SIZE * zoom}px` }}
+                >
+                  {Array.from({ length: GRID_COLS }).map((_, c) => {
+                    const isHovered = hoverPos?.col === c;
+                    return (
+                      <div
+                        key={c}
+                        className={`flex-1 flex flex-col items-center justify-center border-r border-cyber-border/40 transition-colors ${
+                          isHovered
+                            ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
+                            : 'text-slate-500'
+                        }`}
+                        title={`Column ${c} (Pixels ${c * 40}..${(c + 1) * 40})`}
+                      >
+                        <span>{c}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Canvas Box */}
-            <div
-              className={`relative shadow-2xl border border-cyber-border overflow-hidden bg-black ${
-                showCoordinates ? 'rounded-br' : 'rounded-lg'
-              }`}
-              style={{
-                width: `${ROOM_PIXEL_SIZE * zoom}px`,
-                height: `${ROOM_PIXEL_SIZE * zoom}px`,
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full block cursor-crosshair"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={() => {
-                  setIsMouseDown(false);
-                  setHoverPos(null);
-                }}
-              />
-            </div>
+            {/* Canvas Row: Left Ruler + Canvas */}
+            <div className="flex">
+              {/* Left Ruler Bar (Row Numbers 0..19) */}
+              {showCoordinates && (
+                <div
+                  className="w-7 bg-cyber-card border-l border-r border-b border-cyber-border rounded-bl flex flex-col overflow-hidden font-mono text-[9px]"
+                  style={{ height: `${ROOM_PIXEL_SIZE * zoom}px` }}
+                >
+                  {Array.from({ length: GRID_ROWS }).map((_, r) => {
+                    const isHovered = hoverPos?.row === r;
+                    return (
+                      <div
+                        key={r}
+                        className={`flex-1 flex items-center justify-center border-b border-cyber-border/40 transition-colors ${
+                          isHovered
+                            ? 'bg-cyber-cyan/20 text-cyber-cyan font-bold ring-1 ring-inset ring-cyber-cyan/50'
+                            : 'text-slate-500'
+                        }`}
+                        title={`Row ${r} (Pixels ${r * 40}..${(r + 1) * 40})`}
+                      >
+                        <span>{r}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-            {/* Right / East Adjacent Sector */}
+              {/* Canvas Box */}
+              <div
+                className={`relative shadow-2xl border border-cyber-border overflow-hidden bg-black ${
+                  showCoordinates ? 'rounded-br' : 'rounded-lg'
+                }`}
+                style={{
+                  width: `${ROOM_PIXEL_SIZE * zoom}px`,
+                  height: `${ROOM_PIXEL_SIZE * zoom}px`,
+                }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-full block cursor-crosshair"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={() => {
+                    setIsMouseDown(false);
+                    setHoverPos(null);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right / East Adjacent Sector Navigation (Row 2, Col 3) */}
+          <div className={`col-start-3 row-start-2 min-h-0 flex items-center justify-start pl-3 self-stretch ${showCoordinates ? 'pt-6' : ''}`}>
             {adjacent.right.room ? (
               <button
                 type="button"
                 onClick={() => onSelectRoom(adjacent.right.room!.id)}
-                className={`ml-3 flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
+                className={`flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
                   adjacent.right.isConnected
                     ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
                     : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
@@ -1112,7 +1128,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               </button>
             ) : adjacent.right.isExitOpen ? (
               <div
-                className="ml-3 flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
+                className="flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
                 title={`Right exit open, but no sector exists at [${adjacent.right.targetCoords[0]}, ${adjacent.right.targetCoords[1]}]`}
               >
                 <span className="truncate">Open (Void)</span>
@@ -1121,42 +1137,44 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ) : null}
           </div>
 
-          {/* Down / South Adjacent Sector Navigation */}
-          {adjacent.down.room ? (
-            <button
-              type="button"
-              onClick={() => onSelectRoom(adjacent.down.room!.id)}
-              className={`mt-2.5 flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group ${
-                adjacent.down.isConnected
-                  ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
-                  : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
-              }`}
-              title={`Jump to Sector (${adjacent.down.room.coords[0]}, ${adjacent.down.room.coords[1]}): ${adjacent.down.room.title}`}
-            >
-              <ArrowDown className="w-3.5 h-3.5 text-cyber-cyan group-hover:translate-y-0.5 transition-transform" />
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: adjacent.down.room.themeColor || '#00e5ff' }}
-              />
-              <span className="text-xs font-semibold text-slate-200 group-hover:text-white">
-                Sector ({adjacent.down.room.coords[0]}, {adjacent.down.room.coords[1]}): {adjacent.down.room.title}
-              </span>
-              <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+          {/* Down / South Adjacent Sector Navigation (Row 3, Col 2) */}
+          <div className={`col-start-2 row-start-3 min-w-0 flex items-start justify-center pt-2.5 self-stretch ${showCoordinates ? 'pl-7' : ''}`}>
+            {adjacent.down.room ? (
+              <button
+                type="button"
+                onClick={() => onSelectRoom(adjacent.down.room!.id)}
+                className={`flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group max-w-full ${
                   adjacent.down.isConnected
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                    ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                    : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
                 }`}
+                title={`Jump to Sector (${adjacent.down.room.coords[0]}, ${adjacent.down.room.coords[1]}): ${adjacent.down.room.title}`}
               >
-                {adjacent.down.isConnected ? 'Connected' : 'Exit Closed'}
-              </span>
-            </button>
-          ) : adjacent.down.isExitOpen ? (
-            <div className="mt-2.5 flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
-              <ArrowDown className="w-3.5 h-3.5" />
-              <span>Down Exit Open (No Sector at [{adjacent.down.targetCoords[0]}, {adjacent.down.targetCoords[1]}])</span>
-            </div>
-          ) : null}
+                <ArrowDown className="w-3.5 h-3.5 text-cyber-cyan group-hover:translate-y-0.5 transition-transform" />
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: adjacent.down.room.themeColor || '#00e5ff' }}
+                />
+                <span className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
+                  Sector ({adjacent.down.room.coords[0]}, {adjacent.down.room.coords[1]}): {adjacent.down.room.title}
+                </span>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                    adjacent.down.isConnected
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                  }`}
+                >
+                  {adjacent.down.isConnected ? 'Connected' : 'Exit Closed'}
+                </span>
+              </button>
+            ) : adjacent.down.isExitOpen ? (
+              <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
+                <ArrowDown className="w-3.5 h-3.5 shrink-0" />
+                <span>Down Exit Open (No Sector at [{adjacent.down.targetCoords[0]}, {adjacent.down.targetCoords[1]}])</span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
