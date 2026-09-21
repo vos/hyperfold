@@ -56,7 +56,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const glyphList: TileGlyph[] = ['#', '=', '^', 'v', '<', '>', 'B', 'C', 'G', ' '];
 
   return (
-    <aside className="w-16 bg-cyber-surface border-r border-cyber-border flex flex-col items-center py-3 space-y-4 select-none shrink-0 z-10">
+    <aside className="w-16 bg-cyber-surface border-r border-cyber-border flex flex-col items-center py-3 space-y-4 select-none shrink-0 z-10 overflow-x-hidden">
       {/* Tool Selection */}
       <div className="flex flex-col space-y-1 w-full px-2">
         <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider text-center">Tools</span>
@@ -106,7 +106,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className="w-8 h-px bg-cyber-border" />
 
       {/* Tile Palette */}
-      <div className="flex flex-col space-y-1 w-full px-2 items-center flex-1 overflow-y-auto">
+      <div className="flex flex-col space-y-1 w-full px-1 items-center flex-1 overflow-y-auto overflow-x-hidden">
         <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider text-center">Tiles</span>
         {glyphList.map((glyph) => {
           const def = TILE_DEFINITIONS[glyph];
@@ -122,9 +122,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 }
               }}
               title={`${def.name} ['${glyph}'] - ${def.description}`}
-              className={`w-11 h-9 rounded flex items-center justify-center font-mono font-bold text-sm transition-all border ${
+              className={`w-10 h-8.5 rounded flex items-center justify-center font-mono font-bold text-xs transition-all border shrink-0 ${
                 isSelected
-                  ? 'border-cyber-cyan ring-2 ring-cyber-cyan/50 scale-105 bg-cyber-card text-white'
+                  ? 'border-cyber-cyan ring-2 ring-cyber-cyan/60 bg-cyber-card text-white shadow-sm'
                   : 'border-cyber-border bg-cyber-bg text-slate-400 hover:border-slate-500 hover:text-white'
               }`}
               style={{
