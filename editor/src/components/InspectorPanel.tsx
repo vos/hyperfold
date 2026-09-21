@@ -12,6 +12,8 @@ import {
   Radio,
   Sliders,
   Flag,
+  ArrowRight,
+  Compass,
 } from 'lucide-react';
 import {
   DiagnosticIssue,
@@ -23,6 +25,7 @@ import {
   LaserBarrierConfig,
   LaserTurretConfig,
 } from '../types/world';
+import { getAdjacentSectors, getOppositeDirection } from '../utils/navigation.ts';
 
 interface InspectorPanelProps {
   world: WorldData;
@@ -34,6 +37,7 @@ interface InspectorPanelProps {
   diagnostics: DiagnosticIssue[];
   activeTab: 'room' | 'entities' | 'world';
   setActiveTab: (tab: 'room' | 'entities' | 'world') => void;
+  onSelectRoom?: (roomId: string) => void;
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
@@ -46,6 +50,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   diagnostics,
   activeTab,
   setActiveTab,
+  onSelectRoom,
 }) => {
   const COLOR_PRESETS = [
     '#00e5ff', // Cyan
@@ -317,38 +322,102 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
             <div className="h-px bg-cyber-border" />
 
-            {/* Exits Configuration */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Exits / Passage Borders
-              </label>
+            {/* Exits & Adjacent Sectors Configuration */}
+            {(() => {
+              const adjacent = getAdjacentSectors(room, world);
+              const connectedCount = Object.values(adjacent).filter((a) => a.isConnected).length;
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Exits & Adjacent Sectors
+                    </label>
+                    <span className="text-[10px] text-cyber-cyan font-mono font-semibold">
+                      {connectedCount} Connected
+                    </span>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {(['left', 'right', 'up', 'down'] as const).map((dir) => (
-                  <label
-                    key={dir}
-                    className={`flex items-center space-x-2 p-2 rounded border cursor-pointer transition-colors ${
-                      room.exits[dir]
-                        ? 'bg-cyber-cyan/10 border-cyber-cyan text-cyber-cyan font-bold'
-                        : 'bg-cyber-bg border-cyber-border text-slate-400'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={room.exits[dir]}
-                      onChange={(e) =>
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          exits: { ...r.exits, [dir]: e.target.checked },
-                        }))
-                      }
-                      className="rounded border-cyber-border bg-cyber-bg text-cyber-cyan focus:ring-0"
-                    />
-                    <span className="capitalize">{dir} Exit</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    {(['up', 'right', 'down', 'left'] as const).map((dir) => {
+                      const info = adjacent[dir];
+                      return (
+                        <div
+                          key={dir}
+                          className={`p-2 rounded border transition-colors ${
+                            room.exits[dir]
+                              ? 'bg-cyber-cyan/10 border-cyber-cyan/50'
+                              : 'bg-cyber-bg border-cyber-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={room.exits[dir]}
+                                onChange={(e) =>
+                                  onUpdateRoom((r) => ({
+                                    ...r,
+                                    exits: { ...r.exits, [dir]: e.target.checked },
+                                  }))
+                                }
+                                className="rounded border-cyber-border bg-cyber-bg text-cyber-cyan focus:ring-0"
+                              />
+                              <span className="capitalize text-xs font-bold text-slate-200">
+                                {dir} Exit
+                              </span>
+                            </label>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Coord: ({info.targetCoords[0]}, {info.targetCoords[1]})
+                            </span>
+                          </div>
+
+                          {info.room ? (
+                            <div className="flex items-center justify-between pt-1 border-t border-cyber-border/40 text-xs">
+                              <div className="flex items-center space-x-1.5 truncate mr-2">
+                                <div
+                                  className="w-2 h-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: info.room.themeColor || '#00e5ff' }}
+                                />
+                                <span className="text-slate-300 text-[11px] truncate font-medium">
+                                  {info.room.title}
+                                </span>
+                                {info.isTwoWay ? (
+                                  <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 shrink-0">
+                                    ⇄ 2-Way
+                                  </span>
+                                ) : info.isConnected ? (
+                                  <span className="text-[9px] text-amber-400 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20 shrink-0">
+                                    → 1-Way
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => onSelectRoom?.(info.room!.id)}
+                                className="flex items-center space-x-1 px-2 py-0.5 rounded bg-cyber-card hover:bg-cyber-cyan/20 border border-cyber-border hover:border-cyber-cyan text-cyber-cyan hover:text-white text-[10px] font-semibold transition-colors shrink-0"
+                                title={`Jump to Sector (${info.room.coords[0]}, ${info.room.coords[1]}): ${info.room.title}`}
+                              >
+                                <span>Jump</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pt-1 border-t border-cyber-border/30 text-[10px] text-slate-500 flex items-center justify-between">
+                              <span>
+                                {info.isExitOpen
+                                  ? '⚠️ Exit leads to void (no sector)'
+                                  : 'No sector at coordinate'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="h-px bg-cyber-border" />
 

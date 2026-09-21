@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { DiagnosticIssue, WorldData } from '../types/world';
 import { PRESET_WORLDS } from '../utils/presets';
+import { getAdjacentSectors } from '../utils/navigation.ts';
 
 interface WorldHeaderProps {
   world: WorldData;
@@ -29,6 +30,8 @@ interface WorldHeaderProps {
   onOpenDiagnostics: () => void;
   activeView: 'editor' | 'graph';
   setActiveView: (view: 'editor' | 'graph') => void;
+  activeRoomId?: string;
+  onSelectRoom?: (roomId: string) => void;
 }
 
 export const WorldHeader: React.FC<WorldHeaderProps> = ({
@@ -46,6 +49,8 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
   onOpenDiagnostics,
   activeView,
   setActiveView,
+  activeRoomId,
+  onSelectRoom,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(world.title);
@@ -61,6 +66,12 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
       setTitleInput(world.title);
     }
   };
+
+  const activeRoom = world.rooms.find((r) => r.id === activeRoomId) || world.rooms[0];
+  const adjacent = activeRoom ? getAdjacentSectors(activeRoom, world) : null;
+  const connectedAdjacent = adjacent
+    ? Object.values(adjacent).filter((a) => a.isConnected && a.room)
+    : [];
 
   return (
     <header className="h-14 bg-cyber-surface border-b border-cyber-border flex items-center justify-between px-4 select-none shrink-0 z-20">
@@ -111,7 +122,7 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
         )}
       </div>
 
-      {/* Middle: View Mode Tabs & Presets */}
+      {/* Middle: View Mode Tabs, Sector Switcher & Presets */}
       <div className="flex items-center space-x-2">
         <div className="flex bg-cyber-bg p-1 rounded-lg border border-cyber-border">
           <button
@@ -136,6 +147,33 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
             <span>World Graph ({world.rooms.length})</span>
           </button>
         </div>
+
+        {/* Active Sector Switcher with Connected Adjacent Sectors */}
+        {activeView === 'editor' && activeRoom && onSelectRoom && (
+          <select
+            value={activeRoom.id}
+            onChange={(e) => onSelectRoom(e.target.value)}
+            className="bg-cyber-card border border-cyber-border text-xs text-white rounded px-2.5 py-1.5 hover:border-cyber-cyan/50 focus:outline-none font-medium cursor-pointer max-w-[210px] truncate"
+            title="Current sector: switch or jump to connected adjacent sectors"
+          >
+            {connectedAdjacent.length > 0 && (
+              <optgroup label="Connected Adjacent Sectors">
+                {connectedAdjacent.map(({ direction, room: adjRoom }) => (
+                  <option key={`adj-${adjRoom!.id}`} value={adjRoom!.id}>
+                    {direction === 'up' ? '▲ Up' : direction === 'down' ? '▼ Down' : direction === 'left' ? '◀ Left' : '▶ Right'}: ({adjRoom!.coords[0]}, {adjRoom!.coords[1]}) {adjRoom!.title}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label={`All Sectors (${world.rooms.length})`}>
+              {world.rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  ({r.coords[0]}, {r.coords[1]}) - {r.title}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        )}
 
         {/* Preset Selector */}
         <select

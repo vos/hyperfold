@@ -10,6 +10,7 @@ import { InspectorPanel } from './components/InspectorPanel';
 import { WorldGraphView } from './components/WorldGraphView';
 import { ExportModal } from './components/ExportModal';
 import { ImportModal } from './components/ImportModal';
+import { getAdjacentSectors } from './utils/navigation.ts';
 
 export const App: React.FC = () => {
   // World State
@@ -167,11 +168,28 @@ export const App: React.FC = () => {
 
       // Layer Toggles
       if (e.key.toLowerCase() === 'g') setShowGrid((prev) => !prev);
+
+      // Adjacent Sector Navigation: Alt + Arrow Keys
+      if (e.altKey && activeRoom) {
+        const adjacent = getAdjacentSectors(activeRoom, world);
+        let targetRoom: RoomData | undefined;
+        if (e.key === 'ArrowUp') targetRoom = adjacent.up.room;
+        if (e.key === 'ArrowDown') targetRoom = adjacent.down.room;
+        if (e.key === 'ArrowLeft') targetRoom = adjacent.left.room;
+        if (e.key === 'ArrowRight') targetRoom = adjacent.right.room;
+
+        if (targetRoom) {
+          e.preventDefault();
+          setActiveRoomId(targetRoom.id);
+          setSelectedEntity(null);
+          return;
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, activeRoom, world]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-cyber-bg text-slate-100 overflow-hidden font-sans">
@@ -194,6 +212,11 @@ export const App: React.FC = () => {
         }}
         activeView={activeView}
         setActiveView={setActiveView}
+        activeRoomId={activeRoom?.id}
+        onSelectRoom={(id) => {
+          setActiveRoomId(id);
+          setSelectedEntity(null);
+        }}
       />
 
       {/* Main View Area */}
@@ -220,6 +243,11 @@ export const App: React.FC = () => {
             {activeRoom && (
               <GridCanvas
                 room={activeRoom}
+                world={world}
+                onSelectRoom={(id) => {
+                  setActiveRoomId(id);
+                  setSelectedEntity(null);
+                }}
                 onUpdateRoom={updateActiveRoom}
                 onBeginStroke={handleBeginStroke}
                 onEndStroke={handleEndStroke}
@@ -247,6 +275,10 @@ export const App: React.FC = () => {
                 diagnostics={diagnostics}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
+                onSelectRoom={(id) => {
+                  setActiveRoomId(id);
+                  setSelectedEntity(null);
+                }}
               />
             )}
           </>

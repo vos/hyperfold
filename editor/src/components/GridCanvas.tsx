@@ -1,18 +1,23 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import {
   GRID_COLS,
   GRID_ROWS,
   ROOM_PIXEL_SIZE,
   TILE_PIXEL_SIZE,
   RoomData,
+  WorldData,
   TileGlyph,
   EditorTool,
   SelectedEntity,
 } from '../types/world';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
+import { getAdjacentSectors } from '../utils/navigation.ts';
 
 interface GridCanvasProps {
   room: RoomData;
+  world: WorldData;
+  onSelectRoom: (roomId: string) => void;
   onUpdateRoom: (updater: (prev: RoomData) => RoomData, addToHistory?: boolean) => void;
   onBeginStroke?: () => void;
   onEndStroke?: () => void;
@@ -29,6 +34,8 @@ interface GridCanvasProps {
 
 export const GridCanvas: React.FC<GridCanvasProps> = ({
   room,
+  world,
+  onSelectRoom,
   onUpdateRoom,
   onBeginStroke,
   onEndStroke,
@@ -890,11 +897,50 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     brushSize,
   ]);
 
+  const adjacent = getAdjacentSectors(room, world);
+
   return (
     <div className="flex-1 flex flex-col bg-cyber-bg overflow-hidden relative" ref={containerRef}>
       {/* Canvas Viewport Container */}
       <div className="flex-1 overflow-auto flex p-6 select-none">
         <div className="m-auto flex flex-col items-center shrink-0">
+          {/* Top / North Adjacent Sector Navigation */}
+          {adjacent.up.room ? (
+            <button
+              type="button"
+              onClick={() => onSelectRoom(adjacent.up.room!.id)}
+              className={`mb-2.5 flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group ${
+                adjacent.up.isConnected
+                  ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                  : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
+              }`}
+              title={`Jump to Sector (${adjacent.up.room.coords[0]}, ${adjacent.up.room.coords[1]}): ${adjacent.up.room.title}`}
+            >
+              <ArrowUp className="w-3.5 h-3.5 text-cyber-cyan group-hover:-translate-y-0.5 transition-transform" />
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: adjacent.up.room.themeColor || '#00e5ff' }}
+              />
+              <span className="text-xs font-semibold text-slate-200 group-hover:text-white">
+                Sector ({adjacent.up.room.coords[0]}, {adjacent.up.room.coords[1]}): {adjacent.up.room.title}
+              </span>
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                  adjacent.up.isConnected
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                }`}
+              >
+                {adjacent.up.isConnected ? 'Connected' : 'Exit Closed'}
+              </span>
+            </button>
+          ) : adjacent.up.isExitOpen ? (
+            <div className="mb-2.5 flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
+              <ArrowUp className="w-3.5 h-3.5" />
+              <span>Up Exit Open (No Sector at [{adjacent.up.targetCoords[0]}, {adjacent.up.targetCoords[1]}])</span>
+            </div>
+          ) : null}
+
           {/* Top Ruler Bar */}
           {showCoordinates && (
             <div
@@ -932,6 +978,53 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           )}
 
           <div className="flex items-center">
+            {/* Left / West Adjacent Sector */}
+            {adjacent.left.room ? (
+              <button
+                type="button"
+                onClick={() => onSelectRoom(adjacent.left.room!.id)}
+                className={`mr-3 flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
+                  adjacent.left.isConnected
+                    ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                    : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
+                }`}
+                title={`Jump to Sector (${adjacent.left.room.coords[0]}, ${adjacent.left.room.coords[1]}): ${adjacent.left.room.title}`}
+              >
+                <ArrowLeft className="w-4 h-4 text-cyber-cyan group-hover:-translate-x-0.5 transition-transform shrink-0" />
+                <div className="flex flex-col truncate min-w-0">
+                  <div className="flex items-center space-x-1">
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: adjacent.left.room.themeColor || '#00e5ff' }}
+                    />
+                    <span className="text-[10px] text-slate-400 font-mono truncate">
+                      ({adjacent.left.room.coords[0]}, {adjacent.left.room.coords[1]})
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-200 group-hover:text-white truncate">
+                    {adjacent.left.room.title}
+                  </span>
+                  <span
+                    className={`text-[8px] font-bold px-1 py-0.2 rounded uppercase tracking-wider w-fit mt-0.5 ${
+                      adjacent.left.isConnected
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-slate-700/50 text-slate-400'
+                    }`}
+                  >
+                    {adjacent.left.isConnected ? 'Connected' : 'Exit Closed'}
+                  </span>
+                </div>
+              </button>
+            ) : adjacent.left.isExitOpen ? (
+              <div
+                className="mr-3 flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
+                title={`Left exit open, but no sector exists at [${adjacent.left.targetCoords[0]}, ${adjacent.left.targetCoords[1]}]`}
+              >
+                <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Open (Void)</span>
+              </div>
+            ) : null}
+
             {/* Left Ruler Bar (Row Numbers 0..19) */}
             {showCoordinates && (
               <div
@@ -979,7 +1072,91 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
                 }}
               />
             </div>
+
+            {/* Right / East Adjacent Sector */}
+            {adjacent.right.room ? (
+              <button
+                type="button"
+                onClick={() => onSelectRoom(adjacent.right.room!.id)}
+                className={`ml-3 flex items-center space-x-2 p-2 rounded-xl border transition-all shadow-md group max-w-[150px] shrink-0 text-left ${
+                  adjacent.right.isConnected
+                    ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                    : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
+                }`}
+                title={`Jump to Sector (${adjacent.right.room.coords[0]}, ${adjacent.right.room.coords[1]}): ${adjacent.right.room.title}`}
+              >
+                <div className="flex flex-col truncate min-w-0">
+                  <div className="flex items-center space-x-1">
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: adjacent.right.room.themeColor || '#00e5ff' }}
+                    />
+                    <span className="text-[10px] text-slate-400 font-mono truncate">
+                      ({adjacent.right.room.coords[0]}, {adjacent.right.room.coords[1]})
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-200 group-hover:text-white truncate">
+                    {adjacent.right.room.title}
+                  </span>
+                  <span
+                    className={`text-[8px] font-bold px-1 py-0.2 rounded uppercase tracking-wider w-fit mt-0.5 ${
+                      adjacent.right.isConnected
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-slate-700/50 text-slate-400'
+                    }`}
+                  >
+                    {adjacent.right.isConnected ? 'Connected' : 'Exit Closed'}
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-cyber-cyan group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </button>
+            ) : adjacent.right.isExitOpen ? (
+              <div
+                className="ml-3 flex items-center space-x-1 p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] max-w-[110px] shrink-0"
+                title={`Right exit open, but no sector exists at [${adjacent.right.targetCoords[0]}, ${adjacent.right.targetCoords[1]}]`}
+              >
+                <span className="truncate">Open (Void)</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+              </div>
+            ) : null}
           </div>
+
+          {/* Down / South Adjacent Sector Navigation */}
+          {adjacent.down.room ? (
+            <button
+              type="button"
+              onClick={() => onSelectRoom(adjacent.down.room!.id)}
+              className={`mt-2.5 flex items-center space-x-2 px-4 py-1.5 rounded-full border transition-all shadow-lg group ${
+                adjacent.down.isConnected
+                  ? 'bg-cyber-surface/95 border-cyber-cyan/60 hover:border-cyber-cyan hover:bg-cyber-card hover:shadow-cyber-cyan/20'
+                  : 'bg-cyber-surface/60 border-cyber-border/60 hover:border-slate-400 hover:bg-cyber-card'
+              }`}
+              title={`Jump to Sector (${adjacent.down.room.coords[0]}, ${adjacent.down.room.coords[1]}): ${adjacent.down.room.title}`}
+            >
+              <ArrowDown className="w-3.5 h-3.5 text-cyber-cyan group-hover:translate-y-0.5 transition-transform" />
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: adjacent.down.room.themeColor || '#00e5ff' }}
+              />
+              <span className="text-xs font-semibold text-slate-200 group-hover:text-white">
+                Sector ({adjacent.down.room.coords[0]}, {adjacent.down.room.coords[1]}): {adjacent.down.room.title}
+              </span>
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                  adjacent.down.isConnected
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                }`}
+              >
+                {adjacent.down.isConnected ? 'Connected' : 'Exit Closed'}
+              </span>
+            </button>
+          ) : adjacent.down.isExitOpen ? (
+            <div className="mt-2.5 flex items-center space-x-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
+              <ArrowDown className="w-3.5 h-3.5" />
+              <span>Down Exit Open (No Sector at [{adjacent.down.targetCoords[0]}, {adjacent.down.targetCoords[1]}])</span>
+            </div>
+          ) : null}
         </div>
       </div>
 

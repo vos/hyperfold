@@ -12,6 +12,7 @@ const { LevelLoader } = require('./dist-world/world/LevelLoader.js');
 import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom } from '../editor/src/utils/serialization.ts';
 import { validateWorld } from '../editor/src/utils/validator.ts';
 import { PRESET_WORLDS } from '../editor/src/utils/presets.ts';
+import { getAdjacentSectors, getAdjacentCoords, getOppositeDirection } from '../editor/src/utils/navigation.ts';
 
 test('Editor & Game Engine Integration Verification', async (t) => {
   await t.test('createEmptyWorld produces valid world loadable by Hyperfold LevelLoader', () => {
@@ -344,5 +345,71 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     const issues = validateWorld(world);
     const errors = issues.filter((i) => i.severity === 'error');
     assert.equal(errors.length, 0, `Expected 0 validation errors on demo preset, got: ${JSON.stringify(errors)}`);
+  });
+
+  await t.test('getAdjacentCoords and getOppositeDirection resolve directional invariants accurately', () => {
+    assert.deepEqual(getAdjacentCoords([2, 0], 'up'), [2, 1]);
+    assert.deepEqual(getAdjacentCoords([2, 0], 'down'), [2, -1]);
+    assert.deepEqual(getAdjacentCoords([2, 0], 'left'), [1, 0]);
+    assert.deepEqual(getAdjacentCoords([2, 0], 'right'), [3, 0]);
+
+    assert.equal(getOppositeDirection('up'), 'down');
+    assert.equal(getOppositeDirection('down'), 'up');
+    assert.equal(getOppositeDirection('left'), 'right');
+    assert.equal(getOppositeDirection('right'), 'left');
+  });
+
+  await t.test('getAdjacentSectors correctly identifies connected and adjacent sectors on the demo world', () => {
+    const demoWorld = PRESET_WORLDS.find((p) => p.id === 'demo')?.get();
+    assert.ok(demoWorld);
+
+    // 1. Genesis Core (0, 0): Right connects to Neon Nexus (1, 0)
+    const genesis = demoWorld.rooms.find((r) => r.id === 'room_0_0');
+    assert.ok(genesis);
+    const adjGenesis = getAdjacentSectors(genesis, demoWorld);
+
+    assert.equal(adjGenesis.right.isConnected, true);
+    assert.equal(adjGenesis.right.room?.id, 'room_1_0');
+    assert.equal(adjGenesis.right.room?.title, 'Sector 1: Neon Nexus');
+    assert.equal(adjGenesis.right.isTwoWay, true);
+
+    assert.equal(adjGenesis.left.isConnected, false);
+    assert.equal(adjGenesis.left.room, undefined);
+    assert.equal(adjGenesis.up.isConnected, false);
+    assert.equal(adjGenesis.down.isConnected, false);
+
+    // 2. Quantum Junction (2, 0): Vertical connection up to The Spire (2, 1) and horizontal passages
+    const junction = demoWorld.rooms.find((r) => r.id === 'room_2_0');
+    assert.ok(junction);
+    const adjJunction = getAdjacentSectors(junction, demoWorld);
+
+    assert.equal(adjJunction.up.isConnected, true);
+    assert.equal(adjJunction.up.room?.id, 'room_2_1');
+    assert.equal(adjJunction.up.room?.title, 'Sector (2,1): The Spire');
+    assert.equal(adjJunction.up.isTwoWay, true);
+
+    assert.equal(adjJunction.left.isConnected, true);
+    assert.equal(adjJunction.left.room?.id, 'room_1_0');
+
+    assert.equal(adjJunction.right.isConnected, true);
+    assert.equal(adjJunction.right.room?.id, 'room_3_0');
+
+    // 3. The Spire (2, 1): Vertical chute connecting (2, 0) below and (2, 2) above
+    const spire = demoWorld.rooms.find((r) => r.id === 'room_2_1');
+    assert.ok(spire);
+    const adjSpire = getAdjacentSectors(spire, demoWorld);
+
+    assert.equal(adjSpire.down.isConnected, true);
+    assert.equal(adjSpire.down.room?.id, 'room_2_0');
+    assert.equal(adjSpire.up.isConnected, true);
+    assert.equal(adjSpire.up.room?.id, 'room_2_2');
+    assert.equal(adjSpire.up.room?.title, 'Sector (2,2): Starlight Zenith');
+
+    // 4. Sub-Zero Crypt (4, -1): Under chasm of Gravity Well (4, 0)
+    const crypt = demoWorld.rooms.find((r) => r.coords[0] === 4 && r.coords[1] === -1);
+    assert.ok(crypt);
+    const adjCrypt = getAdjacentSectors(crypt, demoWorld);
+    assert.equal(adjCrypt.up.isConnected, true);
+    assert.equal(adjCrypt.up.room?.id, 'room_4_0');
   });
 });
