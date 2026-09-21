@@ -18,7 +18,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "npm run build && vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "editor": "npm --prefix editor run dev",
+    "editor:build": "npm --prefix editor run build",
+    "editor:preview": "npm --prefix editor run preview",
+    "editor:start": "npm --prefix editor run start"
   },
   "dependencies": {
     "three": "^0.186.0"

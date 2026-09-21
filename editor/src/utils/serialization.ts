@@ -1,0 +1,292 @@
+import {
+  GRID_COLS,
+  GRID_ROWS,
+} from '../types/world.ts';
+import type {
+  RoomData,
+  WorldData,
+} from '../types/world.ts';
+
+/**
+ * Creates a blank standard room with perimeter walls, bottom floor, and safe spawn.
+ */
+export function createEmptyRoom(coords: [number, number], customId?: string): RoomData {
+  const [x, y] = coords;
+  const id = customId || `room_${x}_${y}`.replace(/-/g, 'neg_');
+
+  // Standard 20x20 template with walls and floor
+  const grid: string[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    if (r === 0 || r === GRID_ROWS - 1 || r === GRID_ROWS - 2) {
+      grid.push('#'.repeat(GRID_COLS));
+    } else {
+      // Hollow with side borders
+      grid.push('#' + ' '.repeat(GRID_COLS - 2) + '#');
+    }
+  }
+
+  return {
+    $schema: './schemas/room.schema.json',
+    id,
+    coords: [x, y],
+    title: `Sector ${x},${y}: New Sector`,
+    subtitle: 'Sector description and hints',
+    themeColor: '#00e5ff',
+    accentColor: '#0066ff',
+    exits: {
+      left: false,
+      right: false,
+      up: false,
+      down: false,
+    },
+    spawnPoint: [120, 680],
+    grid,
+    collectibles: [],
+    bounceProps: {},
+    spikeProps: {},
+    movingPlatforms: [],
+    laserBarriers: [],
+    laserTurrets: [],
+  };
+}
+
+/**
+ * Creates a brand new starter world.
+ */
+export function createEmptyWorld(): WorldData {
+  const startingCoords: [number, number] = [0, 0];
+  const initialRoom = createEmptyRoom(startingCoords, 'room_0_0');
+  initialRoom.title = 'Sector 0: Genesis Chamber';
+  initialRoom.subtitle = 'Welcome to your custom world!';
+  
+  // Add a goal in the starter room at top-right
+  const rGrid = [...initialRoom.grid];
+  // Put goal at row 15, col 16
+  const rowChars = rGrid[15].split('');
+  rowChars[16] = 'G';
+  rGrid[15] = rowChars.join('');
+  initialRoom.grid = rGrid;
+
+  return {
+    $schema: './schemas/world.schema.json',
+    id: 'custom_world',
+    title: 'Custom Hypercube World',
+    description: 'A custom Hyperfold world created with the Hyperfold World Editor.',
+    startingCoords,
+    rooms: [initialRoom],
+  };
+}
+
+/**
+ * Deep clones a room, assigning new coordinates and ID.
+ */
+export function cloneRoom(source: RoomData, newCoords: [number, number]): RoomData {
+  const [x, y] = newCoords;
+  const cloned: RoomData = JSON.parse(JSON.stringify(source));
+  cloned.coords = [x, y];
+  cloned.id = `room_${x}_${y}`.replace(/-/g, 'neg_');
+  cloned.title = `${source.title} (Copy)`;
+  return cloned;
+}
+
+/**
+ * Normalizes a grid to ensure exactly 20 rows of 20 characters.
+ */
+export function normalizeGrid(grid: string[]): string[] {
+  const normalized: string[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    let row = (grid && grid[r]) ? grid[r] : '';
+    if (row.length < GRID_COLS) {
+      row = row.padEnd(GRID_COLS, ' ');
+    } else if (row.length > GRID_COLS) {
+      row = row.substring(0, GRID_COLS);
+    }
+    normalized.push(row);
+  }
+  return normalized;
+}
+
+/**
+ * Parses raw JSON string into WorldData.
+ * Supports both single-file world bundle and standalone single room.
+ */
+export function parseWorldJson(jsonString: string): WorldData {
+  const raw = JSON.parse(jsonString);
+
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Provided JSON is not an object.');
+  }
+
+  // Case A: Full World Bundle
+  if (Array.isArray(raw.rooms)) {
+    const startingCoords: [number, number] = Array.isArray(raw.startingCoords)
+      ? [raw.startingCoords[0], raw.startingCoords[1]]
+      : raw.startingCoords && typeof raw.startingCoords === 'object'
+      ? [raw.startingCoords.x, raw.startingCoords.y]
+      : [0, 0];
+
+    const rooms: RoomData[] = raw.rooms.map((rm: any, index: number) => {
+      const coords: [number, number] = Array.isArray(rm.coords)
+        ? [rm.coords[0], rm.coords[1]]
+        : rm.coords && typeof rm.coords === 'object'
+        ? [rm.coords.x, rm.coords.y]
+        : [index, 0];
+
+      const spawnPoint: [number, number] | undefined = rm.spawnPoint
+        ? (Array.isArray(rm.spawnPoint)
+            ? [rm.spawnPoint[0], rm.spawnPoint[1]]
+            : [rm.spawnPoint.x, rm.spawnPoint.y])
+        : undefined;
+
+      const collectibles = (rm.collectibles || []).map((c: any) => ({
+        id: c.id,
+        type: c.type,
+        x: c.pos ? c.pos[0] : (c.x ?? 0),
+        y: c.pos ? c.pos[1] : (c.y ?? 0),
+      }));
+
+      return {
+        $schema: rm.$schema || './schemas/room.schema.json',
+        id: rm.id || `room_${coords[0]}_${coords[1]}`,
+        coords,
+        title: rm.title || `Sector ${coords[0]},${coords[1]}`,
+        subtitle: rm.subtitle,
+        themeColor: rm.themeColor || '#00e5ff',
+        accentColor: rm.accentColor || '#0066ff',
+        exits: {
+          left: !!rm.exits?.left,
+          right: !!rm.exits?.right,
+          up: !!rm.exits?.up,
+          down: !!rm.exits?.down,
+        },
+        spawnPoint,
+        grid: normalizeGrid(rm.grid || []),
+        collectibles,
+        bounceProps: rm.bounceProps || {},
+        spikeProps: rm.spikeProps || {},
+        movingPlatforms: rm.movingPlatforms || [],
+        laserBarriers: rm.laserBarriers || [],
+        laserTurrets: rm.laserTurrets || [],
+      };
+    });
+
+    return {
+      $schema: raw.$schema || './schemas/world.schema.json',
+      id: raw.id || 'imported_world',
+      title: raw.title || 'Imported World',
+      description: raw.description,
+      startingCoords,
+      rooms,
+    };
+  }
+
+  // Case B: Standalone Single Room
+  if (Array.isArray(raw.grid)) {
+    const coords: [number, number] = Array.isArray(raw.coords)
+      ? [raw.coords[0], raw.coords[1]]
+      : raw.coords && typeof raw.coords === 'object'
+      ? [raw.coords.x, raw.coords.y]
+      : [0, 0];
+
+    const spawnPoint: [number, number] | undefined = raw.spawnPoint
+      ? (Array.isArray(raw.spawnPoint)
+          ? [raw.spawnPoint[0], raw.spawnPoint[1]]
+          : [raw.spawnPoint.x, raw.spawnPoint.y])
+      : undefined;
+
+    const singleRoom: RoomData = {
+      $schema: raw.$schema || './schemas/room.schema.json',
+      id: raw.id || `room_${coords[0]}_${coords[1]}`,
+      coords,
+      title: raw.title || 'Standalone Sector',
+      subtitle: raw.subtitle,
+      themeColor: raw.themeColor || '#00e5ff',
+      accentColor: raw.accentColor || '#0066ff',
+      exits: {
+        left: !!raw.exits?.left,
+        right: !!raw.exits?.right,
+        up: !!raw.exits?.up,
+        down: !!raw.exits?.down,
+      },
+      spawnPoint,
+      grid: normalizeGrid(raw.grid),
+      collectibles: raw.collectibles || [],
+      bounceProps: raw.bounceProps || {},
+      spikeProps: raw.spikeProps || {},
+      movingPlatforms: raw.movingPlatforms || [],
+      laserBarriers: raw.laserBarriers || [],
+      laserTurrets: raw.laserTurrets || [],
+    };
+
+    return {
+      $schema: './schemas/world.schema.json',
+      id: raw.id ? `${raw.id}_world` : 'single_sector_world',
+      title: raw.title ? `${raw.title} World` : 'Single Sector World',
+      description: 'Imported from a single standalone sector file.',
+      startingCoords: coords,
+      rooms: [singleRoom],
+    };
+  }
+
+  throw new Error('Unrecognized JSON format: expected a world bundle with "rooms" or a sector with "grid".');
+}
+
+/**
+ * Serializes WorldData into a cleanly formatted JSON string.
+ */
+export function exportWorldJson(world: WorldData): string {
+  const exportPayload = {
+    $schema: './schemas/world.schema.json',
+    id: world.id,
+    title: world.title,
+    description: world.description,
+    startingCoords: world.startingCoords,
+    rooms: world.rooms.map((room) => {
+      const roomPayload: any = {
+        $schema: './schemas/room.schema.json',
+        id: room.id,
+        coords: room.coords,
+        title: room.title,
+        ...(room.subtitle ? { subtitle: room.subtitle } : {}),
+        themeColor: room.themeColor,
+        accentColor: room.accentColor,
+        exits: room.exits,
+        ...(room.spawnPoint ? { spawnPoint: room.spawnPoint } : {}),
+        grid: room.grid,
+      };
+
+      if (room.collectibles && room.collectibles.length > 0) {
+        roomPayload.collectibles = room.collectibles.map((c) => ({
+          id: c.id,
+          type: c.type,
+          pos: [c.x, c.y],
+        }));
+      }
+
+      if (room.bounceProps && Object.keys(room.bounceProps).length > 0) {
+        roomPayload.bounceProps = room.bounceProps;
+      }
+
+      if (room.spikeProps && Object.keys(room.spikeProps).length > 0) {
+        roomPayload.spikeProps = room.spikeProps;
+      }
+
+      if (room.movingPlatforms && room.movingPlatforms.length > 0) {
+        roomPayload.movingPlatforms = room.movingPlatforms;
+      }
+
+      if (room.laserBarriers && room.laserBarriers.length > 0) {
+        roomPayload.laserBarriers = room.laserBarriers;
+      }
+
+      if (room.laserTurrets && room.laserTurrets.length > 0) {
+        roomPayload.laserTurrets = room.laserTurrets;
+      }
+
+      return roomPayload;
+    }),
+  };
+
+  return JSON.stringify(exportPayload, null, 2);
+}
+

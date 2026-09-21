@@ -1,0 +1,879 @@
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  ROOM_PIXEL_SIZE,
+  TILE_PIXEL_SIZE,
+  RoomData,
+  TileGlyph,
+  EditorTool,
+  SelectedEntity,
+} from '../types/world';
+import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
+
+interface GridCanvasProps {
+  room: RoomData;
+  onUpdateRoom: (updater: (prev: RoomData) => RoomData) => void;
+  currentTool: EditorTool;
+  selectedGlyph: TileGlyph;
+  onSelectGlyph: (glyph: TileGlyph) => void;
+  selectedEntity: SelectedEntity;
+  onSelectEntity: (entity: SelectedEntity) => void;
+  showGrid: boolean;
+  showEntities: boolean;
+  showCoordinates: boolean;
+  brushSize: number;
+}
+
+export const GridCanvas: React.FC<GridCanvasProps> = ({
+  room,
+  onUpdateRoom,
+  currentTool,
+  selectedGlyph,
+  onSelectGlyph,
+  selectedEntity,
+  onSelectEntity,
+  showGrid,
+  showEntities,
+  showCoordinates,
+  brushSize,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const [zoom, setZoom] = useState<number>(1.0);
+  const [hoverPos, setHoverPos] = useState<{ col: number; row: number; pixelX: number; pixelY: number } | null>(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [dragStart, setDragStart] = useState<{ col: number; row: number; pixelX: number; pixelY: number } | null>(null);
+
+  // Dragging dynamic entity handle
+  const [draggingEntityHandle, setDraggingEntityHandle] = useState<{
+    entityType: 'spawn' | 'collectible' | 'movingPlatformStart' | 'movingPlatformEnd' | 'laserBarrier1' | 'laserBarrier2' | 'laserTurret';
+    id?: string;
+  } | null>(null);
+
+  // Helper to get exact canvas coordinates from mouse event
+  const getCanvasCoords = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = ROOM_PIXEL_SIZE / rect.width;
+      const scaleY = ROOM_PIXEL_SIZE / rect.height;
+
+      const pixelX = Math.max(0, Math.min(ROOM_PIXEL_SIZE - 1, (e.clientX - rect.left) * scaleX));
+      const pixelY = Math.max(0, Math.min(ROOM_PIXEL_SIZE - 1, (e.clientY - rect.top) * scaleY));
+
+      const col = Math.floor(pixelX / TILE_PIXEL_SIZE);
+      const row = Math.floor(pixelY / TILE_PIXEL_SIZE);
+
+      return { pixelX, pixelY, col, row };
+    },
+    []
+  );
+
+  // Paint tile(s) on grid
+  const paintTiles = useCallback(
+    (targetCells: { r: number; c: number }[], glyph: TileGlyph) => {
+      onUpdateRoom((prev) => {
+        const newGrid = [...prev.grid];
+        for (const cell of targetCells) {
+          if (cell.r >= 0 && cell.r < GRID_ROWS && cell.c >= 0 && cell.c < GRID_COLS) {
+            const rowChars = newGrid[cell.r].split('');
+            rowChars[cell.c] = glyph;
+            newGrid[cell.r] = rowChars.join('');
+          }
+        }
+        return { ...prev, grid: newGrid };
+      });
+    },
+    [onUpdateRoom]
+  );
+
+  // Flood fill algorithm
+  const floodFill = useCallback(
+    (startR: number, startC: number, fillGlyph: TileGlyph) => {
+      const targetGlyph = room.grid[startR]?.[startC];
+      if (targetGlyph === fillGlyph) return;
+
+      const visited = new Set<string>();
+      const queue: [number, number][] = [[startR, startC]];
+      const cellsToPaint: { r: number; c: number }[] = [];
+
+      while (queue.length > 0) {
+        const [r, c] = queue.shift()!;
+        const key = `${r},${c}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+
+        if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) continue;
+        if (room.grid[r][c] !== targetGlyph) continue;
+
+        cellsToPaint.push({ r, c });
+
+        queue.push([r + 1, c]);
+        queue.push([r - 1, c]);
+        queue.push([r, c + 1]);
+        queue.push([r, c - 1]);
+      }
+
+      paintTiles(cellsToPaint, fillGlyph);
+    },
+    [room.grid, paintTiles]
+  );
+
+  // Bresenham's line algorithm for line tool
+  const getLineCells = (r0: number, c0: number, r1: number, c1: number): { r: number; c: number }[] => {
+    const cells: { r: number; c: number }[] = [];
+    const dx = Math.abs(c1 - c0);
+    const dy = Math.abs(r1 - r0);
+    const sx = c0 < c1 ? 1 : -1;
+    const sy = r0 < r1 ? 1 : -1;
+    let err = dx - dy;
+
+    let currC = c0;
+    let currR = r0;
+
+    while (true) {
+      cells.push({ r: currR, c: currC });
+      if (currC === c1 && currR === r1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        currC += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        currR += sy;
+      }
+    }
+    return cells;
+  };
+
+  // Rectangle tool cells
+  const getRectCells = (r0: number, c0: number, r1: number, c1: number): { r: number; c: number }[] => {
+    const minR = Math.min(r0, r1);
+    const maxR = Math.max(r0, r1);
+    const minC = Math.min(c0, c1);
+    const maxC = Math.max(c0, c1);
+    const cells: { r: number; c: number }[] = [];
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        cells.push({ r, c });
+      }
+    }
+    return cells;
+  };
+
+  // Get cells for brush size
+  const getBrushCells = (centerR: number, centerC: number, size: number) => {
+    const cells: { r: number; c: number }[] = [];
+    for (let dr = 0; dr < size; dr++) {
+      for (let dc = 0; dc < size; dc++) {
+        cells.push({ r: centerR + dr, c: centerC + dc });
+      }
+    }
+    return cells;
+  };
+
+  // Mouse Down handler
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoords(e);
+    if (!coords) return;
+
+    setIsMouseDown(true);
+    setDragStart(coords);
+
+    // If tool is 'select', check if user clicked an entity handle
+    if (currentTool === 'select') {
+      const HIT_RADIUS = 20;
+
+      // 1. Check spawn point
+      if (room.spawnPoint) {
+        const [sx, sy] = room.spawnPoint;
+        if (Math.hypot(coords.pixelX - sx, coords.pixelY - sy) <= HIT_RADIUS) {
+          onSelectEntity({ type: 'spawn' });
+          setDraggingEntityHandle({ entityType: 'spawn' });
+          return;
+        }
+      }
+
+      // 2. Check collectibles
+      if (room.collectibles) {
+        for (const col of room.collectibles) {
+          if (Math.hypot(coords.pixelX - col.x, coords.pixelY - col.y) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'collectible', id: col.id });
+            setDraggingEntityHandle({ entityType: 'collectible', id: col.id });
+            return;
+          }
+        }
+      }
+
+      // 3. Check moving platforms
+      if (room.movingPlatforms) {
+        for (const p of room.movingPlatforms) {
+          if (Math.hypot(coords.pixelX - p.startX, coords.pixelY - p.startY) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'movingPlatform', id: p.id });
+            setDraggingEntityHandle({ entityType: 'movingPlatformStart', id: p.id });
+            return;
+          }
+          if (Math.hypot(coords.pixelX - p.endX, coords.pixelY - p.endY) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'movingPlatform', id: p.id });
+            setDraggingEntityHandle({ entityType: 'movingPlatformEnd', id: p.id });
+            return;
+          }
+        }
+      }
+
+      // 4. Check laser barriers
+      if (room.laserBarriers) {
+        for (const b of room.laserBarriers) {
+          if (Math.hypot(coords.pixelX - b.startX1, coords.pixelY - b.startY1) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'laserBarrier', id: b.id });
+            setDraggingEntityHandle({ entityType: 'laserBarrier1', id: b.id });
+            return;
+          }
+          if (Math.hypot(coords.pixelX - b.startX2, coords.pixelY - b.startY2) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'laserBarrier', id: b.id });
+            setDraggingEntityHandle({ entityType: 'laserBarrier2', id: b.id });
+            return;
+          }
+        }
+      }
+
+      // 5. Check laser turrets
+      if (room.laserTurrets) {
+        for (const t of room.laserTurrets) {
+          if (Math.hypot(coords.pixelX - t.x, coords.pixelY - t.y) <= HIT_RADIUS) {
+            onSelectEntity({ type: 'laserTurret', id: t.id });
+            setDraggingEntityHandle({ entityType: 'laserTurret', id: t.id });
+            return;
+          }
+        }
+      }
+
+      // 6. Check Bounce Pad tile
+      const clickedTile = room.grid[coords.row]?.[coords.col];
+      if (clickedTile === 'B') {
+        onSelectEntity({ type: 'bouncePad', row: coords.row, col: coords.col });
+        return;
+      }
+
+      onSelectEntity(null);
+      return;
+    }
+
+    // Drawing Tools
+    if (currentTool === 'pencil') {
+      paintTiles(getBrushCells(coords.row, coords.col, brushSize), selectedGlyph);
+    } else if (currentTool === 'eraser') {
+      paintTiles(getBrushCells(coords.row, coords.col, brushSize), ' ');
+    } else if (currentTool === 'fill') {
+      floodFill(coords.row, coords.col, selectedGlyph);
+    } else if (currentTool === 'eyedropper') {
+      const glyph = (room.grid[coords.row]?.[coords.col] as TileGlyph) || ' ';
+      onSelectGlyph(glyph);
+    }
+  };
+
+  // Mouse Move handler
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoords(e);
+    if (!coords) return;
+    setHoverPos(coords);
+
+    if (!isMouseDown) return;
+
+    // Handle entity handle dragging
+    if (draggingEntityHandle) {
+      const snapX = Math.round(coords.pixelX / 20) * 20;
+      const snapY = Math.round(coords.pixelY / 20) * 20;
+
+      onUpdateRoom((prev) => {
+        if (draggingEntityHandle.entityType === 'spawn') {
+          return { ...prev, spawnPoint: [snapX, snapY] };
+        }
+        if (draggingEntityHandle.entityType === 'collectible') {
+          return {
+            ...prev,
+            collectibles: prev.collectibles?.map((c) =>
+              c.id === draggingEntityHandle.id ? { ...c, x: snapX, y: snapY } : c
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'movingPlatformStart') {
+          return {
+            ...prev,
+            movingPlatforms: prev.movingPlatforms?.map((p) =>
+              p.id === draggingEntityHandle.id ? { ...p, startX: snapX, startY: snapY } : p
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'movingPlatformEnd') {
+          return {
+            ...prev,
+            movingPlatforms: prev.movingPlatforms?.map((p) =>
+              p.id === draggingEntityHandle.id ? { ...p, endX: snapX, endY: snapY } : p
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrier1') {
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id ? { ...b, startX1: snapX, startY1: snapY } : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrier2') {
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id ? { ...b, startX2: snapX, startY2: snapY } : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserTurret') {
+          return {
+            ...prev,
+            laserTurrets: prev.laserTurrets?.map((t) =>
+              t.id === draggingEntityHandle.id ? { ...t, x: snapX, y: snapY } : t
+            ),
+          };
+        }
+        return prev;
+      });
+      return;
+    }
+
+    // Brush painting while dragging
+    if (currentTool === 'pencil') {
+      paintTiles(getBrushCells(coords.row, coords.col, brushSize), selectedGlyph);
+    } else if (currentTool === 'eraser') {
+      paintTiles(getBrushCells(coords.row, coords.col, brushSize), ' ');
+    }
+  };
+
+  // Mouse Up handler
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isMouseDown) return;
+    setIsMouseDown(false);
+
+    if (draggingEntityHandle) {
+      setDraggingEntityHandle(null);
+      return;
+    }
+
+    const coords = getCanvasCoords(e);
+    if (!coords || !dragStart) return;
+
+    if (currentTool === 'line') {
+      const cells = getLineCells(dragStart.row, dragStart.col, coords.row, coords.col);
+      paintTiles(cells, selectedGlyph);
+    } else if (currentTool === 'rect') {
+      const cells = getRectCells(dragStart.row, dragStart.col, coords.row, coords.col);
+      paintTiles(cells, selectedGlyph);
+    }
+
+    setDragStart(null);
+  };
+
+  // Canvas Render Loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // High DPI scaling
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = ROOM_PIXEL_SIZE * dpr;
+    canvas.height = ROOM_PIXEL_SIZE * dpr;
+    ctx.resetTransform();
+    ctx.scale(dpr, dpr);
+
+    // 1. Dark Void Background
+    ctx.fillStyle = '#0a0d14';
+    ctx.fillRect(0, 0, ROOM_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+
+    // Subtle Room Theme Glow in Center
+    const gradient = ctx.createRadialGradient(400, 400, 50, 400, 400, 450);
+    gradient.addColorStop(0, `${room.themeColor}12`);
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, ROOM_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+
+    // 2. Render Exit Indicators
+    const borderThickness = 6;
+    if (room.exits.left) {
+      ctx.fillStyle = room.themeColor;
+      ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+    }
+    if (room.exits.right) {
+      ctx.fillStyle = room.themeColor;
+      ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+    }
+    if (room.exits.up) {
+      ctx.fillStyle = room.themeColor;
+      ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
+    }
+    if (room.exits.down) {
+      ctx.fillStyle = room.themeColor;
+      ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
+    }
+
+    // 3. Render Tiles
+    for (let r = 0; r < GRID_ROWS; r++) {
+      const rowStr = room.grid[r] || '';
+      for (let c = 0; c < GRID_COLS; c++) {
+        const glyph = rowStr[c] || ' ';
+        const x = c * TILE_PIXEL_SIZE;
+        const y = r * TILE_PIXEL_SIZE;
+
+        if (glyph === '#') {
+          // Solid Block
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.strokeStyle = room.themeColor;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 1, y + 1, TILE_PIXEL_SIZE - 2, TILE_PIXEL_SIZE - 2);
+
+          // Inner bevel
+          ctx.strokeStyle = `${room.accentColor}55`;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 4, y + 4, TILE_PIXEL_SIZE - 8, TILE_PIXEL_SIZE - 8);
+        } else if (glyph === '=') {
+          // One-Way Platform
+          ctx.fillStyle = '#00ffaa33';
+          ctx.fillRect(x, y, TILE_PIXEL_SIZE, 8);
+          ctx.fillStyle = '#00ffaa';
+          ctx.fillRect(x, y, TILE_PIXEL_SIZE, 4);
+
+          // Upward indicator arrows
+          ctx.fillStyle = '#00ffaa';
+          ctx.beginPath();
+          ctx.moveTo(x + 14, y + 14);
+          ctx.lineTo(x + 20, y + 8);
+          ctx.lineTo(x + 26, y + 14);
+          ctx.closePath();
+          ctx.fill();
+        } else if (glyph === '^') {
+          // Spike Up
+          ctx.fillStyle = '#ff0055';
+          ctx.beginPath();
+          ctx.moveTo(x + 5, y + TILE_PIXEL_SIZE);
+          ctx.lineTo(x + 20, y + 6);
+          ctx.lineTo(x + 35, y + TILE_PIXEL_SIZE);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (glyph === 'v') {
+          // Spike Down
+          ctx.fillStyle = '#ff0055';
+          ctx.beginPath();
+          ctx.moveTo(x + 5, y);
+          ctx.lineTo(x + 20, y + TILE_PIXEL_SIZE - 6);
+          ctx.lineTo(x + 35, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (glyph === '<') {
+          // Spike Left
+          ctx.fillStyle = '#ff0055';
+          ctx.beginPath();
+          ctx.moveTo(x + TILE_PIXEL_SIZE, y + 5);
+          ctx.lineTo(x + 6, y + 20);
+          ctx.lineTo(x + TILE_PIXEL_SIZE, y + 35);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (glyph === '>') {
+          // Spike Right
+          ctx.fillStyle = '#ff0055';
+          ctx.beginPath();
+          ctx.moveTo(x, y + 5);
+          ctx.lineTo(x + TILE_PIXEL_SIZE - 6, y + 20);
+          ctx.lineTo(x, y + 35);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (glyph === 'B') {
+          // Bounce Pad
+          ctx.fillStyle = '#ff00d433';
+          ctx.fillRect(x, y + 26, TILE_PIXEL_SIZE, 14);
+          ctx.fillStyle = '#ff00d4';
+          ctx.fillRect(x, y + 22, TILE_PIXEL_SIZE, 6);
+
+          // Energy wave
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, y + 16);
+          ctx.lineTo(x + 20, y + 10);
+          ctx.lineTo(x + 32, y + 16);
+          ctx.stroke();
+        } else if (glyph === 'C') {
+          // Crumble Block
+          ctx.fillStyle = '#ffaa0022';
+          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.strokeStyle = '#ffaa00';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 2, y + 2, TILE_PIXEL_SIZE - 4, TILE_PIXEL_SIZE - 4);
+
+          // Crack lines
+          ctx.beginPath();
+          ctx.moveTo(x + 6, y + 8);
+          ctx.lineTo(x + 18, y + 22);
+          ctx.lineTo(x + 32, y + 16);
+          ctx.moveTo(x + 18, y + 22);
+          ctx.lineTo(x + 22, y + 34);
+          ctx.stroke();
+        } else if (glyph === 'G') {
+          // Goal Beacon
+          ctx.fillStyle = '#ffff0033';
+          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.strokeStyle = '#ffff00';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 6, y + 6, TILE_PIXEL_SIZE - 12, TILE_PIXEL_SIZE - 12);
+
+          // Center portal star
+          ctx.fillStyle = '#ffff00';
+          ctx.beginPath();
+          ctx.arc(x + 20, y + 20, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 4. Line / Rect Tool In-Progress Preview
+    if (isMouseDown && dragStart && hoverPos) {
+      ctx.fillStyle = '#00f0ff44';
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+
+      if (currentTool === 'line') {
+        const cells = getLineCells(dragStart.row, dragStart.col, hoverPos.row, hoverPos.col);
+        for (const c of cells) {
+          ctx.fillRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.strokeRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+        }
+      } else if (currentTool === 'rect') {
+        const cells = getRectCells(dragStart.row, dragStart.col, hoverPos.row, hoverPos.col);
+        for (const c of cells) {
+          ctx.fillRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.strokeRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+        }
+      }
+    }
+
+    // 5. Grid Lines
+    if (showGrid) {
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= GRID_COLS; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * TILE_PIXEL_SIZE, 0);
+        ctx.lineTo(i * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= GRID_ROWS; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * TILE_PIXEL_SIZE);
+        ctx.lineTo(ROOM_PIXEL_SIZE, i * TILE_PIXEL_SIZE);
+        ctx.stroke();
+      }
+    }
+
+    // 6. Dynamic Entities Layer
+    if (showEntities) {
+      // A. Moving Platforms
+      if (room.movingPlatforms) {
+        for (const plat of room.movingPlatforms) {
+          const isSelected = selectedEntity?.type === 'movingPlatform' && selectedEntity.id === plat.id;
+          const color = plat.themeColor || '#00e5ff';
+
+          // Trajectory path line
+          ctx.strokeStyle = `${color}99`;
+          ctx.setLineDash([6, 6]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(plat.startX, plat.startY);
+          ctx.lineTo(plat.endX, plat.endY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Ghost platform at end
+          const pWidth = plat.width || 80;
+          const pHeight = plat.height || 16;
+          ctx.fillStyle = `${color}22`;
+          ctx.strokeStyle = `${color}66`;
+          ctx.lineWidth = 1.5;
+          ctx.fillRect(plat.endX - pWidth / 2, plat.endY - pHeight / 2, pWidth, pHeight);
+          ctx.strokeRect(plat.endX - pWidth / 2, plat.endY - pHeight / 2, pWidth, pHeight);
+
+          // Platform at start
+          ctx.fillStyle = `${color}44`;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = isSelected ? 3 : 2;
+          ctx.fillRect(plat.startX - pWidth / 2, plat.startY - pHeight / 2, pWidth, pHeight);
+          ctx.strokeRect(plat.startX - pWidth / 2, plat.startY - pHeight / 2, pWidth, pHeight);
+
+          // Start handle
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(plat.startX, plat.startY, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // End handle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(plat.endX, plat.endY, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // B. Laser Barriers
+      if (room.laserBarriers) {
+        for (const bar of room.laserBarriers) {
+          const isSelected = selectedEntity?.type === 'laserBarrier' && selectedEntity.id === bar.id;
+          const color = bar.themeColor || '#ff0055';
+
+          // Laser beam line
+          ctx.strokeStyle = color;
+          ctx.lineWidth = isSelected ? 5 : 3;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.moveTo(bar.startX1, bar.startY1);
+          ctx.lineTo(bar.startX2, bar.startY2);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          // Pylon 1 Handle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(bar.startX1, bar.startY1, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Pylon 2 Handle
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(bar.startX2, bar.startY2, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // C. Laser Turrets
+      if (room.laserTurrets) {
+        for (const tur of room.laserTurrets) {
+          const isSelected = selectedEntity?.type === 'laserTurret' && selectedEntity.id === tur.id;
+          const color = tur.themeColor || '#00e5ff';
+
+          // Turret Mount Box
+          ctx.fillStyle = '#1e293b';
+          ctx.strokeStyle = color;
+          ctx.lineWidth = isSelected ? 3 : 2;
+          ctx.fillRect(tur.x - 12, tur.y - 12, 24, 24);
+          ctx.strokeRect(tur.x - 12, tur.y - 12, 24, 24);
+
+          // Aim Trajectory Line
+          let angleRad = 0;
+          if (tur.angle !== undefined) {
+            angleRad = (tur.angle * Math.PI) / 180;
+          } else if (tur.direction === 'down') {
+            angleRad = Math.PI / 2;
+          } else if (tur.direction === 'up') {
+            angleRad = -Math.PI / 2;
+          } else if (tur.direction === 'left') {
+            angleRad = Math.PI;
+          } else {
+            angleRad = 0; // right
+          }
+
+          const aimLength = tur.mode === 'beam' ? 600 : 120;
+          ctx.strokeStyle = tur.mode === 'beam' ? '#ff007f99' : '#00e5ff99';
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(tur.x, tur.y);
+          ctx.lineTo(tur.x + Math.cos(angleRad) * aimLength, tur.y + Math.sin(angleRad) * aimLength);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Nozzle
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(tur.x + Math.cos(angleRad) * 12, tur.y + Math.sin(angleRad) * 12, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // D. Collectibles
+      if (room.collectibles) {
+        for (const col of room.collectibles) {
+          const isSelected = selectedEntity?.type === 'collectible' && selectedEntity.id === col.id;
+
+          if (col.type === 'core') {
+            ctx.fillStyle = '#00f0ff';
+            ctx.strokeStyle = isSelected ? '#ffffff' : '#00aaff';
+            ctx.lineWidth = isSelected ? 2 : 1;
+            ctx.beginPath();
+            ctx.moveTo(col.x, col.y - 10);
+            ctx.lineTo(col.x + 10, col.y);
+            ctx.lineTo(col.x, col.y + 10);
+            ctx.lineTo(col.x - 10, col.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else if (col.type === 'prism') {
+            ctx.fillStyle = '#d000ff';
+            ctx.strokeStyle = isSelected ? '#ffffff' : '#ff00aa';
+            ctx.lineWidth = isSelected ? 2 : 1;
+            ctx.beginPath();
+            ctx.moveTo(col.x, col.y - 12);
+            ctx.lineTo(col.x + 10, col.y + 8);
+            ctx.lineTo(col.x - 10, col.y + 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            // key
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(col.x - 4, col.y - 4, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(col.x, col.y - 2, 10, 4);
+          }
+        }
+      }
+
+      // E. Player Spawn Point
+      if (room.spawnPoint) {
+        const [sx, sy] = room.spawnPoint;
+        const isSelected = selectedEntity?.type === 'spawn';
+
+        // Target Reticle
+        ctx.strokeStyle = isSelected ? '#ffffff' : '#00ff88';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+        ctx.moveTo(sx - 18, sy);
+        ctx.lineTo(sx + 18, sy);
+        ctx.moveTo(sx, sy - 18);
+        ctx.lineTo(sx, sy + 18);
+        ctx.stroke();
+
+        // Player Avatar Box (standing height 36, width 24)
+        ctx.fillStyle = isSelected ? '#00ff8888' : '#00ff8844';
+        ctx.fillRect(sx - 12, sy - 36, 24, 36);
+        ctx.strokeRect(sx - 12, sy - 36, 24, 36);
+
+        // Spawn Label
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = '#00ff88';
+        ctx.fillText('SPAWN', sx - 16, sy - 42);
+      }
+    }
+
+    // 7. Hover Cursor Indicator
+    if (hoverPos && currentTool !== 'select') {
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      const bSize = (currentTool === 'pencil' || currentTool === 'eraser') ? brushSize : 1;
+      ctx.strokeRect(
+        hoverPos.col * TILE_PIXEL_SIZE,
+        hoverPos.row * TILE_PIXEL_SIZE,
+        TILE_PIXEL_SIZE * bSize,
+        TILE_PIXEL_SIZE * bSize
+      );
+    }
+  }, [
+    room,
+    showGrid,
+    showEntities,
+    currentTool,
+    selectedGlyph,
+    selectedEntity,
+    hoverPos,
+    isMouseDown,
+    dragStart,
+    brushSize,
+  ]);
+
+  return (
+    <div className="flex-1 flex flex-col bg-cyber-bg overflow-hidden relative" ref={containerRef}>
+      {/* Canvas Viewport Container */}
+      <div className="flex-1 overflow-auto flex items-center justify-center p-6 select-none">
+        <div
+          className="relative rounded-lg shadow-2xl border border-cyber-border overflow-hidden bg-black"
+          style={{
+            width: `${ROOM_PIXEL_SIZE * zoom}px`,
+            height: `${ROOM_PIXEL_SIZE * zoom}px`,
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full block cursor-crosshair"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={() => {
+              setIsMouseDown(false);
+              setHoverPos(null);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Canvas Status Bar */}
+      <div className="h-8 bg-cyber-surface border-t border-cyber-border px-4 flex items-center justify-between text-xs text-slate-400 select-none shrink-0 font-mono">
+        <div className="flex items-center space-x-4">
+          <span>
+            Sector: <strong className="text-white">({room.coords[0]}, {room.coords[1]})</strong>
+          </span>
+          {hoverPos && (
+            <>
+              <span>
+                Grid: <strong className="text-cyber-cyan">Row {hoverPos.row}, Col {hoverPos.col}</strong>
+              </span>
+              <span>
+                Pixel: <strong className="text-cyber-cyan">X {Math.round(hoverPos.pixelX)}, Y {Math.round(hoverPos.pixelY)}</strong>
+              </span>
+              <span>
+                Tile: <strong className="text-white">'{room.grid[hoverPos.row]?.[hoverPos.col] || ' '}'</strong>
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="flex items-center space-x-2">
+          <span>Zoom:</span>
+          <div className="flex bg-cyber-bg p-0.5 rounded border border-cyber-border">
+            {[0.75, 1.0, 1.25].map((z) => (
+              <button
+                key={z}
+                onClick={() => setZoom(z)}
+                className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                  zoom === z ? 'bg-cyber-card text-cyber-cyan' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {Math.round(z * 100)}%
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
