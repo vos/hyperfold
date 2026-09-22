@@ -45,6 +45,7 @@
       }
 
       .hud-card {
+        pointer-events: auto;
         background: rgba(6, 11, 22, 0.75);
         border: 1px solid rgba(0, 255, 255, 0.35);
         box-shadow: 0 0 15px rgba(0, 255, 255, 0.15), inset 0 0 10px rgba(0, 255, 255, 0.05);
@@ -393,6 +394,163 @@
         background: #ffffff;
         box-shadow: 0 0 15px #ffffff;
       }
+
+      /* Procedural Infinity Modal */
+      #procedural-modal {
+        pointer-events: auto;
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 480px;
+        background: rgba(6, 12, 24, 0.96);
+        border: 2px solid #00ffff;
+        box-shadow: 0 0 35px rgba(0, 255, 255, 0.35), inset 0 0 20px rgba(0, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 28px;
+        text-align: center;
+        z-index: 100;
+        backdrop-filter: blur(8px);
+      }
+
+      #procedural-modal h1 {
+        font-size: 22px;
+        letter-spacing: 2px;
+        color: #00ffff;
+        text-shadow: 0 0 12px #00ffff;
+        margin-bottom: 8px;
+      }
+
+      #procedural-modal p.modal-sub {
+        font-size: 12px;
+        color: #88c8ff;
+        margin-bottom: 20px;
+        line-height: 1.4;
+      }
+
+      .difficulty-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .diff-btn {
+        background: rgba(10, 22, 40, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        color: #c0d8f0;
+        padding: 12px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        font-family: inherit;
+      }
+
+      .diff-btn .diff-title {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 3px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .diff-btn .diff-desc {
+        font-size: 10px;
+        color: #7b9bbd;
+        line-height: 1.3;
+      }
+
+      .diff-btn:hover {
+        border-color: #00ffff;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        color: #ffffff;
+      }
+
+      .diff-btn.selected {
+        border-color: #ffe600;
+        background: rgba(255, 230, 0, 0.12);
+        box-shadow: 0 0 14px rgba(255, 230, 0, 0.35);
+        color: #ffffff;
+      }
+
+      .diff-btn.selected .diff-title {
+        color: #ffe600;
+      }
+
+      .seed-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 20px;
+        background: rgba(8, 16, 30, 0.8);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 4px;
+        padding: 6px 12px;
+      }
+
+      .seed-input-row label {
+        font-size: 11px;
+        color: #88c8ff;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+
+      .seed-input-row input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #ffe600;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: bold;
+        outline: none;
+      }
+
+      .btn-icon {
+        pointer-events: auto;
+        background: rgba(0, 255, 255, 0.2);
+        border: 1px solid #00ffff;
+        color: #00ffff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        font-family: inherit;
+        font-weight: bold;
+        transition: all 0.2s ease;
+      }
+
+      .btn-icon:hover {
+        background: #00ffff;
+        color: #04060a;
+        box-shadow: 0 0 10px #00ffff;
+      }
+
+      .btn-icon:active {
+        transform: scale(0.95);
+      }
+
+      .btn-launch {
+        width: 100%;
+        background: #00ffff;
+        color: #04060a;
+        font-weight: bold;
+        font-size: 15px;
+        letter-spacing: 1px;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+      }
+
+      .btn-launch:hover {
+        background: #ffe600;
+        box-shadow: 0 0 20px rgba(255, 230, 0, 0.6);
+      }
     </style>
   </head>
   <body>
@@ -413,14 +571,24 @@
           <div class="hud-title">Energy Prisms</div>
           <div class="hud-value accent-gold" id="hud-prisms">0 / 18</div>
         </div>
+        <div class="hud-card" id="hud-procedural-card" style="display: none;">
+          <div class="hud-title">Infinite Telemetry</div>
+          <div class="hud-value accent-cyan" id="hud-depth" style="font-size: 14px;">Depth: 0 | Streak: 0</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3px; gap: 8px;">
+            <div id="hud-threat-badge" style="font-size: 10px; color: #39ff14; font-weight: bold; letter-spacing: 1px;">THREAT: 0% [NORMAL]</div>
+            <button class="btn-icon" id="btn-hud-procedural-restart" style="pointer-events: auto; cursor: pointer; font-size: 11px; padding: 3px 8px; border-color: #00ffff; color: #00ffff; z-index: 20; position: relative;" title="Restart Void: Change Difficulty or Seed">⚙ Setup / Seed</button>
+          </div>
+        </div>
       </div>
 
       <div style="display: flex; align-items: center;">
         <select class="hud-select" id="world-select" title="Switch World or Load Custom Map">
           <option value="demo">World: Infinite Tesseract (10 Sectors)</option>
           <option value="mini">World: Mini Hypercube (3 Sectors)</option>
+          <option value="procedural">World: Infinite Procedural Void (Endless)</option>
           <option value="__load_custom__">+ Load Custom World (.json)...</option>
         </select>
+        <button class="hud-btn" id="btn-procedural-setup" style="display: none; border-color: #00ffff; color: #00ffff;" title="Restart Void: Choose Difficulty & Seed">🌌 Void Setup [N]</button>
         <input type="file" id="world-file-input" accept=".json" style="display: none;" />
         <button class="hud-btn" id="btn-perf">Perf: OFF [P]</button>
         <button class="hud-btn" id="btn-mute">Sound: ON</button>
@@ -438,6 +606,7 @@
       <span class="key-badge">A</span> <span class="key-badge">D</span> Move &nbsp;|&nbsp;
       <span class="key-badge">W</span> / <span class="key-badge">Space</span> Jump &nbsp;|&nbsp;
       <span class="key-badge">S</span> Duck ( + <span class="key-badge">Space</span> Drop Through) &nbsp;|&nbsp;
+      <span class="key-badge">N</span> Void Setup &nbsp;|&nbsp;
       <span class="key-badge">Drag</span> / <span class="key-badge">Right Stick</span> <strong>Orbit 3D Cube</strong> &nbsp;|&nbsp;
       <span class="key-badge">Scroll</span> Zoom &nbsp;|&nbsp;
       <span class="key-badge">V</span> Reset View &nbsp;|&nbsp;
@@ -451,6 +620,43 @@
       <h1>WARP CORE REACHED!</h1>
       <p id="win-stats">You navigated through the infinite 3D cube manifold and stabilized the core!</p>
       <button class="btn-primary" id="btn-play-again">Continue Exploring</button>
+    </div>
+
+    <!-- Procedural Infinity Modal -->
+    <div id="procedural-modal">
+      <button id="btn-close-procedural-modal" class="btn-icon" style="position: absolute; top: 12px; right: 12px; font-size: 14px; padding: 2px 8px; border-color: rgba(0, 255, 255, 0.4); color: #88c8ff;" title="Close without restarting">✕</button>
+      <h1>INFINITE PROCEDURAL VOID</h1>
+      <p class="modal-sub">Traverse endless non-Euclidean sectors folded across the rotating 3D hypercube. Choose starting difficulty and universe seed.</p>
+      
+      <div class="difficulty-grid">
+        <button class="diff-btn" data-diff="easy">
+          <div class="diff-title"><span>EASY</span> <span>★☆☆☆</span></div>
+          <div class="diff-desc">Gentle hazard ramp. Wide platforms, relaxed timing, safe exploration.</div>
+        </button>
+        <button class="diff-btn selected" data-diff="normal">
+          <div class="diff-title"><span>NORMAL</span> <span>★★☆☆</span></div>
+          <div class="diff-desc">Balanced progression. Hover cruisers, bounce pads, timed lasers.</div>
+        </button>
+        <button class="diff-btn" data-diff="hard">
+          <div class="diff-title"><span>HARD</span> <span>★★★☆</span></div>
+          <div class="diff-desc">Brisk escalation. Crumble blocks, moving laser barriers, turrets.</div>
+        </button>
+        <button class="diff-btn" data-diff="impossible">
+          <div class="diff-title"><span>IMPOSSIBLE</span> <span>★★★★</span></div>
+          <div class="diff-desc">Fierce escalation. Rapid lethality, tracking beams, narrow ledges.</div>
+        </button>
+      </div>
+
+      <div class="seed-input-row">
+        <label for="procedural-seed">UNIVERSE SEED:</label>
+        <input type="text" id="procedural-seed" value="HYPERFOLD-88" spellcheck="false" />
+        <button class="btn-icon" id="btn-seed-random" title="Generate Random Seed">🎲 Reroll</button>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-launch" id="btn-launch-procedural" style="flex: 1;">▶ ENGAGE INFINITE MANIFOLD</button>
+        <button class="hud-btn" id="btn-cancel-procedural" style="margin: 0; padding: 12px 18px; border-color: rgba(255, 255, 255, 0.3); color: #88a0c0; border-radius: 4px;">Cancel</button>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

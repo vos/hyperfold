@@ -1,5 +1,7 @@
 import { LevelMap } from './LevelMap';
 import { LevelLoader, RoomDataJson, WorldDataJson } from './LevelLoader';
+import { ProceduralLevelMap } from './ProceduralLevelMap';
+import { DifficultyLevel } from './ProceduralWorldGen';
 
 export interface WorldEntry {
   id: string;
@@ -107,6 +109,33 @@ export class WorldRegistry {
         });
       }
     }
+
+    // C. Register built-in Infinite Procedural Void
+    this.worlds.set('procedural', {
+      id: 'procedural',
+      name: 'Infinite Procedural Void (Endless)',
+      description: 'Endless non-Euclidean sectors with procedural hazards, dynamic biomes, and escalating difficulty.',
+      source: 'builtin',
+      load: () => new ProceduralLevelMap('normal', 'HYPERFOLD'),
+      startingCoords: { x: 0, y: 0 },
+    });
+  }
+
+  public static createProceduralWorld(
+    difficulty: DifficultyLevel = 'normal',
+    seed: string | number = 'HYPERFOLD'
+  ): WorldEntry {
+    this.initDefaults();
+    const entry: WorldEntry = {
+      id: 'procedural',
+      name: `Infinite Procedural Void [${difficulty.toUpperCase()}]`,
+      description: `Endless non-Euclidean sectors on ${difficulty} difficulty (Seed: ${seed}).`,
+      source: 'builtin',
+      load: () => new ProceduralLevelMap(difficulty, seed),
+      startingCoords: { x: 0, y: 0 },
+    };
+    this.worlds.set(entry.id, entry);
+    return entry;
   }
 
   public static registerWorld(entry: WorldEntry): void {

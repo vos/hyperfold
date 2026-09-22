@@ -1,6 +1,8 @@
 import { LevelMap } from './world/LevelMap';
 import { ScreenData } from './world/ScreenData';
 import { WorldRegistry } from './world/WorldRegistry';
+import { ProceduralLevelMap } from './world/ProceduralLevelMap';
+import { DifficultyLevel } from './world/ProceduralWorldGen';
 import { Player } from './entities/Player';
 import { InputManager } from './engine/InputManager';
 import { AudioManager } from './engine/AudioManager';
@@ -49,6 +51,20 @@ class Game {
   private worldFileInputEl: HTMLInputElement;
   private perfDebug: PerformanceDebugView;
 
+  // Procedural Infinite Mode Elements
+  private proceduralModalEl: HTMLElement;
+  private proceduralCardEl: HTMLElement;
+  private proceduralDepthEl: HTMLElement;
+  private proceduralThreatBadgeEl: HTMLElement;
+  private proceduralSeedInputEl: HTMLInputElement;
+  private btnSeedRandomEl: HTMLElement;
+  private btnLaunchProceduralEl: HTMLElement;
+  private btnProceduralSetupEl: HTMLElement | null;
+  private btnHudProceduralRestartEl: HTMLElement | null;
+  private btnCloseProceduralModalEl: HTMLElement | null;
+  private btnCancelProceduralEl: HTMLElement | null;
+  private selectedDifficulty: DifficultyLevel = 'normal';
+
   constructor() {
     const container = document.getElementById('game-container')!;
     this.hudSectorEl = document.getElementById('hud-sector')!;
@@ -62,6 +78,17 @@ class Game {
     this.btnPerfEl = document.getElementById('btn-perf');
     this.worldSelectEl = document.getElementById('world-select') as HTMLSelectElement;
     this.worldFileInputEl = document.getElementById('world-file-input') as HTMLInputElement;
+    this.proceduralModalEl = document.getElementById('procedural-modal')!;
+    this.proceduralCardEl = document.getElementById('hud-procedural-card')!;
+    this.proceduralDepthEl = document.getElementById('hud-depth')!;
+    this.proceduralThreatBadgeEl = document.getElementById('hud-threat-badge')!;
+    this.proceduralSeedInputEl = document.getElementById('procedural-seed') as HTMLInputElement;
+    this.btnSeedRandomEl = document.getElementById('btn-seed-random')!;
+    this.btnLaunchProceduralEl = document.getElementById('btn-launch-procedural')!;
+    this.btnProceduralSetupEl = document.getElementById('btn-procedural-setup');
+    this.btnHudProceduralRestartEl = document.getElementById('btn-hud-procedural-restart');
+    this.btnCloseProceduralModalEl = document.getElementById('btn-close-procedural-modal');
+    this.btnCancelProceduralEl = document.getElementById('btn-cancel-procedural');
 
     this.perfDebug = new PerformanceDebugView({
       initialVisible: false,
@@ -172,11 +199,62 @@ class Game {
         this.worldFileInputEl?.click();
         return;
       }
+      if (selected === 'procedural') {
+        this.openProceduralModal();
+        return;
+      }
       const entry = WorldRegistry.getWorld(selected);
       if (entry) {
         this.currentWorldId = selected;
         this.loadWorld(entry.load(), entry.name, entry.startingCoords);
       }
+    });
+
+    // Procedural Setup / Restart Void Buttons
+    const handleOpenVoidModal = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openProceduralModal();
+    };
+
+    this.btnProceduralSetupEl?.addEventListener('click', handleOpenVoidModal);
+    this.btnProceduralSetupEl?.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    this.btnHudProceduralRestartEl?.addEventListener('click', handleOpenVoidModal);
+    this.btnHudProceduralRestartEl?.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    const handleCloseVoidModal = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.closeProceduralModal();
+    };
+
+    this.btnCloseProceduralModalEl?.addEventListener('click', handleCloseVoidModal);
+    this.btnCloseProceduralModalEl?.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    this.btnCancelProceduralEl?.addEventListener('click', handleCloseVoidModal);
+    this.btnCancelProceduralEl?.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    // Procedural Difficulty Modal Interactions
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach((b) => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        this.selectedDifficulty = (btn.getAttribute('data-diff') as DifficultyLevel) || 'normal';
+      });
+    });
+
+    this.btnSeedRandomEl?.addEventListener('click', () => {
+      const prefixes = ['HYPER', 'NEON', 'CYBER', 'TESSERACT', 'QUANTUM', 'VOID', 'STELLAR', 'SOLAR', 'CRYO', 'SYNTH'];
+      const randSeed = `${prefixes[Math.floor(Math.random() * prefixes.length)]}-${Math.floor(100 + Math.random() * 900)}`;
+      if (this.proceduralSeedInputEl) {
+        this.proceduralSeedInputEl.value = randSeed;
+      }
+    });
+
+    this.btnLaunchProceduralEl?.addEventListener('click', () => {
+      const seed = this.proceduralSeedInputEl?.value.trim() || 'HYPERFOLD';
+      this.launchProceduralWorld(this.selectedDifficulty, seed);
     });
 
     // Check URL params for custom world or storage load (e.g. from editor Test in Game)
@@ -269,7 +347,68 @@ class Game {
       if (e.code === 'KeyV') {
         this.cubeRenderer.resetCameraToDefault();
       }
+      if (e.code === 'KeyN' && this.levelMap instanceof ProceduralLevelMap) {
+        this.openProceduralModal();
+      }
+      if (e.code === 'Escape' && this.proceduralModalEl.style.display === 'block') {
+        this.closeProceduralModal();
+      }
     });
+  }
+
+  public openProceduralModal(): void {
+    if (this.levelMap instanceof ProceduralLevelMap) {
+      const currentDiff = this.levelMap.getDifficulty();
+      const currentSeed = String(this.levelMap.getSeed());
+      this.selectedDifficulty = currentDiff;
+
+      document.querySelectorAll('.diff-btn').forEach((btn) => {
+        if (btn.getAttribute('data-diff') === currentDiff) {
+          btn.classList.add('selected');
+        } else {
+          btn.classList.remove('selected');
+        }
+      });
+
+      if (this.proceduralSeedInputEl) {
+        this.proceduralSeedInputEl.value = currentSeed;
+      }
+      if (this.btnLaunchProceduralEl) {
+        this.btnLaunchProceduralEl.textContent = '▶ RESTART WITH NEW SEED / DIFFICULTY';
+      }
+    } else {
+      if (this.btnLaunchProceduralEl) {
+        this.btnLaunchProceduralEl.textContent = '▶ ENGAGE INFINITE MANIFOLD';
+      }
+    }
+
+    if (this.proceduralModalEl) {
+      this.proceduralModalEl.style.display = 'block';
+    }
+  }
+
+  public closeProceduralModal(): void {
+    if (this.proceduralModalEl) {
+      this.proceduralModalEl.style.display = 'none';
+    }
+    if (this.worldSelectEl) {
+      this.worldSelectEl.value = this.currentWorldId;
+    }
+  }
+
+  private launchProceduralWorld(difficulty: DifficultyLevel, seed: string): void {
+    const entry = WorldRegistry.createProceduralWorld(difficulty, seed);
+    this.currentWorldId = 'procedural';
+    if (this.worldSelectEl) {
+      this.worldSelectEl.value = 'procedural';
+    }
+    this.loadWorld(entry.load(), entry.name, entry.startingCoords);
+    this.closeProceduralModal();
+
+    if (this.bannerEl) {
+      this.bannerEl.textContent = `VOID INITIALIZED: ${difficulty.toUpperCase()} [SEED: ${seed}]`;
+      this.bannerEl.style.opacity = '1';
+    }
   }
 
   private gameLoop = (time: number) => {
@@ -506,6 +645,11 @@ class Game {
 
       // 4. Return to active gameplay
       this.gameState = 'PLAYING';
+      if (this.levelMap instanceof ProceduralLevelMap) {
+        const depth = Math.abs(targetX) + Math.abs(targetY);
+        const threat = this.levelMap.getThreatLevel(targetX, targetY);
+        this.audio.updateDepthAtmosphere(depth, threat);
+      }
       this.updateHUD();
 
       // Keep transition notification banner visible for 3.0s after rotation completes
@@ -608,6 +752,11 @@ class Game {
 
     this.winModalEl.style.display = 'none';
     this.gameState = 'PLAYING';
+    if (this.levelMap instanceof ProceduralLevelMap) {
+      const depth = Math.abs(this.currentCoords.x) + Math.abs(this.currentCoords.y);
+      const threat = this.levelMap.getThreatLevel(this.currentCoords.x, this.currentCoords.y);
+      this.audio.updateDepthAtmosphere(depth, threat);
+    }
     this.updateHUD();
 
     if (this.bannerTimeout !== null) {
@@ -672,9 +821,51 @@ class Game {
   }
 
   private updateHUD(): void {
-    this.hudSectorEl.textContent = `${this.currentRoom.title} [${this.currentCoords.x}, ${this.currentCoords.y}]`;
+    const coordsA = `[${this.currentCoords.x}, ${this.currentCoords.y}]`;
+    const coordsB = `[${this.currentCoords.x},${this.currentCoords.y}]`;
+    const coordsC = `(${this.currentCoords.x}, ${this.currentCoords.y})`;
+    const coordsD = `(${this.currentCoords.x},${this.currentCoords.y})`;
+    const hasCoords =
+      this.currentRoom.title.includes(coordsA) ||
+      this.currentRoom.title.includes(coordsB) ||
+      this.currentRoom.title.includes(coordsC) ||
+      this.currentRoom.title.includes(coordsD);
+    this.hudSectorEl.textContent = hasCoords
+      ? this.currentRoom.title
+      : `${this.currentRoom.title} [${this.currentCoords.x}, ${this.currentCoords.y}]`;
     this.hudTurnEl.textContent = `Side #${this.sidesTraversed} (Infinite Non-Euclidean)`;
     this.hudPrismsEl.textContent = `${this.levelMap.getCollectedCount()} / ${this.levelMap.getTotalCollectiblesCount()}`;
+
+    if (this.levelMap instanceof ProceduralLevelMap) {
+      this.proceduralCardEl.style.display = 'block';
+      if (this.btnProceduralSetupEl) {
+        this.btnProceduralSetupEl.style.display = 'inline-block';
+      }
+      const depth = Math.abs(this.currentCoords.x) + Math.abs(this.currentCoords.y);
+      const streak = this.levelMap.getClearedStreak();
+      const threat = this.levelMap.getThreatLevel(this.currentCoords.x, this.currentCoords.y);
+      const diff = this.levelMap.getDifficulty().toUpperCase();
+      const pct = Math.round(threat * 100);
+
+      this.proceduralDepthEl.textContent = `Depth: ${depth} | Streak: ${streak}`;
+      this.proceduralThreatBadgeEl.textContent = `THREAT: ${pct}% [${diff}]`;
+
+      if (threat >= 0.65) {
+        this.proceduralThreatBadgeEl.style.color = '#ff0055';
+        this.proceduralThreatBadgeEl.style.textShadow = '0 0 8px #ff0055';
+      } else if (threat >= 0.3) {
+        this.proceduralThreatBadgeEl.style.color = '#ffe600';
+        this.proceduralThreatBadgeEl.style.textShadow = '0 0 8px #ffe600';
+      } else {
+        this.proceduralThreatBadgeEl.style.color = '#39ff14';
+        this.proceduralThreatBadgeEl.style.textShadow = '0 0 8px #39ff14';
+      }
+    } else {
+      this.proceduralCardEl.style.display = 'none';
+      if (this.btnProceduralSetupEl) {
+        this.btnProceduralSetupEl.style.display = 'none';
+      }
+    }
   }
 }
 

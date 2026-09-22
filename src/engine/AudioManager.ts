@@ -2,6 +2,9 @@ export class AudioManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private ambientGain: GainNode | null = null;
+  private ambientOsc1: OscillatorNode | null = null;
+  private ambientOsc2: OscillatorNode | null = null;
+  private ambientFilter: BiquadFilterNode | null = null;
 
   constructor() {
     // AudioContext is initialized on first user interaction to comply with browser autoplay policies
@@ -449,6 +452,10 @@ export class AudioManager {
     gain.gain.value = this.isMuted ? 0 : 0.04;
     this.ambientGain = gain;
 
+    this.ambientOsc1 = osc1;
+    this.ambientOsc2 = osc2;
+    this.ambientFilter = filter;
+
     osc1.connect(filter);
     osc2.connect(filter);
     filter.connect(gain);
@@ -456,5 +463,22 @@ export class AudioManager {
 
     osc1.start();
     osc2.start();
+  }
+
+  /**
+   * Modulates ambient drone frequency and filter cutoff based on manifold depth and threat rating.
+   */
+  public updateDepthAtmosphere(depth: number, threat: number): void {
+    if (!this.ctx || !this.ambientOsc1 || !this.ambientOsc2 || !this.ambientFilter) return;
+    const t = this.ctx.currentTime;
+
+    // Scale base pitch from 55Hz (A1) up to ~73Hz smoothly
+    const baseFreq = 55 + Math.min(depth * 0.8 + threat * 10, 18);
+    this.ambientOsc1.frequency.linearRampToValueAtTime(baseFreq, t + 1.2);
+    this.ambientOsc2.frequency.linearRampToValueAtTime(baseFreq * 1.008, t + 1.2);
+
+    // Modulate filter cutoff from 180Hz up to 340Hz as threat increases
+    const cutoff = 180 + threat * 160;
+    this.ambientFilter.frequency.linearRampToValueAtTime(cutoff, t + 1.2);
   }
 }

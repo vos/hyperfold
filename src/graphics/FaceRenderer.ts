@@ -500,10 +500,20 @@ export class FaceRenderer {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(20, 16, 380, 48);
 
-    // Title text
+    // Title text: check if coordinates are already embedded in the title to avoid duplication
     ctx.font = 'bold 16px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${room.title} [${room.coords.x},${room.coords.y}]`, 32, 38);
+    const coordsA = `[${room.coords.x},${room.coords.y}]`;
+    const coordsB = `[${room.coords.x}, ${room.coords.y}]`;
+    const coordsC = `(${room.coords.x},${room.coords.y})`;
+    const coordsD = `(${room.coords.x}, ${room.coords.y})`;
+    const hasCoords =
+      room.title.includes(coordsA) ||
+      room.title.includes(coordsB) ||
+      room.title.includes(coordsC) ||
+      room.title.includes(coordsD);
+    const titleText = hasCoords ? room.title : `${room.title} [${room.coords.x}, ${room.coords.y}]`;
+    ctx.fillText(titleText, 32, 38);
 
     // Subtitle text
     if (room.subtitle) {
