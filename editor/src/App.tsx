@@ -11,6 +11,7 @@ import { WorldGraphView } from './components/WorldGraphView';
 import { ExportModal } from './components/ExportModal';
 import { ImportModal } from './components/ImportModal';
 import { getAdjacentSectors } from './utils/navigation.ts';
+import { TILE_HOTKEYS } from './utils/tileDefinitions';
 
 export const App: React.FC = () => {
   // World State
@@ -155,36 +156,51 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         handleRedo();
+        return;
+      }
+
+      // Ignore shortcuts if Ctrl or Meta is held
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      // Adjacent Sector Navigation: Alt + Arrow Keys
+      if (e.altKey) {
+        if (activeRoom) {
+          const adjacent = getAdjacentSectors(activeRoom, world);
+          let targetRoom: RoomData | undefined;
+          if (e.key === 'ArrowUp') targetRoom = adjacent.up.room;
+          if (e.key === 'ArrowDown') targetRoom = adjacent.down.room;
+          if (e.key === 'ArrowLeft') targetRoom = adjacent.left.room;
+          if (e.key === 'ArrowRight') targetRoom = adjacent.right.room;
+
+          if (targetRoom) {
+            e.preventDefault();
+            setActiveRoomId(targetRoom.id);
+            setSelectedEntity(null);
+          }
+        }
+        return;
+      }
+
+      // Tile Selection Hotkeys (1-9, 0)
+      if (e.key in TILE_HOTKEYS) {
+        setSelectedGlyph(TILE_HOTKEYS[e.key]);
+        setCurrentTool((prev) => (prev === 'eraser' || prev === 'select' ? 'pencil' : prev));
+        return;
       }
 
       // Tool Hotkeys
-      if (e.key === '1' || e.key.toLowerCase() === 'b') setCurrentTool('pencil');
-      if (e.key === '2' || e.key.toLowerCase() === 'l') setCurrentTool('line');
-      if (e.key === '3' || e.key.toLowerCase() === 'u') setCurrentTool('rect');
-      if (e.key === '4' || e.key.toLowerCase() === 'f') setCurrentTool('fill');
-      if (e.key === '5' || e.key.toLowerCase() === 'e') setCurrentTool('eraser');
-      if (e.key === '6' || e.key.toLowerCase() === 'i') setCurrentTool('eyedropper');
-      if (e.key === '7' || e.key.toLowerCase() === 'v') setCurrentTool('select');
+      if (e.key.toLowerCase() === 'b') setCurrentTool('pencil');
+      if (e.key.toLowerCase() === 'l') setCurrentTool('line');
+      if (e.key.toLowerCase() === 'u') setCurrentTool('rect');
+      if (e.key.toLowerCase() === 'f') setCurrentTool('fill');
+      if (e.key.toLowerCase() === 'e') setCurrentTool('eraser');
+      if (e.key.toLowerCase() === 'i') setCurrentTool('eyedropper');
+      if (e.key.toLowerCase() === 'v') setCurrentTool('select');
 
       // Layer Toggles
       if (e.key.toLowerCase() === 'g') setShowGrid((prev) => !prev);
-
-      // Adjacent Sector Navigation: Alt + Arrow Keys
-      if (e.altKey && activeRoom) {
-        const adjacent = getAdjacentSectors(activeRoom, world);
-        let targetRoom: RoomData | undefined;
-        if (e.key === 'ArrowUp') targetRoom = adjacent.up.room;
-        if (e.key === 'ArrowDown') targetRoom = adjacent.down.room;
-        if (e.key === 'ArrowLeft') targetRoom = adjacent.left.room;
-        if (e.key === 'ArrowRight') targetRoom = adjacent.right.room;
-
-        if (targetRoom) {
-          e.preventDefault();
-          setActiveRoomId(targetRoom.id);
-          setSelectedEntity(null);
-          return;
-        }
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

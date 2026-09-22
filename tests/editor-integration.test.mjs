@@ -13,6 +13,7 @@ import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom, sanitizeL
 import { validateWorld } from '../editor/src/utils/validator.ts';
 import { PRESET_WORLDS } from '../editor/src/utils/presets.ts';
 import { getAdjacentSectors, getAdjacentCoords, getOppositeDirection } from '../editor/src/utils/navigation.ts';
+import { TILE_DEFINITIONS, TILE_GLYPH_ORDER, TILE_HOTKEYS } from '../editor/src/utils/tileDefinitions.ts';
 
 test('Editor & Game Engine Integration Verification', async (t) => {
   await t.test('createEmptyWorld produces valid world loadable by Hyperfold LevelLoader', () => {
@@ -546,6 +547,42 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     const engineResult = WorldRegistry.loadWorldFromJsonString(jsonStr);
     const engineRoom = engineResult.map.getRoom(0, 0);
     assert.equal(engineRoom.laserTurrets?.length, 3);
+  });
+
+  await t.test('Number keyboard shortcuts 1-9 map to tile selection and not tools', () => {
+    // 1-9 must map to the 9 palette tiles in order
+    assert.equal(TILE_HOTKEYS['1'], '#', 'Key 1 should select Solid Block (#)');
+    assert.equal(TILE_HOTKEYS['2'], '=', 'Key 2 should select One-Way Platform (=)');
+    assert.equal(TILE_HOTKEYS['3'], '^', 'Key 3 should select Spike Up (^)');
+    assert.equal(TILE_HOTKEYS['4'], 'v', 'Key 4 should select Spike Down (v)');
+    assert.equal(TILE_HOTKEYS['5'], '<', 'Key 5 should select Spike Left (<)');
+    assert.equal(TILE_HOTKEYS['6'], '>', 'Key 6 should select Spike Right (>)');
+    assert.equal(TILE_HOTKEYS['7'], 'B', 'Key 7 should select Bounce Pad (B)');
+    assert.equal(TILE_HOTKEYS['8'], 'C', 'Key 8 should select Crumble Block (C)');
+    assert.equal(TILE_HOTKEYS['9'], 'G', 'Key 9 should select Hypercube Goal (G)');
+    assert.equal(TILE_HOTKEYS['0'], ' ', 'Key 0 should select Empty Space ( )');
+
+    // All mapped tiles must match TILE_GLYPH_ORDER
+    for (let i = 1; i <= 9; i++) {
+      const glyph = TILE_HOTKEYS[String(i)];
+      assert.equal(glyph, TILE_GLYPH_ORDER[i - 1], `Key ${i} must match palette position ${i - 1}`);
+      assert.ok(TILE_DEFINITIONS[glyph], `Glyph ${glyph} must have a valid definition`);
+    }
+
+    // Number keys must not be used for tool shortcuts (tools use letter keys: V, B, L, U, F, E, I)
+    const toolShortcuts = {
+      select: 'v',
+      pencil: 'b',
+      line: 'l',
+      rect: 'u',
+      fill: 'f',
+      eraser: 'e',
+      eyedropper: 'i',
+    };
+    for (const [tool, key] of Object.entries(toolShortcuts)) {
+      assert.ok(!TILE_HOTKEYS[key], `Tool ${tool} shortcut '${key}' must not conflict with tile hotkeys`);
+      assert.ok(!/^[1-9]$/.test(key), `Tool ${tool} shortcut '${key}' must not be a number 1-9`);
+    }
   });
 });
 

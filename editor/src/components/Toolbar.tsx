@@ -12,7 +12,7 @@ import {
   Crosshair,
 } from 'lucide-react';
 import { EditorTool, TileGlyph } from '../types/world';
-import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
+import { TILE_DEFINITIONS, TILE_GLYPH_ORDER } from '../utils/tileDefinitions';
 
 interface ToolbarProps {
   currentTool: EditorTool;
@@ -53,7 +53,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'eyedropper', label: 'Eyedropper', icon: <Pipette className="w-4 h-4" />, hotkey: 'I' },
   ];
 
-  const glyphList: TileGlyph[] = ['#', '=', '^', 'v', '<', '>', 'B', 'C', 'G', ' '];
+  const glyphList = TILE_GLYPH_ORDER;
 
   return (
     <aside className="w-16 bg-cyber-surface border-r border-cyber-border flex flex-col items-center py-3 space-y-4 select-none shrink-0 z-10 overflow-x-hidden">
@@ -108,9 +108,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       {/* Tile Palette */}
       <div className="flex flex-col space-y-1 w-full px-1 items-center flex-1 overflow-y-auto overflow-x-hidden">
         <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider text-center">Tiles</span>
-        {glyphList.map((glyph) => {
+        {glyphList.map((glyph, index) => {
           const def = TILE_DEFINITIONS[glyph];
           const isSelected = selectedGlyph === glyph && currentTool !== 'eraser' && currentTool !== 'select';
+          const hotkey = index < 9 ? `${index + 1}` : '0';
 
           return (
             <button
@@ -121,8 +122,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                   onSelectTool('pencil');
                 }
               }}
-              title={`${def.name} ['${glyph}'] - ${def.description}`}
-              className={`w-10 h-8.5 rounded flex items-center justify-center font-mono font-bold text-xs transition-all border shrink-0 ${
+              title={`${def.name} (${hotkey}) ['${glyph}'] - ${def.description}`}
+              className={`w-10 h-8.5 rounded flex items-center justify-center font-mono font-bold text-xs transition-all border shrink-0 relative ${
                 isSelected
                   ? 'border-cyber-cyan ring-2 ring-cyber-cyan/60 bg-cyber-card text-white shadow-sm'
                   : 'border-cyber-border bg-cyber-bg text-slate-400 hover:border-slate-500 hover:text-white'
@@ -132,7 +133,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 borderColor: isSelected ? def.color : undefined,
               }}
             >
-              {glyph === ' ' ? '·' : glyph}
+              <span>{glyph === ' ' ? '·' : glyph}</span>
+              <span className="absolute bottom-0.5 right-1 text-[8px] text-slate-500 font-sans leading-none pointer-events-none opacity-70">
+                {hotkey}
+              </span>
             </button>
           );
         })}

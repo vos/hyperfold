@@ -73,3 +73,18 @@ export const TILE_DEFINITIONS: Record<TileGlyph, TileDefinition> = {
   },
 };
 
+export const TILE_GLYPH_ORDER: TileGlyph[] = ['#', '=', '^', 'v', '<', '>', 'B', 'C', 'G', ' '];
+
+export const TILE_HOTKEYS: Record<string, TileGlyph> = {
+  '1': '#',
+  '2': '=',
+  '3': '^',
+  '4': 'v',
+  '5': '<',
+  '6': '>',
+  '7': 'B',
+  '8': 'C',
+  '9': 'G',
+  '0': ' ',
+};
+
