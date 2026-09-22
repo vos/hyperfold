@@ -107,7 +107,83 @@ export function normalizeGrid(grid: string[]): string[] {
   return normalized;
 }
 
-import { DEMO_ROOMS_MAP } from './demoWorldData.ts';
+// Vite eager glob for all rooms in @worlds
+let viteBuiltinRoomsGlob: Record<string, any> = {};
+try {
+  viteBuiltinRoomsGlob = import.meta.glob(
+    '@worlds/**/rooms/*.json',
+    { eager: true, import: 'default' }
+  );
+} catch {
+  // In Node.js test environment without Vite transform
+}
+
+let _builtinRoomsCache: Record<string, any> | null = null;
+
+function registerRoomInMap(map: Record<string, any>, filePath: string, roomData: any) {
+  const fileName = filePath.split(/[/\\]/).pop() || '';
+  const cleanKey = fileName.replace(/\.json$/, '');
+  map[filePath] = roomData;
+  map[fileName] = roomData;
+  map[cleanKey] = roomData;
+  map[`./rooms/${fileName}`] = roomData;
+  map[`rooms/${fileName}`] = roomData;
+  if (roomData.id) {
+    map[roomData.id] = roomData;
+  }
+}
+
+export function getBuiltinRoomsMap(): Record<string, any> {
+  if (_builtinRoomsCache) return _builtinRoomsCache;
+  const map: Record<string, any> = {};
+
+  // 1. Populate from Vite glob if available
+  for (const [roomPath, roomData] of Object.entries(viteBuiltinRoomsGlob)) {
+    if (!roomData) continue;
+    registerRoomInMap(map, roomPath, roomData);
+  }
+
+  // 2. If running in Node.js (e.g. node --test) where Vite glob is unavailable:
+  const proc = (globalThis as any).process;
+  if (Object.keys(map).length === 0 && proc?.versions?.node) {
+    try {
+      const fs = proc.getBuiltinModule?.('node:fs') || proc.getBuiltinModule?.('fs');
+      const path = proc.getBuiltinModule?.('node:path') || proc.getBuiltinModule?.('path');
+      if (fs && path) {
+        const cwd = proc.cwd ? proc.cwd() : '.';
+        const candidateDirs = [
+          path.resolve(cwd, 'worlds'),
+          path.resolve(cwd, '../worlds'),
+        ];
+        const worldsDir = candidateDirs.find((d: string) => fs.existsSync(d));
+        if (worldsDir) {
+          const scanDir = (dir: string) => {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const ent of entries) {
+              const fullPath = path.join(dir, ent.name);
+              if (ent.isDirectory()) {
+                scanDir(fullPath);
+              } else if (ent.isFile() && ent.name.endsWith('.json') && fullPath.includes(`${path.sep}rooms${path.sep}`)) {
+                try {
+                  const roomData = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                  registerRoomInMap(map, fullPath, roomData);
+                } catch {
+                  // ignore
+                }
+              }
+            }
+          };
+          scanDir(worldsDir);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  _builtinRoomsCache = map;
+  return map;
+}
 
 /**
  * Sanitizes a LaserTurretConfig ensuring parameters match its mode
@@ -230,10 +306,11 @@ function resolveRoomReference(
     }
   }
 
-  // 2. Fall back to built-in demo rooms
-  const demoCandidates = [trimmed, cleanKey, fileName, idKey, `./rooms/${fileName}`];
+  // 2. Fall back to built-in rooms (from worlds/**/rooms/*.json)
+  const builtinRooms = getBuiltinRoomsMap();
+  const demoCandidates = [trimmed, cleanKey, fileName, idKey, `./rooms/${fileName}`, `rooms/${fileName}`];
   for (const c of demoCandidates) {
-    if (DEMO_ROOMS_MAP[c]) return DEMO_ROOMS_MAP[c];
+    if (builtinRooms[c]) return builtinRooms[c];
   }
 
   return undefined;

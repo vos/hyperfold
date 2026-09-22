@@ -203,7 +203,7 @@ test('Editor & Game Engine Integration Verification', async (t) => {
   });
 
   await t.test('parseWorldJson imports demo world.json manifest by resolving external room files', () => {
-    const demoWorldJsonPath = path.resolve('src/world/data/demo/world.json');
+    const demoWorldJsonPath = path.resolve('worlds/demo/world.json');
     const demoWorldJson = fs.readFileSync(demoWorldJsonPath, 'utf8');
 
     const world = parseWorldJson(demoWorldJson);

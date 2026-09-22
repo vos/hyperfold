@@ -1,222 +1,109 @@
 import type { WorldData } from '../types/world.ts';
-import { createEmptyWorld, parseWorldJson } from './serialization.ts';
+import { createEmptyWorld, parseWorldJson, getBuiltinRoomsMap } from './serialization.ts';
 
-const MINI_WORLD_JSON = JSON.stringify({
-  "$schema": "./schemas/world.schema.json",
-  "id": "mini",
-  "title": "Mini Hypercube (3 Sectors)",
-  "description": "A compact 3-room standalone world demonstrating the single-file format with inlined rooms, ASCII layouts, and dynamic hazards.",
-  "startingCoords": [0, 0],
-  "rooms": [
-    {
-      "$schema": "./schemas/room.schema.json",
-      "id": "mini_0_0",
-      "coords": [0, 0],
-      "title": "Sector 0: Neon Bastion",
-      "subtitle": "Welcome to the Hypercube. Leap across crumble stepping stones and dodge the pulse turret!",
-      "themeColor": "#00e5ff",
-      "accentColor": "#0066ff",
-      "exits": { "left": false, "right": true, "up": false, "down": false },
-      "spawnPoint": [180, 600],
-      "grid": [
-        "####################",
-        "#  vvvv      vvvv  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#       ====       #",
-        "#                  #",
-        "#                  #",
-        "#    ====  ====    #",
-        "#                  #",
-        "#  ====       ====  ",
-        "#                   ",
-        "#       CCCC        ",
-        "#                   ",
-        "#  ####       ####  ",
-        "#BB    ^^^^^^    BB#",
-        "####################",
-        "####################"
-      ],
-      "collectibles": [
-        { "id": "mini_core_0_0_1", "type": "core", "pos": [360, 480] },
-        { "id": "mini_core_0_0_2", "type": "core", "pos": [440, 480] },
-        { "id": "mini_prism_0_0_1", "type": "prism", "pos": [400, 240] }
-      ],
-      "laserTurrets": [
-        {
-          "id": "mini_turret_0_0_1",
-          "x": 400,
-          "y": 160,
-          "direction": "down",
-          "mode": "projectile",
-          "fireInterval": 1.8,
-          "projectileSpeed": 260,
-          "themeColor": "#00e5ff"
-        }
-      ]
-    },
-    {
-      "$schema": "./schemas/room.schema.json",
-      "id": "mini_1_0",
-      "coords": [1, 0],
-      "title": "Sector 1: Kinetic Crucible",
-      "subtitle": "Ride the hover cruisers across the chasm — watch for alternating ceiling beams!",
-      "themeColor": "#d000ff",
-      "accentColor": "#ff007f",
-      "exits": { "left": true, "right": true, "up": false, "down": false },
-      "spawnPoint": [120, 680],
-      "grid": [
-        "####################",
-        "#   vvvv    vvvv   #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#       ====       #",
-        "#                  #",
-        "#                  #",
-        "#   ===      ===   #",
-        "#                  #",
-        "   ====      ====   ",
-        "                    ",
-        "  ====        ====  ",
-        "                    ",
-        "                    ",
-        "#BB  ^^^^^^^^^^  BB#",
-        "####################",
-        "####################"
-      ],
-      "collectibles": [
-        { "id": "mini_core_1_0_1", "type": "core", "pos": [220, 440] },
-        { "id": "mini_core_1_0_2", "type": "core", "pos": [580, 440] },
-        { "id": "mini_prism_1_0_1", "type": "prism", "pos": [400, 240] }
-      ],
-      "movingPlatforms": [
-        {
-          "id": "mini_plat_1_0_1",
-          "startX": 180,
-          "startY": 560,
-          "endX": 540,
-          "endY": 560,
-          "width": 100,
-          "height": 16,
-          "speed": 110,
-          "pauseTime": 0.4,
-          "themeColor": "#d000ff"
-        }
-      ],
-      "laserTurrets": [
-        {
-          "id": "mini_turret_1_0_1",
-          "x": 260,
-          "y": 40,
-          "direction": "down",
-          "mode": "beam",
-          "activeDuration": 1.8,
-          "inactiveDuration": 2.2,
-          "warningDuration": 0.6,
-          "initialPhase": 0,
-          "themeColor": "#ff007f"
-        },
-        {
-          "id": "mini_turret_1_0_2",
-          "x": 540,
-          "y": 40,
-          "direction": "down",
-          "mode": "beam",
-          "activeDuration": 1.8,
-          "inactiveDuration": 2.2,
-          "warningDuration": 0.6,
-          "initialPhase": 0.5,
-          "themeColor": "#d000ff"
-        }
-      ]
-    },
-    {
-      "$schema": "./schemas/room.schema.json",
-      "id": "mini_2_0",
-      "coords": [2, 0],
-      "title": "Sector 2: Singularity Sanctum",
-      "subtitle": "Super-bounce to the upper sanctuary and step into the Warp Portal to finish!",
-      "themeColor": "#ffe600",
-      "accentColor": "#00ff88",
-      "exits": { "left": true, "right": false, "up": false, "down": false },
-      "spawnPoint": [120, 680],
-      "grid": [
-        "####################",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#                  #",
-        "#             G    #",
-        "#          ####### #",
-        "#                  #",
-        "#       ====       #",
-        "#                  #",
-        "#    ====          #",
-        "                   #",
-        "                   #",
-        "  ====        ==== #",
-        "                   #",
-        "                   #",
-        "#BBBBBB            #",
-        "####################",
-        "####################"
-      ],
-      "bounceProps": {
-        "17,1": { "vy": -1400 },
-        "17,2": { "vy": -1400 },
-        "17,3": { "vy": -1400 },
-        "17,4": { "vy": -1400 },
-        "17,5": { "vy": -1400 },
-        "17,6": { "vy": -1400 }
-      },
-      "laserBarriers": [
-        {
-          "id": "mini_barrier_2_0_1",
-          "startX1": 360,
-          "startY1": 360,
-          "startX2": 720,
-          "startY2": 360,
-          "activeDuration": 2.0,
-          "inactiveDuration": 2.5,
-          "warningDuration": 0.6,
-          "themeColor": "#ffe600"
-        }
-      ],
-      "collectibles": [
-        { "id": "mini_core_2_0_1", "type": "core", "pos": [320, 320] },
-        { "id": "mini_prism_2_0_1", "type": "prism", "pos": [600, 200] }
-      ]
+export interface PresetWorldEntry {
+  id: string;
+  name: string;
+  description: string;
+  get: () => WorldData;
+}
+
+// Vite eager glob for all world manifests under @worlds
+let viteWorldManifests: Record<string, any> = {};
+try {
+  viteWorldManifests = import.meta.glob(
+    ['@worlds/**/world.json', '@worlds/*.json'],
+    { eager: true, import: 'default' }
+  );
+} catch {
+  // In Node.js test environment without Vite transform
+}
+
+function loadDiscoveredPresets(): PresetWorldEntry[] {
+  const manifests: Record<string, any> = {};
+
+  // 1. From Vite glob if available
+  for (const [, manifest] of Object.entries(viteWorldManifests)) {
+    if (manifest && typeof manifest === 'object' && manifest.id) {
+      manifests[manifest.id] = manifest;
     }
-  ]
-});
+  }
 
-import { getDemoWorld } from './demoWorldData.ts';
+  // 2. If running in Node.js (e.g. node --test) where Vite glob is unavailable:
+  const proc = (globalThis as any).process;
+  if (Object.keys(manifests).length === 0 && proc?.versions?.node) {
+    try {
+      const fs = proc.getBuiltinModule?.('node:fs') || proc.getBuiltinModule?.('fs');
+      const path = proc.getBuiltinModule?.('node:path') || proc.getBuiltinModule?.('path');
+      if (fs && path) {
+        const cwd = proc.cwd ? proc.cwd() : '.';
+        const candidateDirs = [
+          path.resolve(cwd, 'worlds'),
+          path.resolve(cwd, '../worlds'),
+        ];
+        const worldsDir = candidateDirs.find((d: string) => fs.existsSync(d));
+        if (worldsDir) {
+          const entries = fs.readdirSync(worldsDir, { withFileTypes: true });
+          for (const ent of entries) {
+            if (ent.isDirectory() && ent.name !== 'schemas') {
+              const manifestPath = path.join(worldsDir, ent.name, 'world.json');
+              if (fs.existsSync(manifestPath)) {
+                try {
+                  const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                  if (m && m.id) manifests[m.id] = m;
+                } catch {
+                  // ignore
+                }
+              }
+            } else if (ent.isFile() && ent.name.endsWith('.json')) {
+              try {
+                const m = JSON.parse(fs.readFileSync(path.join(worldsDir, ent.name), 'utf8'));
+                if (m && m.id) manifests[m.id] = m;
+              } catch {
+                // ignore
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
 
-export const PRESET_WORLDS: { id: string; name: string; description: string; get: () => WorldData }[] = [
-  {
-    id: 'demo',
-    name: 'Infinite Tesseract (10 Sectors - Demo Level)',
-    description: 'Official 10-sector world traversing all faces of the 3D hypercube with full puzzles and hazards.',
-    get: () => getDemoWorld(),
-  },
-  {
-    id: 'mini',
-    name: 'Mini Hypercube (3 Sectors)',
-    description: '3-sector sample world with turrets, hover cruisers, bounce pads, and goal.',
-    get: () => parseWorldJson(MINI_WORLD_JSON),
-  },
-  {
+  const list: PresetWorldEntry[] = [];
+  const roomsMap = getBuiltinRoomsMap();
+
+  // Known ordered IDs first (demo, mini), then any others alphabetically
+  const ids = Object.keys(manifests);
+  const orderedIds: string[] = [];
+  if (ids.includes('demo')) orderedIds.push('demo');
+  if (ids.includes('mini')) orderedIds.push('mini');
+  for (const id of ids.sort()) {
+    if (!orderedIds.includes(id)) {
+      orderedIds.push(id);
+    }
+  }
+
+  for (const id of orderedIds) {
+    const manifest = manifests[id];
+    list.push({
+      id: manifest.id,
+      name: manifest.title || manifest.id,
+      description: manifest.description || '',
+      get: () => parseWorldJson(JSON.stringify(manifest), roomsMap),
+    });
+  }
+
+  // Always append the blank starter world
+  list.push({
     id: 'blank',
     name: 'Blank Starter World (1 Sector)',
     description: 'Clean single sector with boundary walls, floor, spawn, and goal beacon.',
     get: () => createEmptyWorld(),
-  },
-];
+  });
 
+  return list;
+}
+
+export const PRESET_WORLDS: PresetWorldEntry[] = loadDiscoveredPresets();

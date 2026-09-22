@@ -14,7 +14,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@worlds/*": ["./worlds/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "worlds"]
 }

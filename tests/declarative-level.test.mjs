@@ -8,8 +8,8 @@ const require = createRequire(import.meta.url);
 const { LevelLoader } = require('./dist-world/world/LevelLoader.js');
 const { TileType, ROWS, COLS } = require('./dist-world/world/ScreenData.js');
 
-const singleFilePath = path.resolve('src/world/data/demo-all-in-one.json');
-const modularDir = path.resolve('src/world/data/demo');
+const singleFilePath = path.resolve('worlds/mini/world.json');
+const modularDir = path.resolve('worlds/demo');
 const manifestPath = path.join(modularDir, 'world.json');
 
 test('Declarative Level Loading & Validation', async (t) => {

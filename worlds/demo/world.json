@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/world.schema.json",
+  "$schema": "../schemas/world.schema.json",
   "id": "demo",
   "title": "Infinite Tesseract (10 Sectors)",
   "description": "Traverse infinite sectors folded across the rotating faces of a 3D hypercube.",

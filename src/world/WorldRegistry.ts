@@ -10,20 +10,20 @@ export interface WorldEntry {
   startingCoords?: { x: number; y: number };
 }
 
-// 1. Vite eager glob for all modular world manifests under ./data/**/world.json
-const modularManifests = import.meta.glob<WorldDataJson>('./data/**/world.json', {
+// 1. Vite eager glob for all world manifests under @worlds/**/world.json
+const modularManifests = import.meta.glob<WorldDataJson>('@worlds/**/world.json', {
   eager: true,
   import: 'default',
 });
 
-// 2. Vite eager glob for all rooms under ./data/**/rooms/*.json
-const allRoomsByPath = import.meta.glob<RoomDataJson>('./data/**/rooms/*.json', {
+// 2. Vite eager glob for all rooms under @worlds/**/rooms/*.json
+const allRoomsByPath = import.meta.glob<RoomDataJson>('@worlds/**/rooms/*.json', {
   eager: true,
   import: 'default',
 });
 
-// 3. Vite eager glob for all single-file worlds directly under ./data/*.json
-const singleFileWorldModules = import.meta.glob<WorldDataJson>('./data/*.json', {
+// 3. Vite eager glob for all single-file worlds directly under @worlds/*.json
+const singleFileWorldModules = import.meta.glob<WorldDataJson>('@worlds/*.json', {
   eager: true,
   import: 'default',
 });
@@ -33,25 +33,16 @@ export class WorldRegistry {
   private static initialized: boolean = false;
 
   /**
-   * Automatically discovers and registers all worlds found in the data/ folder.
+   * Automatically discovers and registers all worlds found in the worlds/ folder.
    * Pulls metadata (id, name, description, startingCoords) directly from JSON manifests.
    */
   private static initDefaults(): void {
     if (this.initialized) return;
     this.initialized = true;
 
-    // A. Discover all modular worlds (folders containing world.json)
+    // A. Discover all world manifests under @worlds/**/world.json
     for (const [manifestPath, manifest] of Object.entries(modularManifests)) {
       if (!manifest || typeof manifest !== 'object' || !manifest.id) continue;
-      const folderPath = manifestPath.replace(/world\.json$/, '');
-      const roomsPrefix = `${folderPath}rooms/`;
-
-      const worldRooms: RoomDataJson[] = [];
-      for (const [roomPath, roomData] of Object.entries(allRoomsByPath)) {
-        if (roomPath.startsWith(roomsPrefix)) {
-          worldRooms.push(roomData);
-        }
-      }
 
       const startingCoords = manifest.startingCoords
         ? (Array.isArray(manifest.startingCoords)
@@ -59,17 +50,44 @@ export class WorldRegistry {
             : manifest.startingCoords)
         : { x: 0, y: 0 };
 
-      this.registerWorld({
-        id: manifest.id,
-        name: manifest.title || manifest.id,
-        description: manifest.description,
-        source: 'builtin',
-        load: () => LevelLoader.loadWorld(manifest, worldRooms),
-        startingCoords,
-      });
+      // Case 1: Single-file bundle with inlined room objects
+      if (
+        Array.isArray(manifest.rooms) &&
+        manifest.rooms.length > 0 &&
+        typeof manifest.rooms[0] !== 'string'
+      ) {
+        this.registerWorld({
+          id: manifest.id,
+          name: manifest.title || manifest.id,
+          description: manifest.description,
+          source: 'builtin',
+          load: () => LevelLoader.loadWorld(manifest),
+          startingCoords,
+        });
+      } else {
+        // Case 2: Modular world referencing external rooms
+        const folderPath = manifestPath.replace(/world\.json$/, '');
+        const roomsPrefix = `${folderPath}rooms/`;
+
+        const worldRooms: RoomDataJson[] = [];
+        for (const [roomPath, roomData] of Object.entries(allRoomsByPath)) {
+          if (roomPath.startsWith(roomsPrefix) || (folderPath && roomPath.includes(folderPath))) {
+            worldRooms.push(roomData);
+          }
+        }
+
+        this.registerWorld({
+          id: manifest.id,
+          name: manifest.title || manifest.id,
+          description: manifest.description,
+          source: 'builtin',
+          load: () => LevelLoader.loadWorld(manifest, worldRooms),
+          startingCoords,
+        });
+      }
     }
 
-    // B. Discover all single-file worlds (e.g. ./data/*.json with inlined rooms)
+    // B. Discover any single-file worlds directly under @worlds/*.json
     for (const [, bundle] of Object.entries(singleFileWorldModules)) {
       if (!bundle || typeof bundle !== 'object' || !bundle.id) continue;
       if (Array.isArray(bundle.rooms) && bundle.rooms.length > 0 && typeof bundle.rooms[0] !== 'string') {

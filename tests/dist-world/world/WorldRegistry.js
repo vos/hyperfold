@@ -14,14 +14,14 @@ class WorldRegistry {
     if (this.initialized) return;
     this.initialized = true;
 
-    const dataDir = path.resolve(__dirname, "../../../src/world/data");
+    const dataDir = path.resolve(__dirname, "../../../worlds");
     if (!fs.existsSync(dataDir)) return;
 
     const entries = fs.readdirSync(dataDir, { withFileTypes: true });
 
-    // A. Discover modular worlds (directories with world.json)
+    // A. Discover worlds in subdirectories (directories with world.json)
     for (const ent of entries) {
-      if (ent.isDirectory()) {
+      if (ent.isDirectory() && ent.name !== "schemas") {
         const manifestPath = path.join(dataDir, ent.name, "world.json");
         if (fs.existsSync(manifestPath)) {
           const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -37,12 +37,16 @@ class WorldRegistry {
                 : manifest.startingCoords)
             : { x: 0, y: 0 };
 
+          const isInlined = Array.isArray(manifest.rooms) && manifest.rooms.length > 0 && typeof manifest.rooms[0] !== "string";
+
           this.registerWorld({
             id: manifest.id,
             name: manifest.title || manifest.id,
             description: manifest.description,
             source: "builtin",
-            load: () => LevelLoader_1.LevelLoader.loadWorld(manifest, rooms),
+            load: () => isInlined
+              ? LevelLoader_1.LevelLoader.loadWorld(manifest)
+              : LevelLoader_1.LevelLoader.loadWorld(manifest, rooms),
             startingCoords,
           });
         }

@@ -1,12 +1,12 @@
 {
-  "$schema": "./schemas/world.schema.json",
+  "$schema": "../schemas/world.schema.json",
   "id": "mini",
   "title": "Mini Hypercube (3 Sectors)",
   "description": "A compact 3-room standalone world demonstrating the single-file format with inlined rooms, ASCII layouts, and dynamic hazards.",
   "startingCoords": [0, 0],
   "rooms": [
     {
-      "$schema": "./schemas/room.schema.json",
+      "$schema": "../schemas/room.schema.json",
       "id": "mini_0_0",
       "coords": [0, 0],
       "title": "Sector 0: Neon Bastion",
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "$schema": "./schemas/room.schema.json",
+      "$schema": "../schemas/room.schema.json",
       "id": "mini_1_0",
       "coords": [1, 0],
       "title": "Sector 1: Kinetic Crucible",
@@ -168,7 +168,7 @@
       ]
     },
     {
-      "$schema": "./schemas/room.schema.json",
+      "$schema": "../schemas/room.schema.json",
       "id": "mini_2_0",
       "coords": [2, 0],
       "title": "Sector 2: Singularity Sanctum",
