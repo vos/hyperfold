@@ -10,6 +10,7 @@ import { InspectorPanel } from './components/InspectorPanel';
 import { WorldGraphView } from './components/WorldGraphView';
 import { ExportModal } from './components/ExportModal';
 import { ImportModal } from './components/ImportModal';
+import { HelpModal } from './components/HelpModal';
 import { getAdjacentSectors } from './utils/navigation.ts';
 import { TILE_HOTKEYS } from './utils/tileDefinitions';
 
@@ -36,6 +37,7 @@ export const App: React.FC = () => {
   // Modals
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
 
   // Live Diagnostics
   const diagnostics = validateWorld(world);
@@ -199,13 +201,33 @@ export const App: React.FC = () => {
       if (e.key.toLowerCase() === 'i') setCurrentTool('eyedropper');
       if (e.key.toLowerCase() === 'v') setCurrentTool('select');
 
+      // Escape to close help modal or deselect
+      if (e.key === 'Escape') {
+        if (showHelpModal) {
+          e.preventDefault();
+          setShowHelpModal(false);
+          return;
+        }
+        if (selectedEntity) {
+          setSelectedEntity(null);
+          return;
+        }
+      }
+
+      // Help Shortcut (? or H)
+      if (e.key === '?' || (e.shiftKey && e.code === 'Slash') || e.code === 'KeyH') {
+        e.preventDefault();
+        setShowHelpModal((prev) => !prev);
+        return;
+      }
+
       // Layer Toggles
       if (e.key.toLowerCase() === 'g') setShowGrid((prev) => !prev);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, activeRoom, world]);
+  }, [handleUndo, handleRedo, activeRoom, world, showHelpModal, selectedEntity]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-cyber-bg text-slate-100 overflow-hidden font-sans">
@@ -220,6 +242,7 @@ export const App: React.FC = () => {
         onNewWorld={handleNewWorld}
         onOpenImport={() => setShowImportModal(true)}
         onOpenExport={() => setShowExportModal(true)}
+        onOpenHelp={() => setShowHelpModal(true)}
         onLoadPreset={handleLoadPreset}
         diagnostics={diagnostics}
         onOpenDiagnostics={() => {
@@ -276,6 +299,7 @@ export const App: React.FC = () => {
                 showEntities={showEntities}
                 showCoordinates={showCoordinates}
                 brushSize={brushSize}
+                onOpenHelp={() => setShowHelpModal(true)}
               />
             )}
 
@@ -330,6 +354,13 @@ export const App: React.FC = () => {
             setActiveRoomId(importedWorld.rooms[0]?.id || 'room_0_0');
             setSelectedEntity(null);
           }}
+        />
+      )}
+
+      {/* Help / Controls Shortcuts Modal */}
+      {showHelpModal && (
+        <HelpModal
+          onClose={() => setShowHelpModal(false)}
         />
       )}
     </div>

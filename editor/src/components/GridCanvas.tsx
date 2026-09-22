@@ -30,6 +30,7 @@ interface GridCanvasProps {
   showEntities: boolean;
   showCoordinates: boolean;
   brushSize: number;
+  onOpenHelp?: () => void;
 }
 
 export const GridCanvas: React.FC<GridCanvasProps> = ({
@@ -48,6 +49,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   showEntities,
   showCoordinates,
   brushSize,
+  onOpenHelp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1226,22 +1228,35 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           )}
         </div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center space-x-2">
-          <span>Zoom:</span>
-          <div className="flex bg-cyber-bg p-0.5 rounded border border-cyber-border">
-            {[0.75, 1.0, 1.25, 1.5].map((z) => (
-              <button
-                key={z}
-                onClick={() => setZoom(z)}
-                className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
-                  zoom === z ? 'bg-cyber-card text-cyber-cyan' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {Math.round(z * 100)}%
-              </button>
-            ))}
+        {/* Zoom & Help Controls */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5">
+            <span>Zoom:</span>
+            <div className="flex bg-cyber-bg p-0.5 rounded border border-cyber-border">
+              {[0.75, 1.0, 1.25, 1.5].map((z) => (
+                <button
+                  key={z}
+                  onClick={() => setZoom(z)}
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                    zoom === z ? 'bg-cyber-card text-cyber-cyan' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {Math.round(z * 100)}%
+                </button>
+              ))}
+            </div>
           </div>
+
+          {onOpenHelp && (
+            <button
+              onClick={onOpenHelp}
+              className="flex items-center space-x-1 px-2 py-0.5 bg-cyber-bg hover:bg-cyber-card border border-cyber-border rounded text-[11px] text-slate-300 hover:text-cyber-cyan transition-colors"
+              title="Editor Controls & Keyboard Shortcuts [?]"
+            >
+              <span className="font-bold text-cyber-cyan">?</span>
+              <span>Shortcuts</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

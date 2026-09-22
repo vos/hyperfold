@@ -54,6 +54,13 @@ class Game {
   private perfDebug: PerformanceDebugView;
   private sectorMap: SectorMapView;
 
+  // New UI Elements
+  private helpOverlayEl: HTMLElement;
+  private gearMenuEl: HTMLElement;
+  private btnGearEl: HTMLElement;
+  private btnHelpEl: HTMLElement;
+  private proceduralDividerEl: HTMLElement | null;
+
   // Procedural Infinite Mode Elements
   private proceduralModalEl: HTMLElement;
   private proceduralCardEl: HTMLElement;
@@ -94,12 +101,24 @@ class Game {
     this.btnCloseProceduralModalEl = document.getElementById('btn-close-procedural-modal');
     this.btnCancelProceduralEl = document.getElementById('btn-cancel-procedural');
 
+    // New compact UI elements
+    this.helpOverlayEl = document.getElementById('help-overlay')!;
+    this.gearMenuEl = document.getElementById('gear-menu')!;
+    this.btnGearEl = document.getElementById('btn-gear')!;
+    this.btnHelpEl = document.getElementById('btn-help')!;
+    this.proceduralDividerEl = document.getElementById('hud-procedural-divider');
+
     this.perfDebug = new PerformanceDebugView({
       initialVisible: false,
       onToggle: (visible) => {
         if (this.btnPerfEl) {
-          this.btnPerfEl.textContent = visible ? 'Perf: ON [P]' : 'Perf: OFF [P]';
-          this.btnPerfEl.classList.toggle('active', visible);
+          // Update gear menu item text
+          const textNodes = Array.from(this.btnPerfEl.childNodes);
+          for (const node of textNodes) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent?.includes('Perf:')) {
+              node.textContent = visible ? ' Perf: ON ' : ' Perf: OFF ';
+            }
+          }
         }
       },
     });
@@ -171,13 +190,20 @@ class Game {
 
     this.btnMuteEl.addEventListener('click', () => {
       const muted = this.audio.toggleMute();
-      this.btnMuteEl.textContent = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
+      this.btnMuteEl.textContent = muted ? '🔇' : '♫';
+      this.btnMuteEl.title = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
     });
 
     this.btnCameraEl.addEventListener('click', () => {
       this.camera3DMode = !this.camera3DMode;
       this.cubeRenderer.setCameraMode(this.camera3DMode);
-      this.btnCameraEl.textContent = this.camera3DMode ? 'View: 3D Depth' : 'View: Flat Face';
+      // Update gear menu item text
+      const textNodes = Array.from(this.btnCameraEl.childNodes);
+      for (const node of textNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent?.includes('View:')) {
+          node.textContent = this.camera3DMode ? ' View: 3D Depth ' : ' View: Flat Face ';
+        }
+      }
     });
 
     const btnReset = document.getElementById('btn-reset');
@@ -358,7 +384,8 @@ class Game {
       }
       if (e.code === 'KeyU') {
         const muted = this.audio.toggleMute();
-        this.btnMuteEl.textContent = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
+        this.btnMuteEl.textContent = muted ? '🔇' : '♫';
+        this.btnMuteEl.title = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
       }
       if (e.code === 'KeyC') {
         if (!this.sectorMap.visible) {
@@ -376,13 +403,74 @@ class Game {
         }
       }
       if (e.code === 'Escape') {
-        if (this.sectorMap.visible) {
+        if (this.helpOverlayEl.classList.contains('open')) {
+          this.toggleHelp(false);
+        } else if (this.gearMenuEl.classList.contains('open')) {
+          this.toggleGearMenu(false);
+        } else if (this.sectorMap.visible) {
           this.sectorMap.close();
         } else if (this.proceduralModalEl.style.display === 'block') {
           this.closeProceduralModal();
         }
       }
+      if (e.code === 'KeyH' || (e.key === '?' || (e.shiftKey && e.code === 'Slash'))) {
+        // Don't trigger help if typing in an input
+        if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'SELECT') return;
+        this.toggleHelp();
+      }
     });
+
+    // Gear menu toggle
+    this.btnGearEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleGearMenu();
+    });
+
+    // Close gear menu when clicking outside
+    window.addEventListener('click', () => {
+      if (this.gearMenuEl.classList.contains('open')) {
+        this.toggleGearMenu(false);
+      }
+    });
+
+    // Prevent gear menu from closing when clicking inside it
+    this.gearMenuEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Help overlay toggle
+    this.btnHelpEl.addEventListener('click', () => {
+      this.toggleHelp();
+    });
+
+    // Close help by clicking backdrop
+    document.getElementById('help-backdrop')?.addEventListener('click', () => {
+      this.toggleHelp(false);
+    });
+  }
+
+  private toggleHelp(forceState?: boolean): void {
+    const isOpen = this.helpOverlayEl.classList.contains('open');
+    const newState = forceState !== undefined ? forceState : !isOpen;
+    if (newState) {
+      this.helpOverlayEl.classList.add('open');
+      // Close gear menu if open
+      this.toggleGearMenu(false);
+    } else {
+      this.helpOverlayEl.classList.remove('open');
+    }
+  }
+
+  private toggleGearMenu(forceState?: boolean): void {
+    const isOpen = this.gearMenuEl.classList.contains('open');
+    const newState = forceState !== undefined ? forceState : !isOpen;
+    if (newState) {
+      this.gearMenuEl.classList.add('open');
+      this.btnGearEl.classList.add('active');
+    } else {
+      this.gearMenuEl.classList.remove('open');
+      this.btnGearEl.classList.remove('active');
+    }
   }
 
   public openProceduralModal(): void {
@@ -871,13 +959,16 @@ class Game {
     this.hudSectorEl.textContent = hasCoords
       ? this.currentRoom.title
       : `${this.currentRoom.title} [${this.currentCoords.x}, ${this.currentCoords.y}]`;
-    this.hudTurnEl.textContent = `Side #${this.sidesTraversed} (Infinite Non-Euclidean)`;
+    this.hudTurnEl.textContent = `Side #${this.sidesTraversed}`;
     this.hudPrismsEl.textContent = `${this.levelMap.getCollectedCount()} / ${this.levelMap.getTotalCollectiblesCount()}`;
 
     if (this.levelMap instanceof ProceduralLevelMap) {
-      this.proceduralCardEl.style.display = 'block';
+      this.proceduralCardEl.style.display = '';
+      if (this.proceduralDividerEl) {
+        this.proceduralDividerEl.style.display = '';
+      }
       if (this.btnProceduralSetupEl) {
-        this.btnProceduralSetupEl.style.display = 'inline-block';
+        this.btnProceduralSetupEl.style.display = '';
       }
       const depth = Math.abs(this.currentCoords.x) + Math.abs(this.currentCoords.y);
       const streak = this.levelMap.getClearedStreak();
@@ -885,8 +976,8 @@ class Game {
       const diff = this.levelMap.getDifficulty().toUpperCase();
       const pct = Math.round(threat * 100);
 
-      this.proceduralDepthEl.textContent = `Depth: ${depth} | Streak: ${streak}`;
-      this.proceduralThreatBadgeEl.textContent = `THREAT: ${pct}% [${diff}]`;
+      this.proceduralDepthEl.textContent = `D:${depth} S:${streak}`;
+      this.proceduralThreatBadgeEl.textContent = `${pct}% ${diff}`;
 
       if (threat >= 0.65) {
         this.proceduralThreatBadgeEl.style.color = '#ff0055';
@@ -900,6 +991,9 @@ class Game {
       }
     } else {
       this.proceduralCardEl.style.display = 'none';
+      if (this.proceduralDividerEl) {
+        this.proceduralDividerEl.style.display = 'none';
+      }
       if (this.btnProceduralSetupEl) {
         this.btnProceduralSetupEl.style.display = 'none';
       }

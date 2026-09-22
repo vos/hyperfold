@@ -15,10 +15,11 @@ export class SectorMapView {
   private ctx: CanvasRenderingContext2D | null = null;
   private tooltipEl: HTMLElement | null = null;
 
-  // Stats DOM elements
+  // Stats & Help DOM elements
   private currentSectorBadgeEl: HTMLElement | null = null;
   private statDiscoveredEl: HTMLElement | null = null;
   private statPrismsEl: HTMLElement | null = null;
+  private mapHelpOverlayEl: HTMLElement | null = null;
 
   // Game state references
   private levelMap: LevelMap;
@@ -95,6 +96,7 @@ export class SectorMapView {
     this.currentSectorBadgeEl = document.getElementById('map-current-sector-badge');
     this.statDiscoveredEl = document.getElementById('map-stat-discovered');
     this.statPrismsEl = document.getElementById('map-stat-prisms');
+    this.mapHelpOverlayEl = document.getElementById('map-help-overlay');
   }
 
   private setupListeners(): void {
@@ -121,6 +123,16 @@ export class SectorMapView {
     const btnCenter = document.getElementById('map-btn-center-player');
     if (btnCenter) {
       btnCenter.addEventListener('click', () => this.centerOnPlayer());
+    }
+
+    const btnHelp = document.getElementById('map-btn-help');
+    if (btnHelp) {
+      btnHelp.addEventListener('click', () => this.toggleHelp());
+    }
+
+    const helpBackdrop = document.getElementById('map-help-backdrop');
+    if (helpBackdrop) {
+      helpBackdrop.addEventListener('click', () => this.toggleHelp(false));
     }
 
     if (this.canvas) {
@@ -193,10 +205,28 @@ export class SectorMapView {
       this.tooltipEl.style.display = 'none';
     }
 
+    this.toggleHelp(false);
     this.stopLoop();
 
     if (this.onCloseCallback) {
       this.onCloseCallback();
+    }
+  }
+
+  public toggleHelp(force?: boolean): void {
+    if (!this.mapHelpOverlayEl) return;
+    const isOpen = this.mapHelpOverlayEl.classList.contains('open');
+    const newState = force !== undefined ? force : !isOpen;
+    if (newState) {
+      this.mapHelpOverlayEl.classList.add('open');
+      this.mapHelpOverlayEl.style.display = 'flex';
+      const btnHelp = document.getElementById('map-btn-help');
+      if (btnHelp) btnHelp.classList.add('active');
+    } else {
+      this.mapHelpOverlayEl.classList.remove('open');
+      this.mapHelpOverlayEl.style.display = 'none';
+      const btnHelp = document.getElementById('map-btn-help');
+      if (btnHelp) btnHelp.classList.remove('active');
     }
   }
 
@@ -390,7 +420,17 @@ export class SectorMapView {
 
     if (e.code === 'Escape') {
       e.preventDefault();
+      if (this.mapHelpOverlayEl?.classList.contains('open')) {
+        this.toggleHelp(false);
+        return;
+      }
       this.close();
+      return;
+    }
+
+    if (e.code === 'KeyH' || e.key === '?' || (e.shiftKey && e.code === 'Slash')) {
+      e.preventDefault();
+      this.toggleHelp();
       return;
     }
 
@@ -565,9 +605,8 @@ export class SectorMapView {
     // Position tooltip near cursor relative to the canvas wrapper
     const parentW = this.canvas.parentElement?.clientWidth || this.canvas.width;
     const parentH = this.canvas.parentElement?.clientHeight || this.canvas.height;
-
-    const tipW = this.tooltipEl.offsetWidth || 240;
-    const tipH = this.tooltipEl.offsetHeight || 100;
+    const tipW = this.tooltipEl.offsetWidth || 300;
+    const tipH = this.tooltipEl.offsetHeight || 120;
 
     let left = mouseX + 16;
     let top = mouseY + 16;
@@ -966,7 +1005,7 @@ export class SectorMapView {
 
       // 6. Header Badge
       ctx.fillStyle = isHovered ? '#ffaa00' : '#aa55ff';
-      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.font = 'bold 11px "Courier New", monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`[${u.x}, ${u.y}]`, 0, -hh + 14);
 
@@ -987,7 +1026,7 @@ export class SectorMapView {
       ctx.textBaseline = 'alphabetic';
 
       // 8. Footer Label
-      ctx.font = 'bold 9px "Courier New", monospace';
+      ctx.font = 'bold 10px "Courier New", monospace';
       ctx.fillStyle = isHovered ? '#ffffff' : '#8866aa';
       ctx.fillText('[ENCRYPTED]', 0, hh - 8);
 
@@ -1046,13 +1085,13 @@ export class SectorMapView {
 
       // Coordinates text
       ctx.fillStyle = room.themeColor;
-      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.font = 'bold 11px "Courier New", monospace';
       ctx.textAlign = 'left';
       ctx.fillText(`[${room.coords.x},${room.coords.y}]`, -hw + 5, -hh + 13);
 
       // Room Title (truncated if long)
       ctx.fillStyle = '#ffffff';
-      ctx.font = '9px "Courier New", monospace';
+      ctx.font = '10px "Courier New", monospace';
       ctx.textAlign = 'right';
       const maxTitleChars = 11;
       const shortTitle =
@@ -1106,7 +1145,7 @@ export class SectorMapView {
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur = 8;
-    ctx.font = 'bold 9px "Courier New", monospace';
+    ctx.font = 'bold 10px "Courier New", monospace';
     ctx.textAlign = 'center';
     ctx.fillText('▲ YOU ARE HERE ▲', 0, -hh - 6);
     ctx.shadowBlur = 0;
@@ -1177,7 +1216,7 @@ export class SectorMapView {
     ctx.stroke();
 
     ctx.fillStyle = '#00ffff';
-    ctx.font = 'bold 9px "Courier New", monospace';
+    ctx.font = 'bold 11px "Courier New", monospace';
     ctx.textAlign = 'center';
     ctx.fillText('+Y', cx, cy - 29);
     ctx.fillText('+X', cx + 33, cy + 3);
@@ -1186,7 +1225,7 @@ export class SectorMapView {
     const zoomPct = Math.round(this.scale * 100);
     ctx.textAlign = 'left';
     ctx.fillStyle = '#88a0c0';
-    ctx.font = '10px "Courier New", monospace';
+    ctx.font = '12px "Courier New", monospace';
     ctx.fillText(`ZOOM: ${zoomPct}%`, 72, cy - 6);
 
     ctx.restore();

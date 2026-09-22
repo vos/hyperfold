@@ -32,6 +32,7 @@ interface WorldHeaderProps {
   setActiveView: (view: 'editor' | 'graph') => void;
   activeRoomId?: string;
   onSelectRoom?: (roomId: string) => void;
+  onOpenHelp?: () => void;
 }
 
 export const WorldHeader: React.FC<WorldHeaderProps> = ({
@@ -44,6 +45,7 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
   onNewWorld,
   onOpenImport,
   onOpenExport,
+  onOpenHelp,
   onLoadPreset,
   diagnostics,
   onOpenDiagnostics,
@@ -268,6 +270,18 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
           <Upload className="w-3.5 h-3.5" />
           <span>Import</span>
         </button>
+
+        {/* Help / Shortcuts */}
+        {onOpenHelp && (
+          <button
+            onClick={onOpenHelp}
+            className="flex items-center space-x-1 px-2.5 py-1.5 bg-cyber-card hover:bg-cyber-hover border border-cyber-border text-slate-300 hover:text-white rounded text-xs transition-colors"
+            title="Controls & Shortcuts [?]"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-cyber-cyan" />
+            <span>Help</span>
+          </button>
+        )}
 
         {/* Export JSON */}
         <button

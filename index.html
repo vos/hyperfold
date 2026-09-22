@@ -30,56 +30,222 @@
         left: 0;
       }
 
-      /* HUD Overlay */
+      /* HUD Overlay — Compact Single-Row Bar */
       #hud {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        padding: 16px 24px;
+        height: 48px;
+        padding: 0 14px;
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
         pointer-events: none;
         z-index: 10;
-      }
-
-      .hud-card {
-        pointer-events: auto;
-        background: rgba(6, 11, 22, 0.75);
-        border: 1px solid rgba(0, 255, 255, 0.35);
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.15), inset 0 0 10px rgba(0, 255, 255, 0.05);
-        border-radius: 6px;
-        padding: 10px 16px;
+        background: rgba(4, 6, 14, 0.82);
+        border-bottom: 1px solid rgba(0, 255, 255, 0.2);
         backdrop-filter: blur(6px);
+        gap: 4px;
       }
 
-      .hud-title {
-        font-size: 11px;
-        letter-spacing: 2px;
-        color: #88a0c0;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+      .hud-left, .hud-right {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        min-width: 0;
       }
 
-      .hud-value {
-        font-size: 18px;
+      .hud-left {
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .hud-right {
+        flex-shrink: 0;
+      }
+
+      /* Inline info chips */
+      .hud-chip {
+        pointer-events: auto;
+        font-size: 14px;
         font-weight: bold;
-        color: #ffffff;
-        text-shadow: 0 0 8px #00ffff;
+        color: #c0d8f0;
+        white-space: nowrap;
+        padding: 0 10px;
+        line-height: 48px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .accent-pink {
+      .hud-chip .chip-label {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: #5a7a9a;
+        text-transform: uppercase;
+        margin-right: 5px;
+      }
+
+      .hud-chip .chip-value {
+        color: #ffffff;
+        text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+      }
+
+      .hud-chip .chip-value.accent-pink {
         color: #ff00aa;
         text-shadow: 0 0 8px #ff00aa;
       }
 
-      .accent-gold {
+      .hud-chip .chip-value.accent-gold {
         color: #ffe600;
         text-shadow: 0 0 8px #ffe600;
       }
 
-      /* Interactive buttons */
+      .hud-chip .chip-value.accent-cyan {
+        color: #00ffff;
+        text-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+      }
+
+      .hud-divider {
+        width: 1px;
+        height: 24px;
+        background: rgba(0, 255, 255, 0.15);
+        flex-shrink: 0;
+      }
+
+      /* Icon buttons — compact 36x36 */
+      .hud-icon-btn {
+        pointer-events: auto;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 20, 36, 0.7);
+        border: 1px solid rgba(0, 255, 255, 0.35);
+        color: #00ffff;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+        margin-left: 5px;
+        position: relative;
+      }
+
+      .hud-icon-btn:hover {
+        background: rgba(0, 255, 255, 0.15);
+        border-color: #00ffff;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+      }
+
+      .hud-icon-btn.active {
+        background: rgba(0, 255, 255, 0.2);
+        border-color: #00ffaa;
+        color: #00ffaa;
+        box-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
+      }
+
+      /* Gear dropdown menu */
+      .hud-gear-menu {
+        display: none;
+        position: absolute;
+        top: 48px;
+        right: 0;
+        min-width: 210px;
+        background: rgba(6, 12, 24, 0.96);
+        border: 1px solid rgba(0, 255, 255, 0.35);
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        padding: 6px 0;
+        z-index: 50;
+        pointer-events: auto;
+      }
+
+      .hud-gear-menu.open {
+        display: block;
+      }
+
+      .gear-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 14px;
+        background: transparent;
+        border: none;
+        color: #c0d8f0;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        text-align: left;
+      }
+
+      .gear-menu-item:hover {
+        background: rgba(0, 255, 255, 0.1);
+        color: #ffffff;
+      }
+
+      .gear-menu-item .gear-key {
+        font-size: 10px;
+        color: #5a7a9a;
+        margin-left: auto;
+        letter-spacing: 0.5px;
+      }
+
+      .gear-menu-item .gear-icon {
+        width: 18px;
+        text-align: center;
+        font-size: 13px;
+      }
+
+      .gear-menu-sep {
+        height: 1px;
+        background: rgba(0, 255, 255, 0.1);
+        margin: 4px 10px;
+      }
+
+      /* World select — refined */
+      .hud-select {
+        pointer-events: auto;
+        background: rgba(8, 16, 30, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        color: #00ffff;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: bold;
+        padding: 6px 26px 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300ffff'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 8px 5px;
+        box-shadow: 0 0 8px rgba(0, 255, 255, 0.08);
+        letter-spacing: 0.3px;
+      }
+
+      .hud-select:hover, .hud-select:focus {
+        border-color: #00ffff;
+        box-shadow: 0 0 12px rgba(0, 255, 255, 0.25);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ffe600'/%3E%3C/svg%3E");
+        color: #ffe600;
+      }
+
+      .hud-select option {
+        background: #060b16;
+        color: #00ffff;
+        padding: 6px 10px;
+      }
+
+      /* Legacy .hud-btn — still used by modals */
       .hud-btn {
         pointer-events: auto;
         background: rgba(10, 20, 36, 0.85);
@@ -101,39 +267,120 @@
         box-shadow: 0 0 12px #00ffff;
       }
 
-      .hud-btn.active {
-        background: rgba(0, 255, 255, 0.25);
-        border-color: #00ffaa;
-        color: #00ffaa;
-        box-shadow: 0 0 8px rgba(0, 255, 170, 0.4);
+      .accent-pink {
+        color: #ff00aa;
+        text-shadow: 0 0 8px #ff00aa;
       }
 
-      .hud-select {
-        pointer-events: auto;
-        background: rgba(10, 20, 36, 0.9);
-        border: 1px solid #00ffff;
-        color: #00ffff;
-        font-family: inherit;
-        font-size: 12px;
-        font-weight: bold;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        margin-right: 8px;
-        outline: none;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
-      }
-
-      .hud-select:hover, .hud-select:focus {
-        border-color: #ffe600;
+      .accent-gold {
         color: #ffe600;
-        box-shadow: 0 0 12px rgba(255, 230, 0, 0.3);
+        text-shadow: 0 0 8px #ffe600;
       }
 
-      .hud-select option {
-        background: #060b16;
+      /* Help Overlay */
+      #help-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 90;
+        pointer-events: auto;
+      }
+
+      #help-overlay.open {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .help-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(2, 4, 10, 0.7);
+        backdrop-filter: blur(4px);
+      }
+
+      .help-panel {
+        position: relative;
+        background: rgba(6, 12, 24, 0.96);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.6);
+        border-radius: 8px;
+        padding: 24px 32px;
+        max-width: 560px;
+        width: 90%;
+        backdrop-filter: blur(10px);
+      }
+
+      .help-title {
+        font-size: 14px;
+        letter-spacing: 3px;
         color: #00ffff;
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+
+      .help-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px 32px;
+      }
+
+      .help-group h3 {
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: #5a7a9a;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+        padding-bottom: 4px;
+      }
+
+      .help-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #a0bcd8;
+      }
+
+      .help-row .help-keys {
+        display: flex;
+        gap: 3px;
+        min-width: 70px;
+        justify-content: flex-end;
+      }
+
+      .help-key {
+        display: inline-block;
+        background: rgba(0, 255, 255, 0.12);
+        border: 1px solid rgba(0, 255, 255, 0.35);
+        color: #ffffff;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        line-height: 1.5;
+      }
+
+      .help-action {
+        color: #c0d8f0;
+      }
+
+      .help-footer {
+        text-align: center;
+        margin-top: 18px;
+        font-size: 11px;
+        color: #5a7a9a;
+        letter-spacing: 1px;
       }
 
       /* Performance Debug Overlay */
@@ -296,35 +543,6 @@
       .accent-cyan {
         color: #00ffff;
         text-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
-      }
-
-      /* Instructions & Hints */
-      #instructions {
-        position: absolute;
-        bottom: 16px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(6, 11, 22, 0.8);
-        border: 1px solid rgba(0, 255, 255, 0.3);
-        border-radius: 6px;
-        padding: 8px 20px;
-        font-size: 13px;
-        color: #c0d8f0;
-        text-align: center;
-        pointer-events: none;
-        z-index: 10;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-      }
-
-      .key-badge {
-        display: inline-block;
-        background: rgba(0, 255, 255, 0.15);
-        border: 1px solid #00ffff;
-        color: #ffffff;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-weight: bold;
-        margin: 0 3px;
       }
 
       /* Rotation / Infinite Cube Banner */
@@ -583,7 +801,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 24px;
+        padding: 14px 28px;
         background: rgba(6, 14, 28, 0.95);
         border-bottom: 2px solid #00ffff;
         box-shadow: 0 0 18px rgba(0, 255, 255, 0.25);
@@ -593,12 +811,12 @@
       .map-title-group {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
       }
 
       .map-status-dot {
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background-color: #00ffaa;
         box-shadow: 0 0 8px #00ffaa;
@@ -606,18 +824,18 @@
       }
 
       .map-title {
-        font-size: 13px;
+        font-size: 15px;
         letter-spacing: 2px;
         color: #00ffff;
         font-weight: bold;
       }
 
       .map-coords-badge {
-        font-size: 11px;
+        font-size: 13px;
         color: #88c8ff;
         background: rgba(0, 255, 255, 0.12);
         border: 1px solid rgba(0, 255, 255, 0.3);
-        padding: 3px 8px;
+        padding: 4px 10px;
         border-radius: 4px;
         letter-spacing: 1px;
       }
@@ -625,8 +843,8 @@
       .map-stats-group {
         display: flex;
         align-items: center;
-        gap: 16px;
-        font-size: 12px;
+        gap: 20px;
+        font-size: 14px;
         color: #c0d8f0;
         font-weight: bold;
       }
@@ -635,10 +853,10 @@
         background: transparent;
         border: 1px solid rgba(0, 255, 255, 0.4);
         color: #88c8ff;
-        font-size: 18px;
+        font-size: 22px;
         line-height: 1;
         cursor: pointer;
-        padding: 3px 10px;
+        padding: 4px 12px;
         border-radius: 4px;
         transition: all 0.15s;
       }
@@ -667,10 +885,10 @@
       /* Map Toolbar */
       .map-toolbar {
         position: absolute;
-        top: 14px;
-        right: 14px;
+        top: 16px;
+        right: 16px;
         display: flex;
-        gap: 8px;
+        gap: 10px;
         z-index: 10;
       }
 
@@ -679,9 +897,9 @@
         border: 1px solid #00ffff;
         color: #00ffff;
         font-family: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
-        padding: 6px 12px;
+        padding: 8px 14px;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.2s;
@@ -694,55 +912,124 @@
         box-shadow: 0 0 12px #00ffff;
       }
 
-      /* Map Hint Bar */
-      .map-hint-bar {
+      /* Sector Map Help Overlay */
+      #map-help-overlay {
+        display: none;
         position: absolute;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(6, 12, 24, 0.85);
-        border: 1px solid rgba(0, 255, 255, 0.3);
-        border-radius: 4px;
-        padding: 6px 16px;
-        font-size: 11px;
-        color: #a0c4e8;
-        pointer-events: none;
-        letter-spacing: 0.5px;
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 110;
+        pointer-events: auto;
       }
 
-      .map-hint-bar kbd {
-        background: rgba(0, 255, 255, 0.15);
-        border: 1px solid rgba(0, 255, 255, 0.5);
-        color: #ffffff;
-        padding: 1px 5px;
-        border-radius: 3px;
+      #map-help-overlay.open {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .map-help-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(2, 5, 12, 0.75);
+        backdrop-filter: blur(4px);
+      }
+
+      .map-help-panel {
+        position: relative;
+        background: rgba(6, 12, 24, 0.96);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), 0 8px 32px rgba(0, 0, 0, 0.7);
+        border-radius: 8px;
+        padding: 24px 32px;
+        max-width: 480px;
+        width: 90%;
+        backdrop-filter: blur(10px);
+      }
+
+      .map-help-title {
+        font-size: 14px;
+        letter-spacing: 3px;
+        color: #00ffff;
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        text-align: center;
+        margin-bottom: 20px;
         font-weight: bold;
+      }
+
+      .map-help-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .map-help-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #c0d8f0;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(0, 255, 255, 0.08);
+      }
+
+      .map-help-keys {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .map-help-keys kbd, .map-help-footer kbd {
+        background: rgba(0, 255, 255, 0.16);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        color: #ffffff;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: bold;
+        font-family: inherit;
+      }
+
+      .map-help-action {
+        color: #88c8ff;
+      }
+
+      .map-help-footer {
+        text-align: center;
+        margin-top: 18px;
+        font-size: 11px;
+        color: #5a7a9a;
+        letter-spacing: 1px;
       }
 
       /* Tooltip */
       .map-tooltip {
         position: absolute;
-        background: rgba(6, 12, 24, 0.96);
+        background: rgba(6, 12, 24, 0.97);
         border: 1px solid #00ffff;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.45);
         border-radius: 6px;
-        padding: 10px 14px;
-        font-size: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
         pointer-events: none;
         z-index: 100;
-        max-width: 280px;
-        line-height: 1.4;
+        max-width: 330px;
+        line-height: 1.5;
       }
 
       .tip-header {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 11px;
+        gap: 8px;
+        font-size: 12px;
         font-weight: bold;
         letter-spacing: 1px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
       }
 
       .tip-header.tip-encrypted {
@@ -750,8 +1037,8 @@
       }
 
       .tip-dot {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         display: inline-block;
       }
@@ -764,33 +1051,34 @@
       .tip-badge-cur {
         background: #00ffff;
         color: #04060a;
-        font-size: 8px;
-        padding: 1px 4px;
-        border-radius: 2px;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 3px;
         font-weight: bold;
         margin-left: auto;
       }
 
       .tip-title {
-        font-size: 14px;
+        font-size: 16px;
         font-weight: bold;
         color: #ffffff;
-        margin-bottom: 3px;
+        margin-bottom: 5px;
       }
 
       .tip-sub {
-        font-size: 10px;
+        font-size: 12px;
         color: #88c8ff;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
+        line-height: 1.4;
       }
 
       .tip-meta {
         border-top: 1px solid rgba(0, 255, 255, 0.15);
-        padding-top: 6px;
-        font-size: 11px;
+        padding-top: 8px;
+        font-size: 12px;
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 4px;
       }
 
       .tip-row {
@@ -806,66 +1094,107 @@
   <body>
     <div id="game-container"></div>
 
-    <!-- HUD Overlay -->
+    <!-- HUD Overlay — Compact Single-Row Bar -->
     <div id="hud">
-      <div style="display: flex; gap: 12px;">
-        <div class="hud-card">
-          <div class="hud-title">Current Sector</div>
-          <div class="hud-value" id="hud-sector">Sector [0, 0]</div>
+      <div class="hud-left">
+        <!-- Sector -->
+        <div class="hud-chip">
+          <span class="chip-value" id="hud-sector">Sector 0: Genesis Core [0, 0]</span>
         </div>
-        <div class="hud-card">
-          <div class="hud-title">Manifold Sides</div>
-          <div class="hud-value accent-pink" id="hud-turn">Side #1 (Infinite)</div>
+        <div class="hud-divider"></div>
+        <!-- Manifold Side -->
+        <div class="hud-chip">
+          <span class="chip-value accent-pink" id="hud-turn">Side #1</span>
         </div>
-        <div class="hud-card">
-          <div class="hud-title">Energy Prisms</div>
-          <div class="hud-value accent-gold" id="hud-prisms">0 / 18</div>
+        <div class="hud-divider"></div>
+        <!-- Energy Prisms -->
+        <div class="hud-chip">
+          <span class="chip-label">⬡</span>
+          <span class="chip-value accent-gold" id="hud-prisms">0 / 18</span>
         </div>
-        <div class="hud-card" id="hud-procedural-card" style="display: none;">
-          <div class="hud-title">Infinite Telemetry</div>
-          <div class="hud-value accent-cyan" id="hud-depth" style="font-size: 14px;">Depth: 0 | Streak: 0</div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3px; gap: 8px;">
-            <div id="hud-threat-badge" style="font-size: 10px; color: #39ff14; font-weight: bold; letter-spacing: 1px;">THREAT: 0% [NORMAL]</div>
-            <button class="btn-icon" id="btn-hud-procedural-restart" style="pointer-events: auto; cursor: pointer; font-size: 11px; padding: 3px 8px; border-color: #00ffff; color: #00ffff; z-index: 20; position: relative;" title="Restart Void: Change Difficulty or Seed">⚙ Setup / Seed</button>
-          </div>
+        <!-- Procedural Telemetry (hidden by default) -->
+        <div class="hud-divider" id="hud-procedural-divider" style="display: none;"></div>
+        <div class="hud-chip" id="hud-procedural-card" style="display: none;">
+          <span class="chip-value accent-cyan" id="hud-depth" style="font-size: 13px;">D:0 S:0</span>
+          <span id="hud-threat-badge" style="font-size: 12px; color: #39ff14; font-weight: bold; letter-spacing: 1px; margin-left: 6px;">0%</span>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center;">
+      <div class="hud-right">
+        <!-- World Selector -->
         <select class="hud-select" id="world-select" title="Switch World or Load Custom Map">
           <option value="demo">World: Infinite Tesseract (10 Sectors)</option>
           <option value="mini">World: Mini Hypercube (3 Sectors)</option>
           <option value="procedural">World: Infinite Procedural Void (Endless)</option>
           <option value="__load_custom__">+ Load Custom World (.json)...</option>
         </select>
-        <button class="hud-btn" id="btn-procedural-setup" style="display: none; border-color: #00ffff; color: #00ffff;" title="Restart Void: Choose Difficulty & Seed">🌌 Void Setup [N]</button>
         <input type="file" id="world-file-input" accept=".json" style="display: none;" />
-        <button class="hud-btn" id="btn-map">Map [M]</button>
-        <button class="hud-btn" id="btn-perf">Perf: OFF [P]</button>
-        <button class="hud-btn" id="btn-mute">Sound: ON [U]</button>
-        <button class="hud-btn" id="btn-camera">View: 3D Depth</button>
-        <button class="hud-btn" id="btn-reset-cam">Reset View [V]</button>
-        <button class="hud-btn" id="btn-reset" title="Press to Die &amp; Respawn | Hold to Restart Whole Level">Reset [R]</button>
+
+        <!-- Icon Buttons -->
+        <button class="hud-icon-btn" id="btn-map" title="Sector Map [M]">🗺</button>
+        <button class="hud-icon-btn" id="btn-mute" title="Sound: ON [U]">♫</button>
+
+        <!-- Gear Menu Container -->
+        <div style="position: relative; display: flex; align-items: center;">
+          <button class="hud-icon-btn" id="btn-gear" title="Settings">⚙</button>
+          <div class="hud-gear-menu" id="gear-menu">
+            <button class="gear-menu-item" id="btn-camera"><span class="gear-icon">👁</span> View: 3D Depth <span class="gear-key">C</span></button>
+            <button class="gear-menu-item" id="btn-reset-cam"><span class="gear-icon">↺</span> Reset View <span class="gear-key">V</span></button>
+            <button class="gear-menu-item" id="btn-perf"><span class="gear-icon">📊</span> Perf: OFF <span class="gear-key">P</span></button>
+            <div class="gear-menu-sep"></div>
+            <button class="gear-menu-item" id="btn-reset" title="Press to Die &amp; Respawn | Hold to Restart Whole Level"><span class="gear-icon">💀</span> Die / Respawn <span class="gear-key">R</span></button>
+            <button class="gear-menu-item" id="btn-procedural-setup" style="display: none;"><span class="gear-icon">🌌</span> Void Setup <span class="gear-key">N</span></button>
+          </div>
+        </div>
+
+        <!-- Help Button -->
+        <button class="hud-icon-btn" id="btn-help" title="Controls [?]">?</button>
       </div>
     </div>
+
+    <!-- Hidden procedural restart button (referenced by TS but not in top bar) -->
+    <button id="btn-hud-procedural-restart" style="display: none;"></button>
 
     <!-- Infinite Sides Rotation Notification -->
     <div id="rotation-banner">CUBE TUMBLING: ROTATING TO NEXT FACE</div>
 
-    <!-- Instructions Bar -->
-    <div id="instructions">
-      <span class="key-badge">A</span> <span class="key-badge">D</span> Move &nbsp;|&nbsp;
-      <span class="key-badge">W</span> / <span class="key-badge">Space</span> Jump &nbsp;|&nbsp;
-      <span class="key-badge">S</span> Duck ( + <span class="key-badge">Space</span> Drop Through) &nbsp;|&nbsp;
-      <span class="key-badge">M</span> Map &nbsp;|&nbsp;
-      <span class="key-badge">U</span> Sound &nbsp;|&nbsp;
-      <span class="key-badge">N</span> Void Setup &nbsp;|&nbsp;
-      <span class="key-badge">Drag</span> / <span class="key-badge">Right Stick</span> <strong>Orbit 3D Cube</strong> &nbsp;|&nbsp;
-      <span class="key-badge">Scroll</span> Zoom &nbsp;|&nbsp;
-      <span class="key-badge">V</span> Reset View &nbsp;|&nbsp;
-      <span class="key-badge">R</span> Die (Hold: Restart Level) &nbsp;|&nbsp;
-      <span class="key-badge">C</span> 2D/3D &nbsp;|&nbsp;
-      <span class="key-badge">P</span> / <span class="key-badge">F3</span> Perf
+    <!-- Help Overlay -->
+    <div id="help-overlay">
+      <div class="help-backdrop" id="help-backdrop"></div>
+      <div class="help-panel">
+        <div class="help-title">CONTROLS</div>
+        <div class="help-columns">
+          <div class="help-group">
+            <h3>Movement</h3>
+            <div class="help-row"><span class="help-keys"><span class="help-key">A</span><span class="help-key">D</span></span> <span class="help-action">Move</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">W</span><span class="help-key">Space</span></span> <span class="help-action">Jump</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">S</span></span> <span class="help-action">Duck</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">S</span>+<span class="help-key">Space</span></span> <span class="help-action">Drop Through</span></div>
+          </div>
+          <div class="help-group">
+            <h3>3D Camera</h3>
+            <div class="help-row"><span class="help-keys"><span class="help-key">Drag</span></span> <span class="help-action">Orbit Cube</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">R.Stick</span></span> <span class="help-action">Orbit (Gamepad)</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">Scroll</span></span> <span class="help-action">Zoom</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">V</span></span> <span class="help-action">Reset View</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">C</span></span> <span class="help-action">2D / 3D Toggle</span></div>
+          </div>
+          <div class="help-group">
+            <h3>Actions</h3>
+            <div class="help-row"><span class="help-keys"><span class="help-key">M</span></span> <span class="help-action">Sector Map</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">N</span></span> <span class="help-action">Void Setup</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">R</span></span> <span class="help-action">Die / Respawn</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">Hold R</span></span> <span class="help-action">Restart Level</span></div>
+          </div>
+          <div class="help-group">
+            <h3>System</h3>
+            <div class="help-row"><span class="help-keys"><span class="help-key">U</span></span> <span class="help-action">Sound On / Off</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">P</span><span class="help-key">F3</span></span> <span class="help-action">Perf Stats</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">Esc</span></span> <span class="help-action">Close Menus</span></div>
+          </div>
+        </div>
+        <div class="help-footer">Press <span class="help-key">?</span> or <span class="help-key">H</span> to close</div>
+      </div>
     </div>
 
     <!-- Victory Modal -->
@@ -937,18 +1266,41 @@
             <button class="map-tool-btn" id="map-btn-zoom-out" title="Zoom Out [-]">&minus;</button>
             <button class="map-tool-btn" id="map-btn-fit" title="Fit All Discovered Sectors [F]">⛶ Fit Map</button>
             <button class="map-tool-btn" id="map-btn-center-player" title="Center on Current Room [C]">⦿ Locate</button>
+            <button class="map-tool-btn" id="map-btn-help" title="Controls Help [?]">? Controls</button>
           </div>
 
           <!-- Sector Detail Tooltip -->
           <div id="sector-map-tooltip" class="map-tooltip" style="display: none;"></div>
 
-          <!-- Interaction Hint Legend -->
-          <div class="map-hint-bar">
-            <span><kbd>Drag</kbd> / <kbd>WASD</kbd> / <kbd>Arrows</kbd> Pan</span> &nbsp;|&nbsp;
-            <span><kbd>Scroll</kbd> / <kbd>+/-</kbd> Zoom</span> &nbsp;|&nbsp;
-            <span><kbd>F</kbd> Fit Overview</span> &nbsp;|&nbsp;
-            <span><kbd>C</kbd> Center Player</span> &nbsp;|&nbsp;
-            <span><kbd>M</kbd> / <kbd>Esc</kbd> Close</span>
+          <!-- Sector Map Help Overlay -->
+          <div id="map-help-overlay">
+            <div class="map-help-backdrop" id="map-help-backdrop"></div>
+            <div class="map-help-panel">
+              <div class="map-help-title">MAP CONTROLS</div>
+              <div class="map-help-grid">
+                <div class="map-help-row">
+                  <span class="map-help-keys"><kbd>Drag</kbd> / <kbd>WASD</kbd> / <kbd>Arrows</kbd></span>
+                  <span class="map-help-action">Pan Map</span>
+                </div>
+                <div class="map-help-row">
+                  <span class="map-help-keys"><kbd>Scroll</kbd> / <kbd>+</kbd> <kbd>-</kbd></span>
+                  <span class="map-help-action">Zoom Viewport</span>
+                </div>
+                <div class="map-help-row">
+                  <span class="map-help-keys"><kbd>F</kbd> / <kbd>0</kbd></span>
+                  <span class="map-help-action">Fit All Sectors</span>
+                </div>
+                <div class="map-help-row">
+                  <span class="map-help-keys"><kbd>C</kbd> / <kbd>Home</kbd></span>
+                  <span class="map-help-action">Locate Player</span>
+                </div>
+                <div class="map-help-row">
+                  <span class="map-help-keys"><kbd>M</kbd> / <kbd>Esc</kbd></span>
+                  <span class="map-help-action">Close Sector Map</span>
+                </div>
+              </div>
+              <div class="map-help-footer">Press <kbd>?</kbd> or <kbd>H</kbd> to close</div>
+            </div>
           </div>
         </div>
       </div>
