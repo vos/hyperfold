@@ -10,6 +10,7 @@ import { ParticleSystem } from './engine/ParticleSystem';
 import { PhysicsEngine } from './engine/PhysicsEngine';
 import { CubeRenderer, RotationDirection } from './graphics/CubeRenderer';
 import { PerformanceDebugView } from './ui/PerformanceDebugView';
+import { SectorMapView } from './ui/SectorMapView';
 
 type GameState = 'PLAYING' | 'ROTATING' | 'GOAL_REACHED' | 'RESPAWNING';
 
@@ -47,9 +48,11 @@ class Game {
   private btnMuteEl: HTMLElement;
   private btnCameraEl: HTMLElement;
   private btnPerfEl: HTMLElement | null;
+  private btnMapEl: HTMLElement | null;
   private worldSelectEl: HTMLSelectElement;
   private worldFileInputEl: HTMLInputElement;
   private perfDebug: PerformanceDebugView;
+  private sectorMap: SectorMapView;
 
   // Procedural Infinite Mode Elements
   private proceduralModalEl: HTMLElement;
@@ -76,6 +79,7 @@ class Game {
     this.btnMuteEl = document.getElementById('btn-mute')!;
     this.btnCameraEl = document.getElementById('btn-camera')!;
     this.btnPerfEl = document.getElementById('btn-perf');
+    this.btnMapEl = document.getElementById('btn-map');
     this.worldSelectEl = document.getElementById('world-select') as HTMLSelectElement;
     this.worldFileInputEl = document.getElementById('world-file-input') as HTMLInputElement;
     this.proceduralModalEl = document.getElementById('procedural-modal')!;
@@ -144,6 +148,12 @@ class Game {
     this.physics = new PhysicsEngine(this.audio, this.particles);
     this.cubeRenderer = new CubeRenderer(container);
 
+    this.sectorMap = new SectorMapView({
+      levelMap: this.levelMap,
+      currentCoords: this.currentCoords,
+      player: this.player,
+    });
+
     // Initial binding of active and adjacent rooms (rendered directly in real-time)
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
     this.updateHUD();
@@ -153,9 +163,15 @@ class Game {
   }
 
   private setupUIEvents(): void {
+    if (this.btnMapEl) {
+      this.btnMapEl.addEventListener('click', () => {
+        this.sectorMap.toggle();
+      });
+    }
+
     this.btnMuteEl.addEventListener('click', () => {
       const muted = this.audio.toggleMute();
-      this.btnMuteEl.textContent = muted ? 'Sound: MUTED' : 'Sound: ON';
+      this.btnMuteEl.textContent = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
     });
 
     this.btnCameraEl.addEventListener('click', () => {
@@ -338,20 +354,33 @@ class Game {
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') {
+        this.sectorMap.toggle();
+      }
+      if (e.code === 'KeyU') {
         const muted = this.audio.toggleMute();
-        this.btnMuteEl.textContent = muted ? 'Sound: MUTED' : 'Sound: ON';
+        this.btnMuteEl.textContent = muted ? 'Sound: MUTED [U]' : 'Sound: ON [U]';
       }
       if (e.code === 'KeyC') {
-        this.btnCameraEl.click();
+        if (!this.sectorMap.visible) {
+          this.btnCameraEl.click();
+        }
       }
       if (e.code === 'KeyV') {
-        this.cubeRenderer.resetCameraToDefault();
+        if (!this.sectorMap.visible) {
+          this.cubeRenderer.resetCameraToDefault();
+        }
       }
       if (e.code === 'KeyN' && this.levelMap instanceof ProceduralLevelMap) {
-        this.openProceduralModal();
+        if (!this.sectorMap.visible) {
+          this.openProceduralModal();
+        }
       }
-      if (e.code === 'Escape' && this.proceduralModalEl.style.display === 'block') {
-        this.closeProceduralModal();
+      if (e.code === 'Escape') {
+        if (this.sectorMap.visible) {
+          this.sectorMap.close();
+        } else if (this.proceduralModalEl.style.display === 'block') {
+          this.closeProceduralModal();
+        }
       }
     });
   }
@@ -412,6 +441,12 @@ class Game {
   }
 
   private gameLoop = (time: number) => {
+    if (this.sectorMap.visible) {
+      this.lastTime = time;
+      requestAnimationFrame(this.gameLoop);
+      return;
+    }
+
     this.perfDebug.recordFrame(time);
 
     if (this.lastTime === 0) this.lastTime = time;
@@ -569,6 +604,7 @@ class Game {
         this.audio.playCollect();
         this.particles.emitSparks(item.x, item.y, 18, item.type === 'prism' ? '#ff00aa' : '#ffe600');
         this.updateHUD();
+        this.sectorMap.setCurrentCoords(this.currentCoords);
       }
     }
   }
@@ -635,6 +671,7 @@ class Game {
       this.currentRoom = nextRoom;
       this.pendingNextRoom = null;
       this.levelMap.markVisited(targetX, targetY);
+      this.sectorMap.setCurrentCoords(this.currentCoords);
 
       // 2. Re-anchor 3D cube: snap rotation back to 0
       this.cubeRenderer.resetRotationToZero();
@@ -722,6 +759,7 @@ class Game {
     this.pendingNextRoom = null;
     this.levelMap.markVisited(this.currentCoords.x, this.currentCoords.y);
     this.sidesTraversed = 1;
+    this.sectorMap.setLevelMap(this.levelMap, this.currentCoords);
 
     // Reset rotation & face binding
     this.cubeRenderer.resetRotationToZero();

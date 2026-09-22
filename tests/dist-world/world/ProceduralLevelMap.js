@@ -42,6 +42,10 @@ class ProceduralLevelMap extends LevelMap_1.LevelMap {
     return this.maxDepthReached;
   }
 
+  isDynamicMap() {
+    return true;
+  }
+
   markVisited(x, y) {
     const wasAlreadyVisited = this.isVisited(x, y);
     super.markVisited(x, y);

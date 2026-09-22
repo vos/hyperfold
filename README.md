@@ -57,7 +57,8 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 | **Drop Through Platform** | `S + Space` or `↓ + Jump` | `Down + Button A` | — |
 | **Reset Sector / Die (Tap)** | `R` (Tap) | Button `Select` / `Back` (Tap) | `Reset [R]` Button (Tap) |
 | **Restart Whole Level (Hold 0.8s)** | `Hold R` | `Hold Select` / `Back` | `Reset [R]` Button (Hold) |
-| **Toggle Sound** | `M` | — | HUD Button |
+| **Toggle Sound** | `U` | — | HUD Button |
+| **Sector Map (2D Overlay)** | `M` | — | HUD Button |
 | **Toggle 3D / Flat View** | `C` | — | HUD Button |
 | **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Button |
 | **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Button |

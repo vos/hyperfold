@@ -551,6 +551,256 @@
         background: #ffe600;
         box-shadow: 0 0 20px rgba(255, 230, 0, 0.6);
       }
+
+      /* Sector Map Modal & Overlay (Full 100% Viewport Experience) */
+      #sector-map-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #02050c;
+        z-index: 95;
+        pointer-events: auto;
+      }
+
+      .map-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(4, 8, 18, 0.98);
+        border: none;
+        box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.05);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .map-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 24px;
+        background: rgba(6, 14, 28, 0.95);
+        border-bottom: 2px solid #00ffff;
+        box-shadow: 0 0 18px rgba(0, 255, 255, 0.25);
+        gap: 16px;
+      }
+
+      .map-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .map-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #00ffaa;
+        box-shadow: 0 0 8px #00ffaa;
+        display: inline-block;
+      }
+
+      .map-title {
+        font-size: 13px;
+        letter-spacing: 2px;
+        color: #00ffff;
+        font-weight: bold;
+      }
+
+      .map-coords-badge {
+        font-size: 11px;
+        color: #88c8ff;
+        background: rgba(0, 255, 255, 0.12);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        padding: 3px 8px;
+        border-radius: 4px;
+        letter-spacing: 1px;
+      }
+
+      .map-stats-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 12px;
+        color: #c0d8f0;
+        font-weight: bold;
+      }
+
+      .map-close-btn {
+        background: transparent;
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        color: #88c8ff;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 3px 10px;
+        border-radius: 4px;
+        transition: all 0.15s;
+      }
+
+      .map-close-btn:hover {
+        background: #ff0055;
+        border-color: #ff0055;
+        color: #ffffff;
+        box-shadow: 0 0 10px #ff0055;
+      }
+
+      .map-canvas-wrapper {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: #03060d;
+      }
+
+      #sector-map-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+      }
+
+      /* Map Toolbar */
+      .map-toolbar {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .map-tool-btn {
+        background: rgba(8, 16, 32, 0.9);
+        border: 1px solid #00ffff;
+        color: #00ffff;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .map-tool-btn:hover {
+        background: #00ffff;
+        color: #04060a;
+        box-shadow: 0 0 12px #00ffff;
+      }
+
+      /* Map Hint Bar */
+      .map-hint-bar {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(6, 12, 24, 0.85);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 4px;
+        padding: 6px 16px;
+        font-size: 11px;
+        color: #a0c4e8;
+        pointer-events: none;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+      }
+
+      .map-hint-bar kbd {
+        background: rgba(0, 255, 255, 0.15);
+        border: 1px solid rgba(0, 255, 255, 0.5);
+        color: #ffffff;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-weight: bold;
+      }
+
+      /* Tooltip */
+      .map-tooltip {
+        position: absolute;
+        background: rgba(6, 12, 24, 0.96);
+        border: 1px solid #00ffff;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 100;
+        max-width: 280px;
+        line-height: 1.4;
+      }
+
+      .tip-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+
+      .tip-header.tip-encrypted {
+        color: #ffaa00;
+      }
+
+      .tip-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .tip-dot-enc {
+        background: #ffaa00;
+        box-shadow: 0 0 6px #ffaa00;
+      }
+
+      .tip-badge-cur {
+        background: #00ffff;
+        color: #04060a;
+        font-size: 8px;
+        padding: 1px 4px;
+        border-radius: 2px;
+        font-weight: bold;
+        margin-left: auto;
+      }
+
+      .tip-title {
+        font-size: 14px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 3px;
+      }
+
+      .tip-sub {
+        font-size: 10px;
+        color: #88c8ff;
+        margin-bottom: 6px;
+      }
+
+      .tip-meta {
+        border-top: 1px solid rgba(0, 255, 255, 0.15);
+        padding-top: 6px;
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .tip-row {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .tip-hazards {
+        color: #ff5588;
+      }
     </style>
   </head>
   <body>
@@ -590,8 +840,9 @@
         </select>
         <button class="hud-btn" id="btn-procedural-setup" style="display: none; border-color: #00ffff; color: #00ffff;" title="Restart Void: Choose Difficulty & Seed">🌌 Void Setup [N]</button>
         <input type="file" id="world-file-input" accept=".json" style="display: none;" />
+        <button class="hud-btn" id="btn-map">Map [M]</button>
         <button class="hud-btn" id="btn-perf">Perf: OFF [P]</button>
-        <button class="hud-btn" id="btn-mute">Sound: ON</button>
+        <button class="hud-btn" id="btn-mute">Sound: ON [U]</button>
         <button class="hud-btn" id="btn-camera">View: 3D Depth</button>
         <button class="hud-btn" id="btn-reset-cam">Reset View [V]</button>
         <button class="hud-btn" id="btn-reset" title="Press to Die &amp; Respawn | Hold to Restart Whole Level">Reset [R]</button>
@@ -606,6 +857,8 @@
       <span class="key-badge">A</span> <span class="key-badge">D</span> Move &nbsp;|&nbsp;
       <span class="key-badge">W</span> / <span class="key-badge">Space</span> Jump &nbsp;|&nbsp;
       <span class="key-badge">S</span> Duck ( + <span class="key-badge">Space</span> Drop Through) &nbsp;|&nbsp;
+      <span class="key-badge">M</span> Map &nbsp;|&nbsp;
+      <span class="key-badge">U</span> Sound &nbsp;|&nbsp;
       <span class="key-badge">N</span> Void Setup &nbsp;|&nbsp;
       <span class="key-badge">Drag</span> / <span class="key-badge">Right Stick</span> <strong>Orbit 3D Cube</strong> &nbsp;|&nbsp;
       <span class="key-badge">Scroll</span> Zoom &nbsp;|&nbsp;
@@ -656,6 +909,48 @@
       <div style="display: flex; gap: 10px;">
         <button class="btn-launch" id="btn-launch-procedural" style="flex: 1;">▶ ENGAGE INFINITE MANIFOLD</button>
         <button class="hud-btn" id="btn-cancel-procedural" style="margin: 0; padding: 12px 18px; border-color: rgba(255, 255, 255, 0.3); color: #88a0c0; border-radius: 4px;">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Sector Map Modal -->
+    <div id="sector-map-modal">
+      <div class="map-container">
+        <div class="map-header">
+          <div class="map-title-group">
+            <span class="map-status-dot"></span>
+            <span class="map-title">SECTOR MAP // MANIFOLD TELEMETRY</span>
+            <span class="map-coords-badge" id="map-current-sector-badge">CURRENT: SECTOR [0, 0]</span>
+          </div>
+          <div class="map-stats-group">
+            <span class="map-stat-item" id="map-stat-discovered">DISCOVERED: 1 / 10 (10%)</span>
+            <span class="map-stat-item accent-gold" id="map-stat-prisms">PRISMS: 0 / 18</span>
+          </div>
+          <button class="map-close-btn" id="btn-close-sector-map" title="Close Map [M] / [Esc]">&times;</button>
+        </div>
+
+        <div class="map-canvas-wrapper">
+          <canvas id="sector-map-canvas"></canvas>
+
+          <!-- Map Navigation Toolbar -->
+          <div class="map-toolbar">
+            <button class="map-tool-btn" id="map-btn-zoom-in" title="Zoom In [+]">+</button>
+            <button class="map-tool-btn" id="map-btn-zoom-out" title="Zoom Out [-]">&minus;</button>
+            <button class="map-tool-btn" id="map-btn-fit" title="Fit All Discovered Sectors [F]">⛶ Fit Map</button>
+            <button class="map-tool-btn" id="map-btn-center-player" title="Center on Current Room [C]">⦿ Locate</button>
+          </div>
+
+          <!-- Sector Detail Tooltip -->
+          <div id="sector-map-tooltip" class="map-tooltip" style="display: none;"></div>
+
+          <!-- Interaction Hint Legend -->
+          <div class="map-hint-bar">
+            <span><kbd>Drag</kbd> / <kbd>WASD</kbd> / <kbd>Arrows</kbd> Pan</span> &nbsp;|&nbsp;
+            <span><kbd>Scroll</kbd> / <kbd>+/-</kbd> Zoom</span> &nbsp;|&nbsp;
+            <span><kbd>F</kbd> Fit Overview</span> &nbsp;|&nbsp;
+            <span><kbd>C</kbd> Center Player</span> &nbsp;|&nbsp;
+            <span><kbd>M</kbd> / <kbd>Esc</kbd> Close</span>
+          </div>
+        </div>
       </div>
     </div>
 

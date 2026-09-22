@@ -41,6 +41,10 @@ export class ProceduralLevelMap extends LevelMap {
     return this.maxDepthReached;
   }
 
+  protected override isDynamicMap(): boolean {
+    return true;
+  }
+
   /**
    * Records that player has entered (x, y). Updates depth, streak, and visited state.
    */
