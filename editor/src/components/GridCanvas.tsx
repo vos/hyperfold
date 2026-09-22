@@ -14,6 +14,16 @@ import {
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
 import { getAdjacentSectors } from '../utils/navigation.ts';
 
+function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const l2 = dx * dx + dy * dy;
+  if (l2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
 interface GridCanvasProps {
   room: RoomData;
   world: WorldData;
@@ -61,8 +71,27 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
   // Dragging dynamic entity handle
   const [draggingEntityHandle, setDraggingEntityHandle] = useState<{
-    entityType: 'spawn' | 'collectible' | 'movingPlatformStart' | 'movingPlatformEnd' | 'laserBarrier1' | 'laserBarrier2' | 'laserTurret';
+    entityType:
+      | 'spawn'
+      | 'collectible'
+      | 'movingPlatformStart'
+      | 'movingPlatformEnd'
+      | 'laserBarrier1'
+      | 'laserBarrier2'
+      | 'laserBarrierEnd1'
+      | 'laserBarrierEnd2'
+      | 'laserBarrierEndBeam'
+      | 'laserBarrierBeam'
+      | 'laserTurret';
     id?: string;
+    initialCoords?: {
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      startX: number;
+      startY: number;
+    };
   } | null>(null);
 
   // Helper to get exact canvas coordinates from mouse event
@@ -246,6 +275,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       // 4. Check laser barriers
       if (room.laserBarriers) {
         for (const b of room.laserBarriers) {
+          // Check start handles
           if (Math.hypot(coords.pixelX - b.startX1, coords.pixelY - b.startY1) <= HIT_RADIUS) {
             onSelectEntity({ type: 'laserBarrier', id: b.id });
             setDraggingEntityHandle({ entityType: 'laserBarrier1', id: b.id });
@@ -254,6 +284,79 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           if (Math.hypot(coords.pixelX - b.startX2, coords.pixelY - b.startY2) <= HIT_RADIUS) {
             onSelectEntity({ type: 'laserBarrier', id: b.id });
             setDraggingEntityHandle({ entityType: 'laserBarrier2', id: b.id });
+            return;
+          }
+          // Check ghost platform end handles
+          if (b.endX1 !== undefined && b.endY1 !== undefined) {
+            if (Math.hypot(coords.pixelX - b.endX1, coords.pixelY - b.endY1) <= HIT_RADIUS) {
+              onSelectEntity({ type: 'laserBarrier', id: b.id });
+              setDraggingEntityHandle({ entityType: 'laserBarrierEnd1', id: b.id });
+              return;
+            }
+          }
+          if (b.endX2 !== undefined && b.endY2 !== undefined) {
+            if (Math.hypot(coords.pixelX - b.endX2, coords.pixelY - b.endY2) <= HIT_RADIUS) {
+              onSelectEntity({ type: 'laserBarrier', id: b.id });
+              setDraggingEntityHandle({ entityType: 'laserBarrierEnd2', id: b.id });
+              return;
+            }
+          }
+          // Check ghost beam body (moves both ghost endpoints together)
+          if (
+            b.endX1 !== undefined &&
+            b.endY1 !== undefined &&
+            b.endX2 !== undefined &&
+            b.endY2 !== undefined
+          ) {
+            if (distToSegment(coords.pixelX, coords.pixelY, b.endX1, b.endY1, b.endX2, b.endY2) <= 12) {
+              onSelectEntity({ type: 'laserBarrier', id: b.id });
+              setDraggingEntityHandle({
+                entityType: 'laserBarrierEndBeam',
+                id: b.id,
+                initialCoords: {
+                  x1: b.endX1,
+                  y1: b.endY1,
+                  x2: b.endX2,
+                  y2: b.endY2,
+                  startX: coords.pixelX,
+                  startY: coords.pixelY,
+                },
+              });
+              return;
+            }
+          }
+          // Check main beam body (moves both start endpoints together)
+          if (distToSegment(coords.pixelX, coords.pixelY, b.startX1, b.startY1, b.startX2, b.startY2) <= 12) {
+            onSelectEntity({ type: 'laserBarrier', id: b.id });
+            setDraggingEntityHandle({
+              entityType: 'laserBarrierBeam',
+              id: b.id,
+              initialCoords: {
+                x1: b.startX1,
+                y1: b.startY1,
+                x2: b.startX2,
+                y2: b.startY2,
+                startX: coords.pixelX,
+                startY: coords.pixelY,
+              },
+            });
+            return;
+          }
+          // Check path lines between start and end
+          if (
+            b.endX1 !== undefined &&
+            b.endY1 !== undefined &&
+            distToSegment(coords.pixelX, coords.pixelY, b.startX1, b.startY1, b.endX1, b.endY1) <= 10
+          ) {
+            onSelectEntity({ type: 'laserBarrier', id: b.id });
+            return;
+          }
+          if (
+            b.endX2 !== undefined &&
+            b.endY2 !== undefined &&
+            distToSegment(coords.pixelX, coords.pixelY, b.startX2, b.startY2, b.endX2, b.endY2) <= 10
+          ) {
+            onSelectEntity({ type: 'laserBarrier', id: b.id });
             return;
           }
         }
@@ -348,6 +451,58 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ...prev,
             laserBarriers: prev.laserBarriers?.map((b) =>
               b.id === draggingEntityHandle.id ? { ...b, startX2: snapX, startY2: snapY } : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrierEnd1') {
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id ? { ...b, endX1: snapX, endY1: snapY } : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrierEnd2') {
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id ? { ...b, endX2: snapX, endY2: snapY } : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrierEndBeam' && draggingEntityHandle.initialCoords) {
+          const dx = snapX - Math.round(draggingEntityHandle.initialCoords.startX / 20) * 20;
+          const dy = snapY - Math.round(draggingEntityHandle.initialCoords.startY / 20) * 20;
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id
+                ? {
+                    ...b,
+                    endX1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
+                    endY1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
+                    endX2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
+                    endY2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
+                  }
+                : b
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'laserBarrierBeam' && draggingEntityHandle.initialCoords) {
+          const dx = snapX - Math.round(draggingEntityHandle.initialCoords.startX / 20) * 20;
+          const dy = snapY - Math.round(draggingEntityHandle.initialCoords.startY / 20) * 20;
+          return {
+            ...prev,
+            laserBarriers: prev.laserBarriers?.map((b) =>
+              b.id === draggingEntityHandle.id
+                ? {
+                    ...b,
+                    startX1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
+                    startY1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
+                    startX2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
+                    startY2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
+                  }
+                : b
             ),
           };
         }
@@ -719,11 +874,17 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ctx.stroke();
 
             // End handles
-            ctx.fillStyle = `${color}aa`;
+            ctx.fillStyle = isSelected ? '#ffffff' : `${color}cc`;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(bar.endX1, bar.endY1, 4, 0, Math.PI * 2);
-            ctx.arc(bar.endX2, bar.endY2, 4, 0, Math.PI * 2);
+            ctx.arc(bar.endX1, bar.endY1, isSelected ? 6 : 5, 0, Math.PI * 2);
             ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(bar.endX2, bar.endY2, isSelected ? 6 : 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
           }
 
           // Pylon 1 Handle

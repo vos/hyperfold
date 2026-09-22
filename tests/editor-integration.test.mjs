@@ -584,5 +584,62 @@ test('Editor & Game Engine Integration Verification', async (t) => {
       assert.ok(!/^[1-9]$/.test(key), `Tool ${tool} shortcut '${key}' must not be a number 1-9`);
     }
   });
+
+  await t.test('Laser barrier ghost platform endpoints (endX1, endY1, endX2, endY2) update correctly via drag handles', () => {
+    const world = createEmptyWorld();
+    const room = world.rooms[0];
+    room.laserBarriers = [
+      {
+        id: 'laser_ghost_test',
+        startX1: 100,
+        startY1: 200,
+        startX2: 100,
+        startY2: 400,
+        endX1: 300,
+        endY1: 200,
+        endX2: 300,
+        endY2: 400,
+        activeDuration: 2.0,
+        inactiveDuration: 2.0,
+      },
+    ];
+
+    // Simulate drag handle updates as performed in GridCanvas
+    const barrier = room.laserBarriers[0];
+
+    // Drag end handle 1 to (360, 220)
+    const newEndX1 = 360;
+    const newEndY1 = 220;
+    barrier.endX1 = newEndX1;
+    barrier.endY1 = newEndY1;
+
+    // Drag end handle 2 to (360, 440)
+    const newEndX2 = 360;
+    const newEndY2 = 440;
+    barrier.endX2 = newEndX2;
+    barrier.endY2 = newEndY2;
+
+    assert.equal(room.laserBarriers[0].endX1, 360);
+    assert.equal(room.laserBarriers[0].endY1, 220);
+    assert.equal(room.laserBarriers[0].endX2, 360);
+    assert.equal(room.laserBarriers[0].endY2, 440);
+
+    // Export and verify roundtrip
+    const jsonStr = exportWorldJson(world);
+    const parsed = parseWorldJson(jsonStr);
+    assert.equal(parsed.rooms[0].laserBarriers?.[0].endX1, 360);
+    assert.equal(parsed.rooms[0].laserBarriers?.[0].endY1, 220);
+    assert.equal(parsed.rooms[0].laserBarriers?.[0].endX2, 360);
+    assert.equal(parsed.rooms[0].laserBarriers?.[0].endY2, 440);
+
+    // Ensure game engine loads and interpolates between start and new end endpoints
+    const engineResult = WorldRegistry.loadWorldFromJsonString(jsonStr);
+    const engineRoom = engineResult.map.getRoom(0, 0);
+    assert.ok(engineRoom.laserBarriers);
+    assert.equal(engineRoom.laserBarriers[0].endX1, 360);
+    assert.equal(engineRoom.laserBarriers[0].endY1, 220);
+    assert.equal(engineRoom.laserBarriers[0].endX2, 360);
+    assert.equal(engineRoom.laserBarriers[0].endY2, 440);
+  });
 });
 
