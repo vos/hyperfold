@@ -29,14 +29,14 @@ test('Screen Floor & Topology Verification', async (t) => {
     const room = map.getRoom(2, 0);
     assert.ok(room, 'Sector (2,0) must exist');
 
-    // Bounce pads across cols 8 to 11 on row 17 with map property vy = -1550
-    for (let c = 8; c <= 11; c++) {
+    // Bounce pads across cols 9 to 10 on row 17 with map property vy = -1550
+    for (let c = 9; c <= 10; c++) {
       assert.equal(room.tiles[17][c], TileType.BOUNCE, `Col ${c} on row 17 must be BOUNCE pad`);
       assert.equal(room.bounceProps?.[`17,${c}`]?.vy, -1550, `Col ${c} on row 17 must have bounceProps.vy = -1550`);
     }
 
     // Physics check: Launch propulsion with vy = -1550 (read from tile property) and gravity = 1150
-    const padVy = room.bounceProps?.['17,8']?.vy ?? -1400;
+    const padVy = room.bounceProps?.['17,9']?.vy ?? -1400;
     const launchHeight = Math.pow(Math.abs(padVy), 2) / (2 * 1150);
     assert.ok(
       launchHeight > 680,

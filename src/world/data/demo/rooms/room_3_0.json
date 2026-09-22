@@ -141,11 +141,12 @@
       "x": 760,
       "y": 60,
       "angle": 135,
-      "mode": "projectile",
-      "projectileSpeed": 240,
-      "fireInterval": 3.4,
-      "fireOffset": 1.5,
-      "themeColor": "#ffaa00"
+      "autoTarget": true,
+      "mode": "beam",
+      "themeColor": "#ffaa00",
+      "activeDuration": 2,
+      "inactiveDuration": 3,
+      "warningDuration": 1
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection } from '../world/ScreenData';
+import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection, LaserTurretConfig } from '../world/ScreenData';
 import { Player } from '../entities/Player';
 import { ParticleSystem } from '../engine/ParticleSystem';
 import { LevelMap } from '../world/LevelMap';
@@ -10,6 +10,16 @@ export class FaceRenderer {
   public canvas: HTMLCanvasElement;
   public ctx: CanvasRenderingContext2D;
   private time: number = 0;
+  private turretCache: Map<string, LaserTurret> = new Map();
+
+  private getTurret(config: LaserTurretConfig): LaserTurret {
+    let turret = this.turretCache.get(config.id);
+    if (!turret || turret.config !== config) {
+      turret = new LaserTurret(config);
+      this.turretCache.set(config.id, turret);
+    }
+    return turret;
+  }
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -40,7 +50,8 @@ export class FaceRenderer {
     player?: Player,
     particles?: ParticleSystem,
     animTime?: number,
-    projectiles?: LaserProjectile[]
+    projectiles?: LaserProjectile[],
+    turrets?: LaserTurret[]
   ): void {
     if (animTime !== undefined) {
       this.time = animTime;
@@ -121,7 +132,7 @@ export class FaceRenderer {
 
     // 3.7 Render Laser Turrets & Shooting Lasers (Raycast beams, wall mounts, projectile bolts)
     if ((room.laserTurrets && room.laserTurrets.length > 0) || (projectiles && projectiles.length > 0)) {
-      this.drawLaserTurrets(ctx, room, projectiles, particles);
+      this.drawLaserTurrets(ctx, room, projectiles, particles, player, turrets);
     }
 
     // 4. Render Exit Boundary Portals / Indicators
@@ -741,7 +752,9 @@ export class FaceRenderer {
     ctx: CanvasRenderingContext2D,
     room: ScreenData,
     projectiles?: LaserProjectile[],
-    _particles?: ParticleSystem
+    _particles?: ParticleSystem,
+    player?: Player,
+    turrets?: LaserTurret[]
   ): void {
     // 1. Render Turrets
     if (room.laserTurrets && room.laserTurrets.length > 0) {
@@ -753,12 +766,20 @@ export class FaceRenderer {
         }
       }
 
+      const playerTarget = (player && player.isAlive)
+        ? { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 }
+        : null;
+
       for (const config of room.laserTurrets) {
         const color = config.themeColor || '#ff0055';
         const mode = config.mode ?? 'projectile';
         const { x, y } = config;
-        const turret = new LaserTurret(config);
-        const nozzle = turret.getNozzlePosition();
+        const activeTurret = turrets?.find((t) => t.config.id === config.id);
+        const turret = activeTurret || this.getTurret(config);
+        if (!activeTurret && mode === 'beam') {
+          turret.updateBeam(this.time, playerTarget);
+        }
+        const nozzle = turret.getNozzlePosition(playerTarget);
 
         // A. If beam mode, render dynamic beam
         if (mode === 'beam') {
@@ -855,14 +876,23 @@ export class FaceRenderer {
 
         // Status lens / LED
         const lensColor = mode === 'beam'
-          ? (turret.getBeamState(this.time).isActive ? color : '#39ff14')
-          : color;
+          ? (turret.isBeamActive ? color : '#39ff14')
+          : (config.autoTarget ? '#39ff14' : color);
         ctx.fillStyle = lensColor;
         ctx.shadowColor = lensColor;
         ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
         ctx.fill();
+
+        // Optional targeting reticle ring for auto-targeting turrets
+        if (config.autoTarget) {
+          ctx.strokeStyle = '#39ff14';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.restore();
       }
     }

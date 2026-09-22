@@ -75,6 +75,8 @@ export interface LaserTurretConfig {
   y: number;                // turret mount center Y in pixels
   direction?: 'left' | 'right' | 'up' | 'down'; // optional preset cardinal direction
   angle?: number;           // custom firing angle in degrees (0 = right, 90 = down, 180 = left, 270 = up, e.g. 45 = down-right)
+  autoTarget?: boolean;     // whether turret automatically tracks and targets the player
+  targetRange?: number;     // optional max tracking range in pixels (defaults to full room)
   mode?: 'projectile' | 'beam'; // defaults to 'projectile'
   fireInterval?: number;    // seconds between shots (defaults to 2.0)
   fireOffset?: number;      // initial firing offset in seconds (defaults to 0)

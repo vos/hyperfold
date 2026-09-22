@@ -780,6 +780,33 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           ctx.beginPath();
           ctx.arc(tur.x + Math.cos(angleRad) * 12, tur.y + Math.sin(angleRad) * 12, 4, 0, Math.PI * 2);
           ctx.fill();
+
+          // Auto-Targeting Reticle & Range Indicator
+          if (tur.autoTarget) {
+            if (tur.targetRange && tur.targetRange > 0 && isSelected) {
+              ctx.save();
+              ctx.strokeStyle = '#39ff14';
+              ctx.globalAlpha = 0.35;
+              ctx.setLineDash([6, 6]);
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(tur.x, tur.y, tur.targetRange, 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            ctx.save();
+            ctx.strokeStyle = '#39ff14';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(tur.x, tur.y, 6, 0, Math.PI * 2);
+            ctx.moveTo(tur.x - 9, tur.y);
+            ctx.lineTo(tur.x + 9, tur.y);
+            ctx.moveTo(tur.x, tur.y - 9);
+            ctx.lineTo(tur.x, tur.y + 9);
+            ctx.stroke();
+            ctx.restore();
+          }
         }
       }
 

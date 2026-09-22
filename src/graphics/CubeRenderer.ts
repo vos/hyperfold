@@ -4,7 +4,7 @@ import { FaceRenderer } from './FaceRenderer';
 import { LevelMap } from '../world/LevelMap';
 import { Player } from '../entities/Player';
 import { ParticleSystem } from '../engine/ParticleSystem';
-import { LaserProjectile } from '../entities/LaserTurret';
+import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
 import { VoidBackground } from './VoidBackground';
 
 export type RotationDirection = 'right' | 'left' | 'up' | 'down';
@@ -673,12 +673,13 @@ export class CubeRenderer {
     player?: Player,
     particles?: ParticleSystem,
     _dt: number = 0.016,
-    projectiles?: LaserProjectile[]
+    projectiles?: LaserProjectile[],
+    turrets?: LaserTurret[]
   ): void {
     this.faceBindings[faceIndex] = { type: 'room', room };
     this.activeLevelMap = levelMap;
     const destCtx = this.faceContexts[faceIndex];
-    this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, player, particles, this.time, projectiles);
+    this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, player, particles, this.time, projectiles, turrets);
     this.faceTextures[faceIndex].needsUpdate = true;
   }
 

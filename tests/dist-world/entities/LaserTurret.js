@@ -13,6 +13,7 @@ class LaserTurret {
     prevBeamState = 'INACTIVE';
     isBeamActive = false;
     beamChargeProgress = 0;
+    lockedBeamAngle = null;
     constructor(config) {
         this.config = config;
         this.themeColor = config.themeColor ?? '#ff0055';
@@ -23,17 +24,70 @@ class LaserTurret {
             this.prevBeamState = initial.state;
             this.isBeamActive = initial.isActive;
             this.beamChargeProgress = initial.chargeProgress;
+            if (this.config.autoTarget && (this.beamState === 'WARNING' || this.beamState === 'ACTIVE')) {
+                this.lockedBeamAngle = this.getBaseFiringAngle();
+            }
         }
+    }
+    /**
+     * Resolves target coordinates (from point or Player center).
+     */
+    static resolveTargetPoint(target) {
+        if (!target)
+            return null;
+        if (typeof target.width === 'number' && typeof target.height === 'number') {
+            return {
+                x: target.x + target.width * 0.5,
+                y: target.y + target.height * 0.5,
+            };
+        }
+        return { x: target.x, y: target.y };
+    }
+    /**
+     * Checks if target point is within the configured tracking range (if specified).
+     */
+    isTargetInRange(targetX, targetY) {
+        if (this.config.targetRange === undefined || this.config.targetRange === null) {
+            return true;
+        }
+        const dist = Math.hypot(targetX - this.config.x, targetY - this.config.y);
+        return dist <= this.config.targetRange;
     }
     /**
      * Updates beam state for the current timestamp and tracks transitions.
      */
-    updateBeam(time) {
+    updateBeam(time, target) {
         this.prevBeamState = this.beamState;
         const current = this.getBeamState(time);
         this.beamState = current.state;
         this.isBeamActive = current.isActive;
         this.beamChargeProgress = current.chargeProgress;
+        if (this.config.autoTarget) {
+            // 1. Lock angle immediately upon entering WARNING state
+            if (this.justEnteredWarning()) {
+                const pt = LaserTurret.resolveTargetPoint(target);
+                if (pt && this.isTargetInRange(pt.x, pt.y)) {
+                    this.lockedBeamAngle = Math.atan2(pt.y - this.config.y, pt.x - this.config.x);
+                }
+                else {
+                    this.lockedBeamAngle = this.getBaseFiringAngle();
+                }
+            }
+            // 2. If turret has no warningDuration (warnDur === 0) and directly enters ACTIVE
+            else if (this.justActivated() && this.lockedBeamAngle === null) {
+                const pt = LaserTurret.resolveTargetPoint(target);
+                if (pt && this.isTargetInRange(pt.x, pt.y)) {
+                    this.lockedBeamAngle = Math.atan2(pt.y - this.config.y, pt.x - this.config.x);
+                }
+                else {
+                    this.lockedBeamAngle = this.getBaseFiringAngle();
+                }
+            }
+            // 3. Reset lock when transitioning back to INACTIVE
+            else if (this.beamState === 'INACTIVE') {
+                this.lockedBeamAngle = null;
+            }
+        }
     }
     /**
      * Returns true if the beam transitioned into the WARNING state on this update.
@@ -48,9 +102,9 @@ class LaserTurret {
         return this.beamState === 'ACTIVE' && this.prevBeamState !== 'ACTIVE';
     }
     /**
-     * Resolves the turret firing angle in radians.
+     * Returns the base/idle firing angle in radians based on angle or cardinal direction.
      */
-    getFiringAngle() {
+    getBaseFiringAngle() {
         if (this.config.angle !== undefined) {
             return (this.config.angle * Math.PI) / 180;
         }
@@ -62,8 +116,27 @@ class LaserTurret {
             default: return 0;
         }
     }
-    getNozzlePosition() {
-        const angle = this.getFiringAngle();
+    /**
+     * Resolves the turret firing angle in radians.
+     * If autoTarget is enabled and target is provided, aims at target (or uses lockedBeamAngle during warning/active beam).
+     */
+    getFiringAngle(target) {
+        if (this.config.autoTarget) {
+            if (this.mode === 'beam') {
+                // While angle is locked (during WARNING and ACTIVE states), always preserve the locked angle
+                if (this.lockedBeamAngle !== null) {
+                    return this.lockedBeamAngle;
+                }
+            }
+            const pt = LaserTurret.resolveTargetPoint(target);
+            if (pt && this.isTargetInRange(pt.x, pt.y)) {
+                return Math.atan2(pt.y - this.config.y, pt.x - this.config.x);
+            }
+        }
+        return this.getBaseFiringAngle();
+    }
+    getNozzlePosition(target) {
+        const angle = this.getFiringAngle(target);
         const dirX = Math.cos(angle);
         const dirY = Math.sin(angle);
         return {

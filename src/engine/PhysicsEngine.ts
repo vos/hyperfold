@@ -775,11 +775,14 @@ export class PhysicsEngine {
       this.roomProjectiles.set(room.id, projectiles);
     }
 
-    for (const turret of turrets) {
-      const nozzle = turret.getNozzlePosition();
+    const playerTarget = player.isAlive
+      ? { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 }
+      : null;
 
+    for (const turret of turrets) {
       if (turret.mode === 'beam') {
-        turret.updateBeam(this.gameTime);
+        turret.updateBeam(this.gameTime, playerTarget);
+        const nozzle = turret.getNozzlePosition(playerTarget);
         if (turret.justEnteredWarning()) {
           this.audio.playLaserWarning();
         }
@@ -813,6 +816,7 @@ export class PhysicsEngine {
         }
       } else {
         // Projectile mode
+        const nozzle = turret.getNozzlePosition(playerTarget);
         const fireInterval = turret.config.fireInterval ?? 2.0;
         const fireOffset = turret.config.fireOffset ?? 0;
         const effectiveTime = this.gameTime - fireOffset;

@@ -191,6 +191,8 @@
           "y": { "type": "number" },
           "direction": { "type": "string", "enum": ["left", "right", "up", "down"] },
           "angle": { "type": "number" },
+          "autoTarget": { "type": "boolean" },
+          "targetRange": { "type": "number" },
           "mode": { "type": "string", "enum": ["projectile", "beam"] },
           "fireInterval": { "type": "number" },
           "fireOffset": { "type": "number" },

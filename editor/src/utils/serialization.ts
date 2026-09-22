@@ -3,6 +3,7 @@ import {
   GRID_ROWS,
 } from '../types/world.ts';
 import type {
+  LaserTurretConfig,
   RoomData,
   WorldData,
 } from '../types/world.ts';
@@ -109,6 +110,40 @@ export function normalizeGrid(grid: string[]): string[] {
 import { DEMO_ROOMS_MAP } from './demoWorldData.ts';
 
 /**
+ * Sanitizes a LaserTurretConfig ensuring parameters match its mode
+ * (strips projectile parameters in beam mode, strips beam parameters in projectile mode).
+ */
+export function sanitizeLaserTurret(turret: any): LaserTurretConfig {
+  const t: LaserTurretConfig = {
+    id: turret.id,
+    x: turret.x,
+    y: turret.y,
+  };
+  if (turret.direction) t.direction = turret.direction;
+  if (turret.angle !== undefined) t.angle = turret.angle;
+  if (turret.autoTarget) t.autoTarget = true;
+  if (turret.targetRange !== undefined && turret.targetRange !== null && !isNaN(turret.targetRange)) {
+    t.targetRange = turret.targetRange;
+  }
+  if (turret.mode) t.mode = turret.mode;
+  if (turret.themeColor) t.themeColor = turret.themeColor;
+
+  if (turret.mode === 'beam') {
+    if (turret.activeDuration !== undefined) t.activeDuration = turret.activeDuration;
+    if (turret.inactiveDuration !== undefined) t.inactiveDuration = turret.inactiveDuration;
+    if (turret.warningDuration !== undefined) t.warningDuration = turret.warningDuration;
+    if (turret.initialPhase !== undefined) t.initialPhase = turret.initialPhase;
+  } else {
+    if (turret.fireInterval !== undefined) t.fireInterval = turret.fireInterval;
+    if (turret.fireOffset !== undefined) t.fireOffset = turret.fireOffset;
+    if (turret.projectileSpeed !== undefined) t.projectileSpeed = turret.projectileSpeed;
+    if (turret.projectileLength !== undefined) t.projectileLength = turret.projectileLength;
+  }
+
+  return t;
+}
+
+/**
  * Normalizes and parses raw Room JSON into a validated RoomData object.
  */
 export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0]): RoomData {
@@ -156,7 +191,7 @@ export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0])
     spikeProps: rm.spikeProps || {},
     movingPlatforms: rm.movingPlatforms || [],
     laserBarriers: rm.laserBarriers || [],
-    laserTurrets: rm.laserTurrets || [],
+    laserTurrets: (rm.laserTurrets || []).map(sanitizeLaserTurret),
   };
 }
 
@@ -331,7 +366,7 @@ export function exportWorldJson(world: WorldData): string {
       }
 
       if (room.laserTurrets && room.laserTurrets.length > 0) {
-        roomPayload.laserTurrets = room.laserTurrets;
+        roomPayload.laserTurrets = room.laserTurrets.map(sanitizeLaserTurret);
       }
 
       return roomPayload;

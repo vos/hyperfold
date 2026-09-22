@@ -145,6 +145,14 @@ export function validateWorld(world: WorldData): DiagnosticIssue[] {
           message: `Laser Turret '${t.id}' fireInterval must be greater than 0.`,
         });
       }
+      if (t.targetRange !== undefined && t.targetRange <= 0) {
+        issues.push({
+          id: `turret-range-${t.id}`,
+          severity: 'warning',
+          roomId: room.id,
+          message: `Laser Turret '${t.id}' targetRange must be greater than 0.`,
+        });
+      }
     });
 
     // Check Exit Linkages

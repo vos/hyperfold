@@ -480,4 +480,173 @@ test('Laser Hazards & Shooting Lasers Verification', async (t) => {
     assert.equal(sec3.tiles[16][14], TileType.SOLID, 'Platform 4 must have solid tile at row 16 col 14');
     assert.equal(sec3.tiles[18][17], TileType.SOLID, 'Exit ledge must have solid floor at row 18 col 17');
   });
+
+  await t.test('Auto-targeting projectile turret aims towards player center and respects target range', () => {
+    const turret = new LaserTurret({
+      id: 'auto_turret_1',
+      x: 200,
+      y: 200,
+      direction: 'right',
+      autoTarget: true,
+    });
+
+    const player = new Player(300, 300);
+    // Player center is (300 + 12 = 312, 300 + 18 = 318)
+    const expectedAngle = Math.atan2(318 - 200, 312 - 200);
+    const angle = turret.getFiringAngle(player);
+    assert.ok(Math.abs(angle - expectedAngle) < 1e-6, `Angle should match player center (got ${angle}, expected ${expectedAngle})`);
+
+    const nozzle = turret.getNozzlePosition(player);
+    assert.ok(Math.abs(nozzle.angle - expectedAngle) < 1e-6, 'Nozzle angle should match expected target angle');
+
+    // Test with targetRange configured
+    const rangedTurret = new LaserTurret({
+      id: 'auto_turret_range',
+      x: 200,
+      y: 200,
+      direction: 'down', // base angle = 90 deg (PI/2)
+      autoTarget: true,
+      targetRange: 100,
+    });
+
+    // Player at (300, 300) is dist ~162.7px > 100px range -> should fall back to base firing angle (down = PI/2)
+    const outOfRangeAngle = rangedTurret.getFiringAngle(player);
+    assert.equal(outOfRangeAngle, Math.PI * 0.5, 'Turret out of range should use base firing angle');
+
+    // Move player within 100px: (240, 200) -> center (252, 218), dist = hypot(52, 18) ~= 55px <= 100px
+    player.setPosition(240, 200);
+    const inRangeExpected = Math.atan2(218 - 200, 252 - 200);
+    const inRangeAngle = rangedTurret.getFiringAngle(player);
+    assert.ok(Math.abs(inRangeAngle - inRangeExpected) < 1e-6, 'Turret in range should track player');
+  });
+
+  await t.test('Auto-targeting beam turret locks angle upon entering warning state, allowing player to dodge during warning', () => {
+    const beamTurret = new LaserTurret({
+      id: 'auto_beam_1',
+      x: 400,
+      y: 100,
+      direction: 'down',
+      mode: 'beam',
+      autoTarget: true,
+      activeDuration: 2.0,
+      inactiveDuration: 2.0,
+      warningDuration: 1.0,
+      initialPhase: 0,
+    });
+    // Total cycle = 4.0s:
+    // [0.0, 2.0) -> ACTIVE
+    // [2.0, 3.0) -> INACTIVE
+    // [3.0, 4.0) -> WARNING
+
+    const player = new Player(200, 500);
+
+    // At t = 2.5s: Beam is INACTIVE -> tracks player
+    beamTurret.updateBeam(2.5, player);
+    assert.equal(beamTurret.beamState, 'INACTIVE');
+    assert.equal(beamTurret.lockedBeamAngle, null, 'Angle should not be locked in INACTIVE state');
+    const inactiveAngle = beamTurret.getFiringAngle(player);
+    const expectedAngle1 = Math.atan2((500 + 18) - 100, (200 + 12) - 400);
+    assert.ok(Math.abs(inactiveAngle - expectedAngle1) < 1e-6, 'Should track player during INACTIVE state');
+
+    // At t = 3.01s: Transitions from INACTIVE into WARNING state
+    beamTurret.updateBeam(3.01, player);
+    assert.equal(beamTurret.beamState, 'WARNING');
+    assert.ok(beamTurret.lockedBeamAngle !== null, 'Beam angle MUST lock upon entering WARNING state');
+    assert.ok(Math.abs(beamTurret.lockedBeamAngle - expectedAngle1) < 1e-6, 'Locked angle must capture aim at warning start');
+
+    // Player moves to (600, 500) during WARNING -> turret angle MUST stay locked at position 1
+    player.setPosition(600, 500);
+    beamTurret.updateBeam(3.5, player);
+    assert.equal(beamTurret.beamState, 'WARNING');
+    const warningAngleAfterMove = beamTurret.getFiringAngle(player);
+    assert.ok(Math.abs(warningAngleAfterMove - expectedAngle1) < 1e-6, 'Angle MUST remain locked to original position during WARNING even if player moves');
+
+    // At t = 4.0s: Transitions into ACTIVE lethal state
+    beamTurret.updateBeam(4.0, player);
+    assert.equal(beamTurret.beamState, 'ACTIVE');
+    assert.equal(beamTurret.isBeamActive, true);
+    const activeAngle = beamTurret.getFiringAngle(player);
+    assert.ok(Math.abs(activeAngle - expectedAngle1) < 1e-6, 'Active beam angle must remain locked to the warning angle');
+
+    // Raycast check: beam fires along locked angle (towards (200, 500)). Player is now at (600, 500).
+    const nozzle = beamTurret.getNozzlePosition(player);
+    const tiles = Array.from({ length: 20 }, () => new Array(20).fill(TileType.EMPTY));
+    const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, tiles, []);
+    const hitsPlayer = LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, player);
+    assert.equal(hitsPlayer, false, 'Player who moved away during warning lock must NOT be hit when laser activates');
+
+    // If player had NOT moved (remained at (200, 500)), the laser would hit them:
+    const stationaryPlayer = new Player(200, 500);
+    const hitsStationary = LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, stationaryPlayer);
+    assert.equal(hitsStationary, true, 'Stationary player who did not move must be hit');
+
+    // When cycle returns to INACTIVE at t = 6.1s: lock is released
+    beamTurret.updateBeam(6.1, player);
+    assert.equal(beamTurret.beamState, 'INACTIVE');
+    assert.equal(beamTurret.lockedBeamAngle, null, 'Lock should clear when beam becomes INACTIVE');
+  });
+
+  await t.test('Auto-targeting projectile turret simulation in PhysicsEngine fires projectiles towards player', () => {
+    const dummyAudio = {
+      playDeath: () => {},
+      playJump: () => {},
+      playDropThrough: () => {},
+      playLaserShoot: () => {},
+      playLaserImpact: () => {},
+      playLaserWarning: () => {},
+      playLaserHum: () => {},
+    };
+    const dummyParticles = {
+      emitPlayerExplosion: () => {},
+      emitSparks: () => {},
+      emitDust: () => {},
+      emitLaserSparks: () => {},
+      emitLaserCharge: () => {},
+      emitLaserVaporize: () => {},
+      emitLaserMuzzle: () => {},
+    };
+
+    const physics = new PhysicsEngine(dummyAudio, dummyParticles);
+    const room = {
+      id: 'auto_turret_test_room',
+      coords: { x: 0, y: 0 },
+      title: 'Auto Turret Test',
+      themeColor: '#00ffff',
+      accentColor: '#ff007f',
+      tiles: Array.from({ length: 20 }, () => new Array(20).fill(TileType.EMPTY)),
+      collectibles: [],
+      exits: { left: false, right: false, up: false, down: false },
+      laserTurrets: [
+        {
+          id: 'auto_p_turret',
+          x: 100,
+          y: 100,
+          direction: 'right',
+          autoTarget: true,
+          fireInterval: 1.0,
+          projectileSpeed: 400,
+        },
+      ],
+    };
+
+    const player = new Player(400, 400); // player center is (412, 418)
+    const dummyInput = { left: false, right: false, up: false, down: false, jump: false, jumpJustPressed: false, restartJustPressed: false, cameraOrbitX: 0, cameraOrbitY: 0, cameraResetJustPressed: false };
+
+    // Run physics update to trigger a shot at gameTime = 1.0
+    physics.update(player, room, dummyInput, 0.016, undefined, undefined, 1.0);
+
+    const projectiles = physics.getProjectilesForRoom(room.id);
+    assert.equal(projectiles.length, 1, 'Turret should have fired one projectile');
+
+    const p = projectiles[0];
+    const expectedAngle = Math.atan2(
+      (player.y + player.height * 0.5) - 100,
+      (player.x + player.width * 0.5) - 100
+    );
+    assert.ok(Math.abs(p.angle - expectedAngle) < 1e-4, 'Projectile angle should aim towards player center');
+    const expectedVx = Math.cos(expectedAngle) * 400;
+    const expectedVy = Math.sin(expectedAngle) * 400;
+    assert.ok(Math.abs(p.vx - expectedVx) < 1e-3, 'Projectile vx should point towards player');
+    assert.ok(Math.abs(p.vy - expectedVy) < 1e-3, 'Projectile vy should point towards player');
+  });
 });

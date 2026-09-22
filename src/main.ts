@@ -365,11 +365,11 @@ class Game {
     this.particles.update(dt);
 
     // 5. Render active front face (Canvas 2D -> WebGL CanvasTexture)
-    const activeProjectiles = this.physics.getProjectilesForRoom(
-      this.gameState === 'ROTATING' && this.pendingNextRoom
-        ? this.pendingNextRoom.id
-        : this.currentRoom.id
-    );
+    const currentFrontRoom = this.gameState === 'ROTATING' && this.pendingNextRoom
+      ? this.pendingNextRoom
+      : this.currentRoom;
+    const activeProjectiles = this.physics.getProjectilesForRoom(currentFrontRoom.id);
+    const activeTurrets = this.physics.getTurretsForRoom(currentFrontRoom);
 
     if (this.gameState === 'ROTATING' && this.pendingNextRoom) {
       this.cubeRenderer.updateFaceCanvas(
@@ -379,7 +379,8 @@ class Game {
         this.player,
         this.particles,
         dt,
-        activeProjectiles
+        activeProjectiles,
+        activeTurrets
       );
     } else {
       this.cubeRenderer.updateFaceCanvas(
@@ -389,7 +390,8 @@ class Game {
         this.player,
         this.particles,
         dt,
-        activeProjectiles
+        activeProjectiles,
+        activeTurrets
       );
     }
 

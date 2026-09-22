@@ -9,7 +9,7 @@ const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
 const { LevelLoader } = require('./dist-world/world/LevelLoader.js');
 
 // Import editor serialization functions (ESM)
-import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom } from '../editor/src/utils/serialization.ts';
+import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom, sanitizeLaserTurret } from '../editor/src/utils/serialization.ts';
 import { validateWorld } from '../editor/src/utils/validator.ts';
 import { PRESET_WORLDS } from '../editor/src/utils/presets.ts';
 import { getAdjacentSectors, getAdjacentCoords, getOppositeDirection } from '../editor/src/utils/navigation.ts';
@@ -446,6 +446,106 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(registered.name, 'Mini Hypercube (3 Sectors)');
     const loadedMap = registered.load();
     assert.equal(loadedMap.getAllRooms().length, 3);
+  });
+
+  await t.test('Laser turret export strips mode-inapplicable parameters (beam mode strips fireInterval and projectileSpeed)', () => {
+    const world = createEmptyWorld();
+    const room = world.rooms[0];
+
+    // Configure a beam turret with stray projectile properties (e.g. from mode toggle or default values)
+    room.laserTurrets = [
+      {
+        id: 'turret_beam_with_stray_props',
+        x: 300,
+        y: 150,
+        direction: 'down',
+        mode: 'beam',
+        activeDuration: 2.5,
+        inactiveDuration: 1.5,
+        warningDuration: 0.6,
+        initialPhase: 0.2,
+        autoTarget: true,
+        targetRange: 350,
+        // Stray projectile properties that should be omitted in beam mode:
+        fireInterval: 1.8,
+        projectileSpeed: 280,
+        fireOffset: 0.5,
+        projectileLength: 20,
+      },
+      {
+        id: 'turret_projectile_with_stray_props',
+        x: 400,
+        y: 250,
+        direction: 'right',
+        mode: 'projectile',
+        fireInterval: 2.0,
+        projectileSpeed: 300,
+        // Stray beam properties that should be omitted in projectile mode:
+        activeDuration: 3.0,
+        inactiveDuration: 2.0,
+        warningDuration: 0.8,
+        initialPhase: 0.1,
+      },
+      {
+        id: 'turret_infinite_range',
+        x: 500,
+        y: 200,
+        direction: 'up',
+        mode: 'beam',
+        autoTarget: true,
+        // targetRange undefined (infinite range reset)
+        targetRange: undefined,
+      },
+    ];
+
+    const jsonStr = exportWorldJson(world);
+    const parsedRaw = JSON.parse(jsonStr);
+    const exportedTurrets = parsedRaw.rooms[0].laserTurrets;
+
+    // Turret 0 (beam): must NOT have fireInterval, projectileSpeed, fireOffset, projectileLength
+    assert.equal(exportedTurrets[0].id, 'turret_beam_with_stray_props');
+    assert.equal(exportedTurrets[0].mode, 'beam');
+    assert.equal(exportedTurrets[0].activeDuration, 2.5);
+    assert.equal(exportedTurrets[0].autoTarget, true);
+    assert.equal(exportedTurrets[0].targetRange, 350);
+    assert.equal(exportedTurrets[0].fireInterval, undefined, 'Beam mode export must not include fireInterval');
+    assert.equal(exportedTurrets[0].projectileSpeed, undefined, 'Beam mode export must not include projectileSpeed');
+    assert.equal(exportedTurrets[0].fireOffset, undefined, 'Beam mode export must not include fireOffset');
+    assert.equal(exportedTurrets[0].projectileLength, undefined, 'Beam mode export must not include projectileLength');
+
+    // Turret 1 (projectile): must NOT have activeDuration, inactiveDuration, warningDuration, initialPhase
+    assert.equal(exportedTurrets[1].id, 'turret_projectile_with_stray_props');
+    assert.equal(exportedTurrets[1].mode, 'projectile');
+    assert.equal(exportedTurrets[1].fireInterval, 2.0);
+    assert.equal(exportedTurrets[1].projectileSpeed, 300);
+    assert.equal(exportedTurrets[1].activeDuration, undefined, 'Projectile mode export must not include activeDuration');
+    assert.equal(exportedTurrets[1].inactiveDuration, undefined, 'Projectile mode export must not include inactiveDuration');
+    assert.equal(exportedTurrets[1].warningDuration, undefined, 'Projectile mode export must not include warningDuration');
+    assert.equal(exportedTurrets[1].initialPhase, undefined, 'Projectile mode export must not include initialPhase');
+
+    // Turret 2 (infinite range reset): targetRange must be omitted from export
+    assert.equal(exportedTurrets[2].id, 'turret_infinite_range');
+    assert.equal(exportedTurrets[2].autoTarget, true);
+    assert.equal('targetRange' in exportedTurrets[2], false, 'Reset targetRange must not be in exported JSON');
+
+    // Verify sanitizeLaserTurret function directly
+    const sanitizedBeam = sanitizeLaserTurret({
+      id: 'beam_test',
+      x: 0,
+      y: 0,
+      mode: 'beam',
+      fireInterval: 1.8,
+      projectileSpeed: 280,
+      activeDuration: 2.0,
+    });
+    assert.equal(sanitizedBeam.fireInterval, undefined);
+    assert.equal(sanitizedBeam.projectileSpeed, undefined);
+    assert.equal(sanitizedBeam.activeDuration, 2.0);
+
+    // Verify game engine loads this cleanly
+    const engineResult = WorldRegistry.loadWorldFromJsonString(jsonStr);
+    const engineRoom = engineResult.map.getRoom(0, 0);
+    assert.equal(engineRoom.laserTurrets?.length, 3);
   });
 });
 

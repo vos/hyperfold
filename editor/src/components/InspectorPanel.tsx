@@ -14,6 +14,7 @@ import {
   Flag,
   ArrowRight,
   Compass,
+  Target,
 } from 'lucide-react';
 import {
   DiagnosticIssue,
@@ -1612,9 +1613,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         const m = e.target.value as 'projectile' | 'beam';
                         onUpdateRoom((r) => ({
                           ...r,
-                          laserTurrets: r.laserTurrets?.map((t) =>
-                            t.id === activeTurret.id ? { ...t, mode: m } : t
-                          ),
+                          laserTurrets: r.laserTurrets?.map((t) => {
+                            if (t.id !== activeTurret.id) return t;
+                            if (m === 'beam') {
+                              // Strip projectile-specific parameters when switching to beam mode
+                              const { fireInterval, fireOffset, projectileSpeed, projectileLength, ...rest } = t;
+                              return {
+                                ...rest,
+                                mode: 'beam',
+                                activeDuration: t.activeDuration ?? 2.0,
+                                inactiveDuration: t.inactiveDuration ?? 2.0,
+                              };
+                            } else {
+                              // Strip beam-specific parameters when switching to projectile mode
+                              const { activeDuration, inactiveDuration, warningDuration, initialPhase, ...rest } = t;
+                              return {
+                                ...rest,
+                                mode: 'projectile',
+                                fireInterval: t.fireInterval ?? 1.8,
+                                projectileSpeed: t.projectileSpeed ?? 280,
+                              };
+                            }
+                          }),
                         }));
                       }}
                       className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white text-xs"
@@ -1625,10 +1645,125 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </div>
 
+                {/* Auto-Targeting Option */}
+                <div className="space-y-2 border border-cyber-border/70 rounded p-2.5 bg-cyber-bg/40">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <Target className={`w-3.5 h-3.5 ${activeTurret.autoTarget ? 'text-cyber-neonGreen' : 'text-slate-400'}`} />
+                      <div>
+                        <span className="text-slate-300 text-xs font-bold block">Auto-Targeting</span>
+                        <span className="text-slate-500 text-[9px] block">Dynamically track & aim at player</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          laserTurrets: r.laserTurrets?.map((t) =>
+                            t.id === activeTurret.id ? { ...t, autoTarget: !t.autoTarget } : t
+                          ),
+                        }));
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                        activeTurret.autoTarget
+                          ? 'bg-cyber-neonGreen/20 border-cyber-neonGreen text-cyber-neonGreen'
+                          : 'bg-cyber-bg border-cyber-border text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {activeTurret.autoTarget ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+
+                  {activeTurret.autoTarget && (
+                    <div className="pt-1 border-t border-cyber-border/40">
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-slate-500 text-[9px]">Target Range (px)</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-cyber-cyan font-mono text-[9px]">
+                            {activeTurret.targetRange !== undefined ? `${activeTurret.targetRange}px` : 'Infinite (Full Sector)'}
+                          </span>
+                          {activeTurret.targetRange !== undefined && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  laserTurrets: r.laserTurrets?.map((t) =>
+                                    t.id === activeTurret.id ? { ...t, targetRange: undefined } : t
+                                  ),
+                                }));
+                              }}
+                              className="text-[9px] text-cyber-cyan hover:underline"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Infinite (Full Sector)"
+                          value={activeTurret.targetRange ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserTurrets: r.laserTurrets?.map((t) =>
+                                t.id === activeTurret.id ? { ...t, targetRange: val } : t
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none pr-6"
+                        />
+                        {activeTurret.targetRange !== undefined && (
+                          <button
+                            type="button"
+                            title="Reset targeting range to infinite"
+                            onClick={() => {
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                laserTurrets: r.laserTurrets?.map((t) =>
+                                  t.id === activeTurret.id ? { ...t, targetRange: undefined } : t
+                                ),
+                              }));
+                            }}
+                            className="absolute right-2 text-slate-400 hover:text-white text-xs px-1"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      {activeTurret.targetRange !== undefined && (
+                        <div className="text-right pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                laserTurrets: r.laserTurrets?.map((t) =>
+                                  t.id === activeTurret.id ? { ...t, targetRange: undefined } : t
+                                ),
+                              }));
+                            }}
+                            className="text-[9px] text-cyber-cyan hover:underline"
+                          >
+                            Reset to Infinite Range
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Direction and Custom Angle */}
                 <div className="space-y-2 border border-cyber-border/70 rounded p-2.5 bg-cyber-bg/40">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-[10px] font-bold">Firing Angle & Direction</span>
+                    <span className="text-slate-400 text-[10px] font-bold">
+                      {activeTurret.autoTarget ? 'Default / Idle Firing Angle' : 'Firing Angle & Direction'}
+                    </span>
                     <span className="text-cyber-cyan font-mono text-[10px]">
                       {activeTurret.angle !== undefined
                         ? `${activeTurret.angle}°`
@@ -2101,6 +2236,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     <div className="flex items-center space-x-1.5 truncate">
                       <Radio className="w-3 h-3 text-cyber-neonGreen shrink-0" />
                       <span className="truncate">{t.id}</span>
+                      {t.autoTarget && (
+                        <span className="text-[9px] px-1 py-0.2 bg-emerald-500/20 text-emerald-400 rounded border border-emerald-500/30 shrink-0 font-mono">
+                          AUTO
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] text-slate-500 shrink-0">
                       {t.mode || 'proj'}

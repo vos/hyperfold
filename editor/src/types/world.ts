@@ -68,6 +68,8 @@ export interface LaserTurretConfig {
   y: number;
   direction?: 'left' | 'right' | 'up' | 'down';
   angle?: number;
+  autoTarget?: boolean;
+  targetRange?: number;
   mode?: 'projectile' | 'beam';
   fireInterval?: number;
   fireOffset?: number;

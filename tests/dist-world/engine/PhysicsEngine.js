@@ -131,7 +131,8 @@ class PhysicsEngine {
         // Handle ducking / crouching input & ceiling constraints
         if (input.down) {
             player.setDucking(true);
-        } else if (player.isDucking) {
+        }
+        else if (player.isDucking) {
             if (this.canStandUp(player, room, platforms)) {
                 player.setDucking(false);
             }
@@ -316,6 +317,7 @@ class PhysicsEngine {
         for (let r = minRow; r <= maxRow; r++) {
             for (let c = minCol; c <= maxCol; c++) {
                 if (r < 0) {
+                    // Solid ceiling if room doesn't have an upward exit
                     if (!room.exits.up)
                         return false;
                     continue;
@@ -682,10 +684,13 @@ class PhysicsEngine {
             projectiles = [];
             this.roomProjectiles.set(room.id, projectiles);
         }
+        const playerTarget = player.isAlive
+            ? { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 }
+            : null;
         for (const turret of turrets) {
-            const nozzle = turret.getNozzlePosition();
             if (turret.mode === 'beam') {
-                turret.updateBeam(this.gameTime);
+                turret.updateBeam(this.gameTime, playerTarget);
+                const nozzle = turret.getNozzlePosition(playerTarget);
                 if (turret.justEnteredWarning()) {
                     this.audio.playLaserWarning();
                 }
@@ -717,6 +722,7 @@ class PhysicsEngine {
             }
             else {
                 // Projectile mode
+                const nozzle = turret.getNozzlePosition(playerTarget);
                 const fireInterval = turret.config.fireInterval ?? 2.0;
                 const fireOffset = turret.config.fireOffset ?? 0;
                 const effectiveTime = this.gameTime - fireOffset;
