@@ -55,6 +55,78 @@ test('Laser Hazards & Shooting Lasers Verification', async (t) => {
     assert.equal(sNextActive.isActive, true);
   });
 
+  await t.test('LaserBarrier always-active mode remains continuously active and lethal at all times', () => {
+    // 1. Config with alwaysActive: true
+    const configAlways = {
+      id: 'always_active_barrier',
+      startX1: 200,
+      startY1: 200,
+      startX2: 400,
+      startY2: 200,
+      alwaysActive: true,
+      inactiveDuration: 0,
+    };
+
+    const testTimes = [0, 0.25, 0.8, 1.5, 2.0, 3.5, 4.0, 10.0, 50.0, 99.9];
+    for (const time of testTimes) {
+      const state = LaserBarrier.computeBarrierState(configAlways, time);
+      assert.equal(state.state, 'ACTIVE', `Barrier with alwaysActive: true must be ACTIVE at t=${time}`);
+      assert.equal(state.isActive, true, `Barrier with alwaysActive: true must have isActive=true at t=${time}`);
+      assert.equal(state.chargeProgress, 1);
+    }
+
+    // 2. Config with inactiveDuration: 0 (without explicit alwaysActive flag)
+    const configZeroInactive = {
+      id: 'zero_inactive_barrier',
+      startX1: 200,
+      startY1: 200,
+      startX2: 400,
+      startY2: 200,
+      activeDuration: 2.0,
+      inactiveDuration: 0,
+    };
+    for (const time of testTimes) {
+      const state = LaserBarrier.computeBarrierState(configZeroInactive, time);
+      assert.equal(state.state, 'ACTIVE', `Barrier with inactiveDuration: 0 must be ACTIVE at t=${time}`);
+      assert.equal(state.isActive, true, `Barrier with inactiveDuration: 0 must have isActive=true at t=${time}`);
+    }
+
+    // 3. Lethality check: player crossing beam is killed at any time
+    const barrier = new LaserBarrier(configAlways, 0);
+    const playerOnBeam = new Player(300, 200); // directly on beam
+    for (const time of [0, 1.5, 3.0, 7.5, 12.0]) {
+      barrier.update(time);
+      assert.ok(barrier.intersectsPlayer(playerOnBeam), `Always-active barrier must intersect player at t=${time}`);
+    }
+
+    // 4. Moving always-active barrier interpolates positions while staying active
+    const movingAlways = {
+      id: 'moving_always_active',
+      startX1: 100,
+      startY1: 100,
+      startX2: 300,
+      startY2: 100,
+      endX1: 100,
+      endY1: 300,
+      endX2: 300,
+      endY2: 300,
+      speed: 100,
+      pauseTime: 0,
+      alwaysActive: true,
+    };
+    const s0 = LaserBarrier.computeBarrierState(movingAlways, 0);
+    assert.equal(s0.state, 'ACTIVE');
+    assert.equal(s0.y1, 100);
+
+    const s1 = LaserBarrier.computeBarrierState(movingAlways, 1.0); // midway through 200px transit at 100px/s
+    assert.equal(s1.state, 'ACTIVE');
+    assert.ok(s1.y1 > 100 && s1.y1 < 300, 'Endpoints should interpolate smoothly during transit');
+
+    const s2 = LaserBarrier.computeBarrierState(movingAlways, 2.0); // at destination
+    assert.equal(s2.state, 'ACTIVE');
+    assert.equal(Math.round(s2.y1), 300);
+  });
+
   await t.test('LaserBarrier harmonic movement smoothly interpolates endpoints', () => {
     const config = {
       id: 'moving_barrier',

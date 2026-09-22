@@ -1362,85 +1362,145 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                {/* Always Active Toggle */}
+                <div className="flex items-center justify-between border-t border-cyber-border/40 pt-2">
                   <div>
-                    <span className="text-slate-500 text-[10px]">Active Time (s)</span>
+                    <span className="text-xs font-semibold text-slate-300 block">Always Active</span>
+                    <span className="text-[10px] text-slate-500">Continuous beam with no pause or off-cycle</span>
+                  </div>
+                  <label className="flex items-center space-x-1.5 cursor-pointer">
                     <input
-                      type="number"
-                      step="0.1"
-                      value={activeBarrier.activeDuration}
+                      type="checkbox"
+                      checked={Boolean(
+                        activeBarrier.alwaysActive ||
+                        (activeBarrier.inactiveDuration !== undefined && activeBarrier.inactiveDuration <= 0)
+                      )}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 1;
+                        const isAlways = e.target.checked;
                         onUpdateRoom((r) => ({
                           ...r,
                           laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, activeDuration: val } : b
+                            b.id === activeBarrier.id
+                              ? {
+                                  ...b,
+                                  alwaysActive: isAlways,
+                                  inactiveDuration: isAlways ? 0 : (b.inactiveDuration && b.inactiveDuration > 0 ? b.inactiveDuration : 2.0),
+                                  activeDuration: b.activeDuration && b.activeDuration > 0 ? b.activeDuration : 2.0,
+                                }
+                              : b
                           ),
                         }));
                       }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                      className="rounded border-cyber-border bg-cyber-bg text-cyber-cyan focus:ring-0"
                     />
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Inactive Time (s)</span>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={activeBarrier.inactiveDuration}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 1;
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, inactiveDuration: val } : b
-                          ),
-                        }));
-                      }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
-                    />
-                  </div>
+                    <span className="text-[10px] text-cyber-cyan font-mono">
+                      {activeBarrier.alwaysActive || (activeBarrier.inactiveDuration !== undefined && activeBarrier.inactiveDuration <= 0)
+                        ? 'Constant'
+                        : 'Pulsing'}
+                    </span>
+                  </label>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Warning Duration (s)</span>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={activeBarrier.warningDuration ?? 0.6}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, warningDuration: val } : b
-                          ),
-                        }));
-                      }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
-                    />
+                {activeBarrier.alwaysActive || (activeBarrier.inactiveDuration !== undefined && activeBarrier.inactiveDuration <= 0) ? (
+                  <div className="p-2 bg-cyber-cyan/5 border border-cyber-cyan/20 rounded text-[11px] text-slate-400">
+                    <span className="text-cyber-cyan font-medium">Constant Lethal Beam:</span> Barrier remains active and lethal at all times with no warning or inactive pauses.
                   </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px]">Timing Phase (0-1)</span>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min="0"
-                      max="1"
-                      value={activeBarrier.initialPhase ?? 0}
-                      onChange={(e) => {
-                        const val = Math.max(0, Math.min(1, parseFloat(e.target.value) || 0));
-                        onUpdateRoom((r) => ({
-                          ...r,
-                          laserBarriers: r.laserBarriers?.map((b) =>
-                            b.id === activeBarrier.id ? { ...b, initialPhase: val } : b
-                          ),
-                        }));
-                      }}
-                      className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Active Time (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={activeBarrier.activeDuration ?? 2.0}
+                          onChange={(e) => {
+                            const raw = parseFloat(e.target.value);
+                            const val = isNaN(raw) ? 1 : Math.max(0.1, raw);
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserBarriers: r.laserBarriers?.map((b) =>
+                                b.id === activeBarrier.id ? { ...b, activeDuration: val } : b
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Inactive Time (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={activeBarrier.inactiveDuration ?? 2.0}
+                          onChange={(e) => {
+                            const raw = parseFloat(e.target.value);
+                            const val = isNaN(raw) ? 0 : Math.max(0, raw);
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserBarriers: r.laserBarriers?.map((b) =>
+                                b.id === activeBarrier.id
+                                  ? {
+                                      ...b,
+                                      inactiveDuration: val,
+                                      alwaysActive: val <= 0,
+                                    }
+                                  : b
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Warning Duration (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={activeBarrier.warningDuration ?? 0.6}
+                          onChange={(e) => {
+                            const raw = parseFloat(e.target.value);
+                            const val = isNaN(raw) ? 0 : Math.max(0, raw);
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserBarriers: r.laserBarriers?.map((b) =>
+                                b.id === activeBarrier.id ? { ...b, warningDuration: val } : b
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px]">Timing Phase (0-1)</span>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          max="1"
+                          value={activeBarrier.initialPhase ?? 0}
+                          onChange={(e) => {
+                            const raw = parseFloat(e.target.value);
+                            const val = isNaN(raw) ? 0 : Math.max(0, Math.min(1, raw));
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              laserBarriers: r.laserBarriers?.map((b) =>
+                                b.id === activeBarrier.id ? { ...b, initialPhase: val } : b
+                              ),
+                            }));
+                          }}
+                          className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <span className="text-slate-500 text-[10px]">Beam Width (px)</span>
@@ -2218,7 +2278,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                       <span className="truncate">{b.id}</span>
                     </div>
                     <span className="text-[10px] text-slate-500 shrink-0">
-                      {b.activeDuration}s
+                      {b.alwaysActive || (b.inactiveDuration !== undefined && b.inactiveDuration <= 0)
+                        ? 'Always Active'
+                        : `${b.activeDuration ?? 2}s`}
                     </span>
                   </div>
                 ))}

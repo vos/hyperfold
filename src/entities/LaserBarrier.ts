@@ -100,8 +100,26 @@ export class LaserBarrier {
     const curY2 = startY2 + (endY2 - startY2) * p;
 
     // 2. Timing Cycle
-    const activeDur = Math.max(0.1, config.activeDuration);
-    const inactiveDur = Math.max(0.1, config.inactiveDuration);
+    const isAlwaysActive = Boolean(
+      config.alwaysActive ||
+      (config.inactiveDuration !== undefined && config.inactiveDuration <= 0)
+    );
+
+    if (isAlwaysActive) {
+      return {
+        x1: curX1,
+        y1: curY1,
+        x2: curX2,
+        y2: curY2,
+        state: 'ACTIVE',
+        isActive: true,
+        progress: p,
+        chargeProgress: 1,
+      };
+    }
+
+    const activeDur = Math.max(0.1, config.activeDuration ?? 2.0);
+    const inactiveDur = Math.max(0.01, config.inactiveDuration ?? 2.0);
     const warnDur = Math.min(inactiveDur, Math.max(0, config.warningDuration ?? 0.6));
     const cycleDur = activeDur + inactiveDur;
 

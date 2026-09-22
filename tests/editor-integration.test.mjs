@@ -641,5 +641,43 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(engineRoom.laserBarriers[0].endX2, 360);
     assert.equal(engineRoom.laserBarriers[0].endY2, 440);
   });
+
+  await t.test('Always-active laser barriers roundtrip cleanly and pass world validation', () => {
+    const world = createEmptyWorld();
+    const room = world.rooms[0];
+    room.laserBarriers = [
+      {
+        id: 'barrier_always_test',
+        startX1: 100,
+        startY1: 200,
+        startX2: 300,
+        startY2: 200,
+        alwaysActive: true,
+        inactiveDuration: 0,
+      },
+    ];
+
+    // 1. Validator check
+    const issues = validateWorld(world);
+    const errors = issues.filter((i) => i.severity === 'error');
+    const warnings = issues.filter((i) => i.severity === 'warning');
+    assert.equal(errors.length, 0, `Expected 0 errors, got: ${JSON.stringify(errors)}`);
+    assert.equal(warnings.length, 0, `Expected 0 warnings, got: ${JSON.stringify(warnings)}`);
+
+    // 2. Export & parse roundtrip
+    const jsonStr = exportWorldJson(world);
+    const parsedWorld = parseWorldJson(jsonStr);
+    const pBarrier = parsedWorld.rooms[0].laserBarriers?.[0];
+    assert.ok(pBarrier);
+    assert.equal(pBarrier.alwaysActive, true);
+    assert.equal(pBarrier.inactiveDuration, 0);
+
+    // 3. Load with game engine LevelLoader & WorldRegistry
+    const engineResult = WorldRegistry.loadWorldFromJsonString(jsonStr);
+    const engineRoom = engineResult.map.getRoom(0, 0);
+    assert.ok(engineRoom.laserBarriers);
+    assert.equal(engineRoom.laserBarriers[0].alwaysActive, true);
+    assert.equal(engineRoom.laserBarriers[0].inactiveDuration, 0);
+  });
 });
 

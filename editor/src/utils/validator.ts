@@ -126,12 +126,13 @@ export function validateWorld(world: WorldData): DiagnosticIssue[] {
     });
     room.laserBarriers?.forEach((b) => {
       checkEntityId(b.id, 'Laser Barrier');
-      if (b.activeDuration <= 0 && b.inactiveDuration <= 0) {
+      const isAlways = Boolean(b.alwaysActive || (b.inactiveDuration !== undefined && b.inactiveDuration <= 0));
+      if (!isAlways && b.activeDuration !== undefined && b.activeDuration <= 0) {
         issues.push({
           id: `barrier-duration-${b.id}`,
           severity: 'warning',
           roomId: room.id,
-          message: `Laser Barrier '${b.id}' has 0 active and inactive duration.`,
+          message: `Laser Barrier '${b.id}' has 0 active duration.`,
         });
       }
     });

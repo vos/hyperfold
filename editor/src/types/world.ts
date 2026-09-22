@@ -54,8 +54,9 @@ export interface LaserBarrierConfig {
   speed?: number;
   pauseTime?: number;
   initialProgress?: number;
-  activeDuration: number;
-  inactiveDuration: number;
+  alwaysActive?: boolean;
+  activeDuration?: number;
+  inactiveDuration?: number;
   warningDuration?: number;
   initialPhase?: number;
   themeColor?: string;

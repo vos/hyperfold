@@ -156,7 +156,7 @@
       "description": "Timed pulsing or moving laser barriers",
       "items": {
         "type": "object",
-        "required": ["id", "startX1", "startY1", "startX2", "startY2", "activeDuration", "inactiveDuration"],
+        "required": ["id", "startX1", "startY1", "startX2", "startY2"],
         "properties": {
           "id": { "type": "string" },
           "startX1": { "type": "number" },
@@ -170,6 +170,7 @@
           "speed": { "type": "number" },
           "pauseTime": { "type": "number" },
           "initialProgress": { "type": "number" },
+          "alwaysActive": { "type": "boolean" },
           "activeDuration": { "type": "number" },
           "inactiveDuration": { "type": "number" },
           "warningDuration": { "type": "number" },

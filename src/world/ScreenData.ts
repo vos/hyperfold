@@ -61,8 +61,9 @@ export interface LaserBarrierConfig {
   speed?: number;           // in pixels per second if moving
   pauseTime?: number;       // dwell time at endpoints in seconds (defaults to 0.4)
   initialProgress?: number; // 0 to 1 movement phase offset (defaults to 0)
-  activeDuration: number;   // seconds laser is energized and lethal
-  inactiveDuration: number; // seconds laser is turned off
+  alwaysActive?: boolean;   // if true (or inactiveDuration <= 0), beam is continuously on and lethal
+  activeDuration?: number;  // seconds laser is energized and lethal (defaults to 2.0 if cyclic)
+  inactiveDuration?: number;// seconds laser is turned off (0 or omitted if alwaysActive)
   warningDuration?: number; // seconds of telegraph warning before active (defaults to 0.6)
   initialPhase?: number;    // 0 to 1 timing phase offset (defaults to 0)
   themeColor?: string;      // custom neon beam color override (defaults to #ff0055)
