@@ -109,15 +109,22 @@ export class VoidBackground {
     const polyGeoOcta = new THREE.OctahedronGeometry(5, 0);
     const polyGeoIcosa = new THREE.IcosahedronGeometry(4, 0);
 
+    const cyanPolyMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.22,
+    });
+    const magentaPolyMat = new THREE.MeshBasicMaterial({
+      color: 0xff00aa,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.22,
+    });
+
     for (let i = 0; i < 10; i++) {
       const geo = i % 2 === 0 ? polyGeoOcta : polyGeoIcosa;
-      const color = i % 2 === 0 ? 0x00ffff : 0xff00aa;
-      const polyMat = new THREE.MeshBasicMaterial({
-        color,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.22,
-      });
+      const polyMat = i % 2 === 0 ? cyanPolyMat : magentaPolyMat;
 
       const mesh = new THREE.Mesh(geo, polyMat);
       mesh.position.set(

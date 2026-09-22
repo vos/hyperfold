@@ -43,6 +43,79 @@ export class FaceRenderer {
     return this.canvas;
   }
 
+  private staticCache: Map<string, HTMLCanvasElement> = new Map();
+
+  public invalidateCache(roomId?: string): void {
+    if (roomId) {
+      for (const key of this.staticCache.keys()) {
+        if (key.startsWith(roomId)) {
+          this.staticCache.delete(key);
+        }
+      }
+    } else {
+      this.staticCache.clear();
+    }
+  }
+
+  public getStaticCanvas(room: ScreenData): HTMLCanvasElement {
+    const cacheKey = `${room.id}_${room.themeColor}_${room.accentColor}`;
+    let cached = this.staticCache.get(cacheKey);
+    if (cached) return cached;
+
+    cached = document.createElement('canvas');
+    cached.width = FACE_SIZE;
+    cached.height = FACE_SIZE;
+    const sCtx = cached.getContext('2d');
+    if (!sCtx) return cached;
+
+    // 1. Dark Cybernetic Background
+    sCtx.fillStyle = '#080c14';
+    sCtx.fillRect(0, 0, FACE_SIZE, FACE_SIZE);
+
+    // Subtle background grid (batched)
+    sCtx.strokeStyle = 'rgba(0, 255, 255, 0.04)';
+    sCtx.lineWidth = 1;
+    sCtx.beginPath();
+    for (let x = 0; x <= FACE_SIZE; x += TILE_SIZE) {
+      sCtx.moveTo(x, 0);
+      sCtx.lineTo(x, FACE_SIZE);
+    }
+    for (let y = 0; y <= FACE_SIZE; y += TILE_SIZE) {
+      sCtx.moveTo(0, y);
+      sCtx.lineTo(FACE_SIZE, y);
+    }
+    sCtx.stroke();
+
+    // 2. Pre-render Static Solid and One-Way Tiles
+    const primary = room.themeColor;
+    const accent = room.accentColor;
+
+    for (let r = 0; r < room.tiles.length; r++) {
+      for (let c = 0; c < room.tiles[r].length; c++) {
+        const tile = room.tiles[r][c];
+        const x = c * TILE_SIZE;
+        const y = r * TILE_SIZE;
+
+        if (tile === TileType.SOLID) {
+          this.drawSolidTile(sCtx, x, y, primary, accent);
+        } else if (tile === TileType.ONE_WAY) {
+          this.drawOneWayTile(sCtx, x, y, primary);
+        }
+      }
+    }
+
+    // 3. Outer Face Border Glow (static)
+    sCtx.strokeStyle = primary;
+    sCtx.lineWidth = 3;
+    sCtx.shadowColor = primary;
+    sCtx.shadowBlur = 12;
+    sCtx.strokeRect(1.5, 1.5, FACE_SIZE - 3, FACE_SIZE - 3);
+    sCtx.shadowBlur = 0;
+
+    this.staticCache.set(cacheKey, cached);
+    return cached;
+  }
+
   public renderRoomToContext(
     ctx: CanvasRenderingContext2D,
     room: ScreenData,
@@ -57,45 +130,22 @@ export class FaceRenderer {
       this.time = animTime;
     }
 
-    // 1. Dark Cybernetic Background
-    ctx.fillStyle = '#080c14';
-    ctx.fillRect(0, 0, FACE_SIZE, FACE_SIZE);
+    // 1. Blit Pre-Rendered Static Layer (Zero-cost background, grid, solid tiles, header, border glow)
+    const staticCanvas = this.getStaticCanvas(room);
+    ctx.drawImage(staticCanvas, 0, 0);
 
-    // Subtle background grid
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= FACE_SIZE; x += TILE_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, FACE_SIZE);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= FACE_SIZE; y += TILE_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(FACE_SIZE, y);
-      ctx.stroke();
-    }
-
-    // 2. Render Tiles
+    // 2. Render Animated / Dynamic Tiles Only
     const primary = room.themeColor;
-    const accent = room.accentColor;
 
     for (let r = 0; r < room.tiles.length; r++) {
       for (let c = 0; c < room.tiles[r].length; c++) {
         const tile = room.tiles[r][c];
-        if (tile === TileType.EMPTY) continue;
+        if (tile === TileType.EMPTY || tile === TileType.SOLID || tile === TileType.ONE_WAY) continue;
 
         const x = c * TILE_SIZE;
         const y = r * TILE_SIZE;
 
         switch (tile) {
-          case TileType.SOLID:
-            this.drawSolidTile(ctx, x, y, primary, accent);
-            break;
-          case TileType.ONE_WAY:
-            this.drawOneWayTile(ctx, x, y, primary);
-            break;
           case TileType.SPIKE: {
             const spikeDir = getSpikeDirection(room, r, c);
             this.drawSpikeTile(ctx, x, y, spikeDir);
@@ -135,10 +185,10 @@ export class FaceRenderer {
       this.drawLaserTurrets(ctx, room, projectiles, particles, player, turrets);
     }
 
-    // 4. Render Exit Boundary Portals / Indicators
+    // 4. Render Exit Boundary Portals / Indicators (pulsing animated arrows)
     this.drawExitIndicators(ctx, room);
 
-    // 5. Render Room Header / Subtitle
+    // 5. Render Room Header / Subtitle (overlay on top of obstacles)
     this.drawRoomHeader(ctx, room);
 
     // 6. Render Particles
@@ -146,19 +196,11 @@ export class FaceRenderer {
       particles.render(ctx);
     }
 
-    // 7. Render Player (if present on this face)
+    // 6. Render Player (if present on this face)
     if (player) {
       player.primaryColor = primary;
       player.render(ctx, particles);
     }
-
-    // 8. Outer Face Border Glow
-    ctx.strokeStyle = primary;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = primary;
-    ctx.shadowBlur = 12;
-    ctx.strokeRect(1.5, 1.5, FACE_SIZE - 3, FACE_SIZE - 3);
-    ctx.shadowBlur = 0;
   }
 
   private drawSolidTile(ctx: CanvasRenderingContext2D, x: number, y: number, primary: string, _accent: string): void {

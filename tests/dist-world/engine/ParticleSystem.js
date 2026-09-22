@@ -226,14 +226,14 @@ class ParticleSystem {
                 ctx.fill();
             }
             else if (p.shape === 'spark') {
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = 6;
-                ctx.fillRect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
+                const half = p.size * 0.5;
+                ctx.globalAlpha = Math.max(0, Math.min(1, progress)) * 0.35;
+                ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
+                ctx.globalAlpha = Math.max(0, Math.min(1, progress));
+                ctx.fillRect(p.x - half, p.y - half, p.size, p.size);
             }
             else if (p.shape === 'square') {
                 // Character ghost trail or debris shard
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = 4;
                 ctx.fillRect(p.x, p.y, p.size, p.height || p.size);
             }
             else if (p.shape === 'ring') {

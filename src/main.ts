@@ -395,13 +395,7 @@ class Game {
       );
     }
 
-    // 6. Update dynamic 3D player point light
-    const activeThemeColor = this.gameState === 'ROTATING' && this.pendingNextRoom
-      ? this.pendingNextRoom.themeColor
-      : this.currentRoom.themeColor;
-    this.cubeRenderer.updatePlayerLight(this.player.x, this.player.y, activeThemeColor);
-
-    // 7. Update 3D scene & render
+    // 6. Update 3D scene & render
     this.cubeRenderer.update(dt);
 
     // 8. Update performance debug telemetry
@@ -587,6 +581,7 @@ class Game {
 
     // Reset rotation & face binding
     this.cubeRenderer.resetRotationToZero();
+    this.cubeRenderer.faceRenderer.invalidateCache();
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
 
     // Reset physics & particles

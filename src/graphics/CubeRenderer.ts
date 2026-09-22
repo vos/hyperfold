@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { FACE_SIZE, ScreenData } from '../world/ScreenData';
 import { FaceRenderer } from './FaceRenderer';
 import { LevelMap } from '../world/LevelMap';
@@ -37,7 +38,7 @@ export class CubeRenderer {
   private faceCanvases: HTMLCanvasElement[] = [];
   private faceContexts: CanvasRenderingContext2D[] = [];
   private faceTextures: THREE.CanvasTexture[] = [];
-  private faceMaterials: THREE.MeshStandardMaterial[] = [];
+  private faceMaterials: THREE.MeshBasicMaterial[] = [];
 
   // Renderer for room drawing
   public faceRenderer: FaceRenderer;
@@ -68,9 +69,10 @@ export class CubeRenderer {
   private readonly tempFaceCenter = new THREE.Vector3();
   private readonly tempViewDir = new THREE.Vector3();
 
-  // 30 FPS Side Faces Animation Clock
+  // Side Faces Update Throttling (20 FPS round-robin)
   private sideFacesAccumulator: number = 0;
-  private readonly SIDE_FACES_INTERVAL: number = 1 / 30; // ~0.0333s (30 FPS)
+  private sideFacesRoundRobinIdx: number = 0;
+  private readonly SIDE_FACES_INTERVAL: number = 1 / 20; // ~0.05s (20 FPS)
 
   // Rotation Animation State
   public isRotating: boolean = false;
@@ -83,11 +85,6 @@ export class CubeRenderer {
   // Cube physical dimensions
   public readonly CUBE_SIZE = 16;
   public is3DMode: boolean = true;
-
-  // Dynamic 3D Lighting
-  private playerLight: THREE.PointLight;
-  private cyanCornerLight: THREE.PointLight;
-  private magentaCornerLight: THREE.PointLight;
 
   // Interactive 3D Orbit Camera System
   // Default 3D perspective angles:
@@ -116,11 +113,15 @@ export class CubeRenderer {
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 1000);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      precision: 'mediump',
+    });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 0.95;
     container.appendChild(this.renderer.domElement);
 
     // Initial camera layout with full cube framing
@@ -130,34 +131,10 @@ export class CubeRenderer {
     this.voidBg = new VoidBackground();
     this.scene.add(this.voidBg.group);
 
-    // Clean, crisp lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
-    this.scene.add(ambientLight);
-
-    const keyLight = new THREE.DirectionalLight(0x00ffff, 0.8);
-    keyLight.position.set(16, 20, 26);
-    this.scene.add(keyLight);
-
-    const rimLight = new THREE.DirectionalLight(0xff00aa, 0.8);
-    rimLight.position.set(-18, -14, 18);
-    this.scene.add(rimLight);
-
-    // Subtle corner colored point lights to accentuate 3D cube edges
-    this.cyanCornerLight = new THREE.PointLight(0x00ffff, 1.0, 45);
-    this.cyanCornerLight.position.set(-10, 12, 14);
-    this.scene.add(this.cyanCornerLight);
-
-    this.magentaCornerLight = new THREE.PointLight(0xff00aa, 1.0, 45);
-    this.magentaCornerLight.position.set(14, -12, 12);
-    this.scene.add(this.magentaCornerLight);
-
-    // Dynamic Player Point Light (for 3D mode)
-    this.playerLight = new THREE.PointLight(0x00ffff, 1.4, 20, 1.2);
-    this.playerLight.position.set(0, 0, 8.6);
-
     this.faceRenderer = new FaceRenderer();
 
-    // Create textures for all 6 cube faces
+    // Create textures & unlit MeshBasicMaterials for all 6 cube faces
+    // Slightly softened tint (0xd0d0d0) to match the original deeper lighting contrast
     for (let i = 0; i < 6; i++) {
       const cvs = document.createElement('canvas');
       cvs.width = FACE_SIZE;
@@ -174,12 +151,9 @@ export class CubeRenderer {
       tex.colorSpace = THREE.SRGBColorSpace;
       this.faceTextures.push(tex);
 
-      const mat = new THREE.MeshStandardMaterial({
+      const mat = new THREE.MeshBasicMaterial({
         map: tex,
-        roughness: 0.8,
-        metalness: 0.0,
-        emissive: new THREE.Color(0x020408),
-        emissiveIntensity: 0.15,
+        color: new THREE.Color(0xd0d0d0),
       });
       this.faceMaterials.push(mat);
     }
@@ -190,10 +164,9 @@ export class CubeRenderer {
     // Create 3D Cube Mesh
     const boxGeo = new THREE.BoxGeometry(this.CUBE_SIZE, this.CUBE_SIZE, this.CUBE_SIZE);
     this.cubeMesh = new THREE.Mesh(boxGeo, this.faceMaterials);
-    this.cubeMesh.add(this.playerLight);
     this.scene.add(this.cubeMesh);
 
-    // Build Sleek Glowing Neon Edges (seamless cylinders & rounded corner joints)
+    // Build Sleek Glowing Neon Edges (merged geometry for minimal draw calls)
     this.cubeEdges = this.buildSleekChassis(boxGeo);
     this.cubeMesh.add(this.cubeEdges);
 
@@ -540,7 +513,10 @@ export class CubeRenderer {
     const laserCore = new THREE.LineSegments(edgeGeo, edgeMat);
     chassis.add(laserCore);
 
-    // 2. Seamless Cylindrical Neon Edge Beams
+    // 2. Seamless Cylindrical Neon Edge Beams & Spherical Corner Joints (Merged Geometries)
+    const cyanGeos: THREE.BufferGeometry[] = [];
+    const magentaGeos: THREE.BufferGeometry[] = [];
+
     const xTubeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, tubeLen, 8);
     xTubeGeo.rotateZ(Math.PI * 0.5); // align along X axis
 
@@ -549,71 +525,80 @@ export class CubeRenderer {
     zTubeGeo.rotateX(Math.PI * 0.5); // align along Z axis
 
     // X-parallel edges
-    const xEdges: [number, number, number, THREE.Material][] = [
-      [0, H, H, cyanMat],      // Top-Front
-      [0, H, -H, cyanMat],     // Top-Back
-      [0, -H, H, magentaMat],  // Bottom-Front
-      [0, -H, -H, magentaMat], // Bottom-Back
+    const xEdges: [number, number, number, boolean][] = [
+      [0, H, H, true],       // Top-Front (cyan)
+      [0, H, -H, true],      // Top-Back (cyan)
+      [0, -H, H, false],     // Bottom-Front (magenta)
+      [0, -H, -H, false],    // Bottom-Back (magenta)
     ];
-    for (const [x, y, z, mat] of xEdges) {
-      const mesh = new THREE.Mesh(xTubeGeo, mat);
-      mesh.position.set(x, y, z);
-      chassis.add(mesh);
+    for (const [x, y, z, isCyan] of xEdges) {
+      const g = xTubeGeo.clone().translate(x, y, z);
+      (isCyan ? cyanGeos : magentaGeos).push(g);
     }
 
     // Y-parallel edges
-    const yEdges: [number, number, number, THREE.Material][] = [
-      [-H, 0, H, cyanMat],      // Left-Front
-      [-H, 0, -H, cyanMat],     // Left-Back
-      [H, 0, H, magentaMat],    // Right-Front
-      [H, 0, -H, magentaMat],   // Right-Back
+    const yEdges: [number, number, number, boolean][] = [
+      [-H, 0, H, true],      // Left-Front (cyan)
+      [-H, 0, -H, true],     // Left-Back (cyan)
+      [H, 0, H, false],      // Right-Front (magenta)
+      [H, 0, -H, false],     // Right-Back (magenta)
     ];
-    for (const [x, y, z, mat] of yEdges) {
-      const mesh = new THREE.Mesh(yTubeGeo, mat);
-      mesh.position.set(x, y, z);
-      chassis.add(mesh);
+    for (const [x, y, z, isCyan] of yEdges) {
+      const g = yTubeGeo.clone().translate(x, y, z);
+      (isCyan ? cyanGeos : magentaGeos).push(g);
     }
 
     // Z-parallel edges
-    const zEdges: [number, number, number, THREE.Material][] = [
-      [-H, H, 0, cyanMat],      // Top-Left
-      [H, H, 0, cyanMat],       // Top-Right
-      [-H, -H, 0, magentaMat],  // Bottom-Left
-      [H, -H, 0, magentaMat],   // Bottom-Right
+    const zEdges: [number, number, number, boolean][] = [
+      [-H, H, 0, true],      // Top-Left (cyan)
+      [H, H, 0, true],       // Top-Right (cyan)
+      [-H, -H, 0, false],    // Bottom-Left (magenta)
+      [H, -H, 0, false],     // Bottom-Right (magenta)
     ];
-    for (const [x, y, z, mat] of zEdges) {
-      const mesh = new THREE.Mesh(zTubeGeo, mat);
-      mesh.position.set(x, y, z);
-      chassis.add(mesh);
+    for (const [x, y, z, isCyan] of zEdges) {
+      const g = zTubeGeo.clone().translate(x, y, z);
+      (isCyan ? cyanGeos : magentaGeos).push(g);
     }
 
-    // 3. Smooth Spherical Corner Joints (radius perfectly matches tubes)
+    // 3. Smooth Spherical Corner Joints
     const sphereGeo = new THREE.SphereGeometry(tubeRadius, 8, 8);
     for (const cx of [-H, H]) {
       for (const cy of [-H, H]) {
         for (const cz of [-H, H]) {
-          const mat = cy > 0 ? cyanMat : magentaMat;
-          const corner = new THREE.Mesh(sphereGeo, mat);
-          corner.position.set(cx, cy, cz);
-          chassis.add(corner);
+          const isCyan = cy > 0;
+          const g = sphereGeo.clone().translate(cx, cy, cz);
+          (isCyan ? cyanGeos : magentaGeos).push(g);
         }
       }
     }
 
+    // Merge into single cyan and single magenta draw calls
+    if (cyanGeos.length > 0) {
+      const mergedCyan = BufferGeometryUtils.mergeGeometries(cyanGeos);
+      if (mergedCyan) {
+        chassis.add(new THREE.Mesh(mergedCyan, cyanMat));
+      }
+      cyanGeos.forEach((g) => g.dispose());
+    }
+
+    if (magentaGeos.length > 0) {
+      const mergedMagenta = BufferGeometryUtils.mergeGeometries(magentaGeos);
+      if (mergedMagenta) {
+        chassis.add(new THREE.Mesh(mergedMagenta, magentaMat));
+      }
+      magentaGeos.forEach((g) => g.dispose());
+    }
+
+    xTubeGeo.dispose();
+    yTubeGeo.dispose();
+    zTubeGeo.dispose();
+    sphereGeo.dispose();
+
     return chassis;
   }
 
-  public updatePlayerLight(pixelX: number, pixelY: number, colorHex: string): void {
-    if (!this.is3DMode) {
-      this.playerLight.intensity = 0;
-      return;
-    }
-    this.playerLight.intensity = 1.4;
-    // Map 2D pixel coordinates on 800x800 face to 3D cube coordinates [-8, 8]
-    const x3D = ((pixelX + 12) / FACE_SIZE - 0.5) * this.CUBE_SIZE;
-    const y3D = -((pixelY + 18) / FACE_SIZE - 0.5) * this.CUBE_SIZE; // Invert Y
-    this.playerLight.position.set(x3D, y3D, this.CUBE_SIZE * 0.5 + 0.6);
-    this.playerLight.color.set(colorHex);
+  public updatePlayerLight(_pixelX: number, _pixelY: number, _colorHex: string): void {
+    // Dynamic lights removed for peak performance with unlit MeshBasicMaterial
   }
 
   /**
@@ -750,14 +735,28 @@ export class CubeRenderer {
   }
 
   /**
-   * Real-time 30 FPS animation update for visible side faces only.
-   * Culls back-facing faces: at most 2 side faces are visible at once to the user.
+   * Helper to check if a room has dynamic elements that require continuous side updates.
+   */
+  public static hasDynamicEntities(room: ScreenData): boolean {
+    return (
+      (room.movingPlatforms !== undefined && room.movingPlatforms.length > 0) ||
+      (room.laserBarriers !== undefined && room.laserBarriers.length > 0) ||
+      (room.laserTurrets !== undefined && room.laserTurrets.length > 0)
+    );
+  }
+
+  /**
+   * Throttled 20 FPS round-robin animation update for visible side faces only.
+   * Culls back-facing faces and skips static rooms (which were already pre-rendered once).
+   * Distributes texture uploads so at most 1 side texture is updated per tick.
    */
   public updateSideFaces(): void {
     if (!this.activeLevelMap) return;
 
     // Side and rear faces: 0 (+X), 1 (-X), 2 (+Y), 3 (-Y), 5 (-Z), and 4 (+Z) when rotating
     const sideIndices = this.isRotating ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 5];
+    const candidateFaces: number[] = [];
+
     for (const idx of sideIndices) {
       // During rotation, transitionTargetFace is active front face updated directly with player
       if (this.isRotating && idx === this.transitionTargetFace) continue;
@@ -769,35 +768,52 @@ export class CubeRenderer {
       if (!this.isFaceVisible(idx)) continue;
 
       if (binding.type === 'room' && binding.room) {
-        const destCtx = this.faceContexts[idx];
-        if (binding.rotationAngle) {
-          destCtx.save();
-          destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
-          destCtx.rotate(binding.rotationAngle);
-          destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
-          this.faceRenderer.renderRoomToContext(
-            destCtx,
-            binding.room,
-            this.activeLevelMap,
-            undefined,
-            undefined,
-            this.time
-          );
-          destCtx.restore();
-        } else {
-          this.faceRenderer.renderRoomToContext(
-            destCtx,
-            binding.room,
-            this.activeLevelMap,
-            undefined,
-            undefined,
-            this.time
-          );
+        // Only rooms with active dynamic entities (moving platforms, lasers) need continuous updates
+        if (CubeRenderer.hasDynamicEntities(binding.room)) {
+          candidateFaces.push(idx);
         }
-        this.faceTextures[idx].needsUpdate = true;
       } else if (binding.type === 'void' && binding.voidLabel) {
-        this.drawVoidFace(idx, binding.voidLabel);
+        candidateFaces.push(idx);
       }
+    }
+
+    if (candidateFaces.length === 0) return;
+
+    // Round-robin: update at most 1 side face per interval to eliminate multi-texture upload spikes
+    this.sideFacesRoundRobinIdx = (this.sideFacesRoundRobinIdx + 1) % candidateFaces.length;
+    const targetIdx = candidateFaces[this.sideFacesRoundRobinIdx];
+    const binding = this.faceBindings[targetIdx];
+    if (!binding) return;
+
+    if (binding.type === 'room' && binding.room) {
+      const destCtx = this.faceContexts[targetIdx];
+      if (binding.rotationAngle) {
+        destCtx.save();
+        destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+        destCtx.rotate(binding.rotationAngle);
+        destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+        this.faceRenderer.renderRoomToContext(
+          destCtx,
+          binding.room,
+          this.activeLevelMap,
+          undefined,
+          undefined,
+          this.time
+        );
+        destCtx.restore();
+      } else {
+        this.faceRenderer.renderRoomToContext(
+          destCtx,
+          binding.room,
+          this.activeLevelMap,
+          undefined,
+          undefined,
+          this.time
+        );
+      }
+      this.faceTextures[targetIdx].needsUpdate = true;
+    } else if (binding.type === 'void' && binding.voidLabel) {
+      this.drawVoidFace(targetIdx, binding.voidLabel);
     }
   }
 
@@ -841,18 +857,8 @@ export class CubeRenderer {
   public update(dt: number): void {
     this.voidBg.update(dt);
 
-    // Update lighting based on mode
-    if (this.is3DMode) {
-      const pulse = Math.sin(this.time * 2.5);
-      this.cyanCornerLight.intensity = 1.0 + pulse * 0.2;
-      this.magentaCornerLight.intensity = 1.0 - pulse * 0.2;
-    } else {
-      this.cyanCornerLight.intensity = 0.2;
-      this.magentaCornerLight.intensity = 0.2;
-    }
-
-    // Real-time 30 FPS Side-Face Animation:
-    // Throttled at 30 FPS to conserve GPU bandwidth while keeping side rooms alive
+    // Throttled Side-Face Animation:
+    // Round-robin 20 FPS to conserve GPU bandwidth while keeping moving platforms and lasers alive
     if (this.is3DMode || this.isRotating) {
       this.sideFacesAccumulator += dt;
       if (this.sideFacesAccumulator >= this.SIDE_FACES_INTERVAL) {
