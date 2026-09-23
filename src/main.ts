@@ -136,6 +136,11 @@ class Game {
       customOpt.value = '__load_custom__';
       customOpt.textContent = '+ Load Custom World (.json)...';
       this.worldSelectEl.appendChild(customOpt);
+
+      const editorOpt = document.createElement('option');
+      editorOpt.value = '__open_editor__';
+      editorOpt.textContent = '⚡ Open World Editor...';
+      this.worldSelectEl.appendChild(editorOpt);
     }
 
     // Check for ?world= URL query parameter
@@ -233,12 +238,26 @@ class Game {
       this.perfDebug.toggle();
     });
 
+    // World Editor link in gear menu
+    const btnEditor = document.getElementById('btn-editor') as HTMLAnchorElement | null;
+    if (btnEditor) {
+      btnEditor.href = this.getEditorUrl();
+      btnEditor.addEventListener('click', () => {
+        this.toggleGearMenu(false);
+      });
+    }
+
     // World Selection Dropdown
     this.worldSelectEl?.addEventListener('change', () => {
       const selected = this.worldSelectEl.value;
       if (selected === '__load_custom__') {
         this.worldSelectEl.value = this.currentWorldId;
         this.worldFileInputEl?.click();
+        return;
+      }
+      if (selected === '__open_editor__') {
+        this.worldSelectEl.value = this.currentWorldId;
+        window.open(this.getEditorUrl(), '_blank');
         return;
       }
       if (selected === 'procedural') {
@@ -471,6 +490,19 @@ class Game {
       this.gearMenuEl.classList.remove('open');
       this.btnGearEl.classList.remove('active');
     }
+  }
+
+  public getEditorUrl(): string {
+    // In local development with Vite dev server (game on :3000)
+    if (window.location.hostname === 'localhost' && window.location.port === '3000') {
+      return 'http://localhost:5174/';
+    }
+    // In production / web server, assume "editor" subfolder relative to game:
+    // e.g. /hyperfold/ -> /hyperfold/editor/
+    //      /hyperfold -> /hyperfold/editor/
+    //      / -> /editor/
+    const cleanPath = window.location.pathname.replace(/\/[^/]*\.[^/]+$/, '').replace(/\/+$/, '');
+    return `${cleanPath}/editor/`;
   }
 
   public openProceduralModal(): void {

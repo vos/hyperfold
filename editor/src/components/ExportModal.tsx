@@ -10,7 +10,9 @@ interface ExportModalProps {
 
 export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
   const [copied, setCopied] = useState(false);
-  const [gamePort, setGamePort] = useState('3000');
+  const [gamePort, setGamePort] = useState(
+    window.location.port === '5174' ? '3000' : (window.location.port || '')
+  );
   const [testingStatus, setTestingStatus] = useState<'idle' | 'opening' | 'connected'>('idle');
   const postIntervalRef = useRef<number | null>(null);
 
@@ -65,9 +67,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
       // LocalStorage fallback
     }
 
+    const protocol = window.location.protocol;
     const host = window.location.hostname || 'localhost';
-    const port = gamePort.trim() || '3000';
-    const targetUrl = `http://${host}:${port}/?load_custom=1`;
+    const currentPort = window.location.port;
+    const port = gamePort.trim();
+
+    // Determine the game base path by stripping '/editor' (and anything after it) from the current pathname
+    const gameBasePath = window.location.pathname.replace(/\/editor(\/.*)?$/i, '') || '/';
+    const normalizedBasePath = gameBasePath.endsWith('/') ? gameBasePath : `${gameBasePath}/`;
+
+    // If a different port is specified (e.g. 3000 while editor is on 5174):
+    let targetUrl: string;
+    if (port && port !== currentPort && port !== '80' && port !== '443') {
+      targetUrl = `${protocol}//${host}:${port}${normalizedBasePath}?load_custom=1`;
+    } else {
+      // Deployed or same-port: use origin-relative path preserving the subfolder
+      targetUrl = `${normalizedBasePath}?load_custom=1`;
+    }
 
     setTestingStatus('opening');
 
