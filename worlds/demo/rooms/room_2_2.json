@@ -59,11 +59,13 @@
       ]
     },
     {
-      "id": "core_2_2_3",
-      "type": "prism",
+      "id": "key_warp_core",
+      "type": "key",
+      "label": "Warp Core Key",
+      "color": "#ff0077",
       "pos": [
         400,
-        220
+        300
       ]
     }
   ],

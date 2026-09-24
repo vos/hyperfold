@@ -6,6 +6,7 @@ import type {
   LaserTurretConfig,
   RoomData,
   WorldData,
+  ExitConfig,
 } from '../types/world.ts';
 
 /**
@@ -244,7 +245,26 @@ export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0])
     type: c.type,
     x: c.pos ? c.pos[0] : (c.x ?? 0),
     y: c.pos ? c.pos[1] : (c.y ?? 0),
+    ...(c.color ? { color: c.color } : {}),
+    ...(c.label ? { label: c.label } : {}),
   }));
+
+  const parseExit = (val: any): ExitConfig => {
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'object' && val !== null && val.id) {
+      return {
+        id: val.id,
+        ...(val.color ? { color: val.color } : {}),
+        ...(val.label ? { label: val.label } : {}),
+      };
+    }
+    return false;
+  };
+
+  const leftExit = parseExit(rm.exits?.left);
+  const rightExit = parseExit(rm.exits?.right);
+  const upExit = parseExit(rm.exits?.up);
+  const downExit = parseExit(rm.exits?.down);
 
   return {
     $schema: rm.$schema || './schemas/room.schema.json',
@@ -255,10 +275,10 @@ export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0])
     themeColor: rm.themeColor || '#00e5ff',
     accentColor: rm.accentColor || '#0066ff',
     exits: {
-      left: !!rm.exits?.left,
-      right: !!rm.exits?.right,
-      up: !!rm.exits?.up,
-      down: !!rm.exits?.down,
+      left: leftExit,
+      right: rightExit,
+      up: upExit,
+      down: downExit,
     },
     spawnPoint,
     grid: normalizeGrid(rm.grid || []),
@@ -423,6 +443,8 @@ export function exportWorldJson(world: WorldData): string {
           id: c.id,
           type: c.type,
           pos: [c.x, c.y],
+          ...(c.color ? { color: c.color } : {}),
+          ...(c.label ? { label: c.label } : {}),
         }));
       }
 

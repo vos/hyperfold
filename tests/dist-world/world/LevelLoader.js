@@ -50,12 +50,84 @@ class LevelLoader {
         : { x: data.spawnPoint.x, y: data.spawnPoint.y };
     }
 
+    const exits = {
+      left: false,
+      right: false,
+      up: false,
+      down: false,
+    };
+    const gates = {};
+    const dirs = ['left', 'right', 'up', 'down'];
+
+    if (data.exits) {
+      for (const d of dirs) {
+        const val = data.exits[d];
+        if (typeof val === 'boolean') {
+          exits[d] = val;
+        } else if (typeof val === 'string' && val.trim().length > 0) {
+          const gate = {
+            id: val.trim(),
+            color: ScreenData_1.getGateColor(val.trim()),
+          };
+          gates[d] = gate;
+          exits[d] = gate;
+        } else if (typeof val === 'object' && val !== null && val.id) {
+          const gate = {
+            id: val.id,
+            color: ScreenData_1.getGateColor(val.id, val.color),
+            label: val.label,
+          };
+          gates[d] = gate;
+          exits[d] = gate;
+        }
+      }
+    }
+
+    const rawGates = data.gates || data.closedExits;
+    if (rawGates) {
+      if (Array.isArray(rawGates)) {
+        for (const g of rawGates) {
+          if (g && g.direction && g.id) {
+            const gate = {
+              id: g.id,
+              color: ScreenData_1.getGateColor(g.id, g.color),
+              label: g.label,
+            };
+            gates[g.direction] = gate;
+            exits[g.direction] = gate;
+          }
+        }
+      } else if (typeof rawGates === 'object') {
+        for (const d of dirs) {
+          const g = rawGates[d];
+          if (typeof g === 'string' && g.trim().length > 0) {
+            const gate = {
+              id: g.trim(),
+              color: ScreenData_1.getGateColor(g.trim()),
+            };
+            gates[d] = gate;
+            exits[d] = gate;
+          } else if (typeof g === 'object' && g !== null && g.id) {
+            const gate = {
+              id: g.id,
+              color: ScreenData_1.getGateColor(g.id, g.color),
+              label: g.label,
+            };
+            gates[d] = gate;
+            exits[d] = gate;
+          }
+        }
+      }
+    }
+
     const collectibles = (data.collectibles || []).map((c) => ({
       id: c.id,
       type: c.type,
       x: c.pos ? c.pos[0] : (c.x ?? 0),
       y: c.pos ? c.pos[1] : (c.y ?? 0),
       collected: c.collected ?? false,
+      color: c.color || (c.type === 'key' ? ScreenData_1.getGateColor(c.id) : undefined),
+      label: c.label,
     }));
 
     return {
@@ -66,7 +138,8 @@ class LevelLoader {
       themeColor: data.themeColor,
       accentColor: data.accentColor,
       tiles,
-      exits: { ...data.exits },
+      exits,
+      gates: Object.keys(gates).length > 0 ? gates : undefined,
       collectibles,
       spawnPoint,
       bounceProps: Object.keys(bounceProps).length > 0 ? bounceProps : undefined,

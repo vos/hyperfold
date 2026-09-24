@@ -14,6 +14,8 @@ class PhysicsEngine {
     roomBarriers = new Map();
     roomTurrets = new Map();
     roomProjectiles = new Map();
+    levelMap = null;
+    lastLockedSoundTime = 0;
     constructor(audio, particles) {
         this.audio = audio;
         this.particles = particles;
@@ -122,7 +124,18 @@ class PhysicsEngine {
             this.particles.emitDust((c + 0.5) * ScreenData_1.TILE_SIZE, r * ScreenData_1.TILE_SIZE, 5, room.themeColor);
         }
     }
-    update(player, room, input, dt, onGoalReached, onPlayerDeath, currentTime) {
+    setLevelMap(levelMap) {
+        this.levelMap = levelMap;
+    }
+    isExitOpen(room, dir, levelMap) {
+        const map = levelMap || this.levelMap;
+        const gate = (0, ScreenData_1.getExitGate)(room, dir);
+        if (gate) {
+            return !!map && map.hasKey(gate.id);
+        }
+        return room.exits?.[dir] === true;
+    }
+    update(player, room, input, dt, onGoalReached, onPlayerDeath, currentTime, levelMap, onGateLocked) {
         this.updateCrumble(dt);
         player.wasGrounded = player.isGrounded;
         player.updateTimers(dt);
@@ -301,7 +314,7 @@ class PhysicsEngine {
         if (turretKilled)
             return null;
         // 7. Check Edge Boundaries for 3D Cube Rotation
-        return this.checkBoundaryTransitions(player, room);
+        return this.checkBoundaryTransitions(player, room, levelMap, onGateLocked);
     }
     canStandUp(player, room, platforms) {
         if (!player.isDucking)
@@ -575,10 +588,23 @@ class PhysicsEngine {
             }
         }
     }
-    checkBoundaryTransitions(player, room) {
+    handleLockedGateHit(player, gate, dir, onGateLocked) {
+        if (this.gameTime - this.lastLockedSoundTime > 0.6) {
+            this.lastLockedSoundTime = this.gameTime;
+            if (this.audio.playGateLocked) {
+                this.audio.playGateLocked();
+            }
+        }
+        const color = (0, ScreenData_1.getGateColor)(gate.id, gate.color);
+        this.particles.emitSparks(player.x + player.width * 0.5, player.y + player.height * 0.5, 6, color);
+        if (onGateLocked) {
+            onGateLocked(gate, dir);
+        }
+    }
+    checkBoundaryTransitions(player, room, levelMap, onGateLocked) {
         // Right Exit
         if (player.x + player.width * 0.5 >= ScreenData_1.FACE_SIZE) {
-            if (room.exits.right) {
+            if (this.isExitOpen(room, 'right', levelMap)) {
                 return {
                     direction: 'right',
                     entryX: 4,
@@ -589,11 +615,15 @@ class PhysicsEngine {
             else {
                 player.x = ScreenData_1.FACE_SIZE - player.width;
                 player.vx = 0;
+                const gate = (0, ScreenData_1.getExitGate)(room, 'right');
+                if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+                    this.handleLockedGateHit(player, gate, 'right', onGateLocked);
+                }
             }
         }
         // Left Exit
         if (player.x + player.width * 0.5 <= 0) {
-            if (room.exits.left) {
+            if (this.isExitOpen(room, 'left', levelMap)) {
                 return {
                     direction: 'left',
                     entryX: ScreenData_1.FACE_SIZE - player.width - 4,
@@ -604,11 +634,15 @@ class PhysicsEngine {
             else {
                 player.x = 0;
                 player.vx = 0;
+                const gate = (0, ScreenData_1.getExitGate)(room, 'left');
+                if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+                    this.handleLockedGateHit(player, gate, 'left', onGateLocked);
+                }
             }
         }
         // Top Exit
         if (player.y + player.height * 0.5 <= 0) {
-            if (room.exits.up) {
+            if (this.isExitOpen(room, 'up', levelMap)) {
                 return {
                     direction: 'up',
                     entryX: player.x,
@@ -619,11 +653,15 @@ class PhysicsEngine {
             else {
                 player.y = 0;
                 player.vy = 0;
+                const gate = (0, ScreenData_1.getExitGate)(room, 'up');
+                if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+                    this.handleLockedGateHit(player, gate, 'up', onGateLocked);
+                }
             }
         }
         // Bottom Exit
         if (player.y >= ScreenData_1.FACE_SIZE) {
-            if (room.exits.down) {
+            if (this.isExitOpen(room, 'down', levelMap)) {
                 return {
                     direction: 'down',
                     entryX: player.x,
@@ -632,15 +670,23 @@ class PhysicsEngine {
                 };
             }
             else {
-                // Fell into bottom void without exit -> respawn
-                this.audio.playDeath();
-                this.particles.emitPlayerExplosion(player.x + player.width * 0.5, ScreenData_1.FACE_SIZE - 20, player.primaryColor, player.accentColor);
-                return {
-                    direction: 'down', // will be treated as fall death if no room
-                    entryX: 120,
-                    entryY: 660,
-                    preserveVy: 0,
-                };
+                const gate = (0, ScreenData_1.getExitGate)(room, 'down');
+                if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+                    player.y = ScreenData_1.FACE_SIZE - player.height;
+                    player.vy = 0;
+                    this.handleLockedGateHit(player, gate, 'down', onGateLocked);
+                }
+                else {
+                    // Fell into bottom void without exit -> respawn
+                    this.audio.playDeath();
+                    this.particles.emitPlayerExplosion(player.x + player.width * 0.5, ScreenData_1.FACE_SIZE - 20, player.primaryColor, player.accentColor);
+                    return {
+                        direction: 'down', // will be treated as fall death if no room
+                        entryX: 120,
+                        entryY: 660,
+                        preserveVy: 0,
+                    };
+                }
             }
         }
         return null;

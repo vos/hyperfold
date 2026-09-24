@@ -13,19 +13,73 @@ export enum TileType {
   GOAL = 6,
 }
 
+export type ExitDirection = 'left' | 'right' | 'up' | 'down';
+
+export interface ExitGateConfig {
+  id: string; // The unique ID matching the gate key ID
+  color?: string; // Optional custom color code override
+  label?: string; // Optional friendly label (e.g. "Security Gate Alpha")
+}
+
+export const GATE_KEY_PALETTE = [
+  '#ffe600', // Gold / Amber
+  '#00f0ff', // Cyber Cyan
+  '#ff0077', // Hot Magenta / Ruby
+  '#00ff66', // Emerald Green
+  '#b026ff', // Electric Purple
+  '#ff6600', // Neon Orange
+  '#0088ff', // Cobalt Blue
+  '#ff2244', // Crimson Red
+];
+
+export function getGateColor(id: string, explicitColor?: string): string {
+  if (explicitColor) return explicitColor;
+  const lower = id.toLowerCase();
+  if (lower.includes('gold') || lower.includes('yellow')) return '#ffe600';
+  if (lower.includes('cyan') || lower.includes('teal')) return '#00f0ff';
+  if (lower.includes('pink') || lower.includes('magenta')) return '#ff0077';
+  if (lower.includes('green') || lower.includes('emerald') || lower.includes('lime')) return '#00ff66';
+  if (lower.includes('purple') || lower.includes('violet')) return '#b026ff';
+  if (lower.includes('orange') || lower.includes('amber')) return '#ff6600';
+  if (lower.includes('blue') || lower.includes('azure')) return '#0088ff';
+  if (lower.includes('red') || lower.includes('ruby')) return '#ff2244';
+
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % GATE_KEY_PALETTE.length;
+  return GATE_KEY_PALETTE[idx];
+}
+
 export interface CollectibleData {
   id: string;
   x: number; // in pixels
   y: number; // in pixels
   type: 'core' | 'prism' | 'key';
   collected?: boolean;
+  color?: string; // Optional custom color override
+  label?: string; // Optional friendly label
 }
 
+export type ExitConfig = boolean | ExitGateConfig;
+
 export interface RoomExits {
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
+  left: ExitConfig;
+  right: ExitConfig;
+  up: ExitConfig;
+  down: ExitConfig;
+}
+
+export function isGatedExit(exit: ExitConfig | undefined): exit is ExitGateConfig {
+  return typeof exit === 'object' && exit !== null && typeof exit.id === 'string';
+}
+
+export function getExitGate(room: ScreenData, dir: ExitDirection): ExitGateConfig | undefined {
+  const exit = room.exits?.[dir];
+  if (isGatedExit(exit)) return exit;
+  return room.gates?.[dir];
 }
 
 export interface BouncePadConfig {
@@ -104,6 +158,7 @@ export interface ScreenData {
   tiles: number[][];       // 20x20 grid of TileType
   collectibles: CollectibleData[];
   exits: RoomExits;
+  gates?: Partial<Record<ExitDirection, ExitGateConfig>>;
   spawnPoint?: { x: number; y: number };
   bounceProps?: Record<string, BouncePadConfig>; // Keyed by "${row},${col}"
   spikeProps?: Record<string, SpikeConfig>;      // Keyed by "${row},${col}"

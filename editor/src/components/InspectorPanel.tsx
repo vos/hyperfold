@@ -15,6 +15,10 @@ import {
   ArrowRight,
   Compass,
   Target,
+  Key,
+  Lock,
+  Unlock,
+  Copy,
 } from 'lucide-react';
 import {
   DiagnosticIssue,
@@ -25,6 +29,11 @@ import {
   MovingPlatformConfig,
   LaserBarrierConfig,
   LaserTurretConfig,
+  ExitGateConfig,
+  ExitDirection,
+  GATE_KEY_PALETTE,
+  isGatedExit,
+  getGateColor,
 } from '../types/world';
 import { getAdjacentSectors, getOppositeDirection } from '../utils/navigation.ts';
 
@@ -64,14 +73,59 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     '#ffffff', // White
   ];
 
+  // Scan world for all known gate keys (from collectibles and gated exits)
+  const existingWorldKeys = React.useMemo(() => {
+    const keysMap = new Map<
+      string,
+      { id: string; label?: string; color?: string; sourceRoomId: string; sourceRoomTitle: string }
+    >();
+    for (const r of world.rooms) {
+      if (r.collectibles) {
+        for (const c of r.collectibles) {
+          if (c.type === 'key') {
+            keysMap.set(c.id, {
+              id: c.id,
+              label: c.label,
+              color: c.color || getGateColor(c.id),
+              sourceRoomId: r.id,
+              sourceRoomTitle: r.title,
+            });
+          }
+        }
+      }
+      for (const dir of ['left', 'right', 'up', 'down'] as const) {
+        const exit = r.exits?.[dir];
+        if (isGatedExit(exit) && !keysMap.has(exit.id)) {
+          keysMap.set(exit.id, {
+            id: exit.id,
+            label: exit.label,
+            color: exit.color || getGateColor(exit.id),
+            sourceRoomId: r.id,
+            sourceRoomTitle: r.title,
+          });
+        }
+      }
+    }
+    return Array.from(keysMap.values());
+  }, [world]);
+
   // Helper to add a new collectible
   const handleAddCollectible = (type: 'core' | 'prism' | 'key') => {
-    const id = `${room.id}_${type}_${Date.now().toString().slice(-4)}`;
+    const id =
+      type === 'key'
+        ? `key_${room.id.replace(/^room_/, '')}_${Date.now().toString().slice(-4)}`
+        : `${room.id}_${type}_${Date.now().toString().slice(-4)}`;
     const newCol: CollectibleData = {
       id,
       type,
       x: 400,
       y: 400,
+      ...(type === 'key'
+        ? {
+            label: 'Security Key',
+            color: '#ff0077',
+          }
+        : {}),
     };
     onUpdateRoom((prev) => ({
       ...prev,
@@ -338,40 +392,377 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     </span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {(['up', 'right', 'down', 'left'] as const).map((dir) => {
                       const info = adjacent[dir];
+                      const exitVal = room.exits[dir];
+                      const isGated = isGatedExit(exitVal);
+                      const isOpen = exitVal === true;
+                      const isClosed = !exitVal;
+
+                      const gateConfig: ExitGateConfig = isGated
+                        ? exitVal
+                        : {
+                            id: `key_${dir}_gate`,
+                            label: `${dir.charAt(0).toUpperCase() + dir.slice(1)} Security Gate`,
+                            color: '#ff0077',
+                          };
+
                       return (
                         <div
                           key={dir}
-                          className={`p-2 rounded border transition-colors ${
-                            room.exits[dir]
+                          className={`p-2.5 rounded border transition-colors ${
+                            isGated
+                              ? 'bg-pink-950/20 border-pink-500/50'
+                              : isOpen
                               ? 'bg-cyber-cyan/10 border-cyber-cyan/50'
                               : 'bg-cyber-bg border-cyber-border'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="flex items-center space-x-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={room.exits[dir]}
-                                onChange={(e) =>
-                                  onUpdateRoom((r) => ({
-                                    ...r,
-                                    exits: { ...r.exits, [dir]: e.target.checked },
-                                  }))
-                                }
-                                className="rounded border-cyber-border bg-cyber-bg text-cyber-cyan focus:ring-0"
-                              />
-                              <span className="capitalize text-xs font-bold text-slate-200">
-                                {dir} Exit
+                          {/* Direction Header & Status */}
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="capitalize text-xs font-bold text-slate-100 flex items-center space-x-1">
+                                  {isGated && <Lock className="w-3 h-3 text-pink-400" />}
+                                  <span>{dir} Exit</span>
+                                </span>
+                                {!isGated && (isOpen ? (
+                                  <span className="text-[9px] text-cyber-cyan font-mono px-1.5 py-0.5 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 font-semibold">
+                                    OPEN
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] text-slate-500 font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">
+                                    WALL
+                                  </span>
+                                ))}
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                                Coord: ({info.targetCoords[0]}, {info.targetCoords[1]})
                               </span>
-                            </label>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              Coord: ({info.targetCoords[0]}, {info.targetCoords[1]})
-                            </span>
+                            </div>
+                            {isGated && (
+                              <div className="flex items-center mt-1.5">
+                                <span className="text-[10px] text-pink-400 font-mono px-1.5 py-0.5 rounded bg-pink-500/10 border border-pink-500/30 font-semibold inline-flex items-center space-x-1">
+                                  <span>🔒</span>
+                                  <span className="truncate max-w-[200px]">{exitVal.label || exitVal.id}</span>
+                                </span>
+                              </div>
+                            )}
                           </div>
 
+                          {/* Segmented Mode Selector: Wall / Corridor / Gate */}
+                          <div className="grid grid-cols-3 gap-1 mb-2 bg-cyber-card p-0.5 rounded border border-cyber-border text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  exits: { ...r.exits, [dir]: false },
+                                }))
+                              }
+                              className={`py-1 rounded text-center font-medium transition-colors ${
+                                isClosed
+                                  ? 'bg-slate-700 text-slate-100 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              Wall
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  exits: { ...r.exits, [dir]: true },
+                                }))
+                              }
+                              className={`py-1 rounded text-center font-medium transition-colors ${
+                                isOpen
+                                  ? 'bg-cyber-cyan/30 text-cyber-cyan border border-cyber-cyan/40 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              Corridor
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateRoom((r) => ({
+                                  ...r,
+                                  exits: { ...r.exits, [dir]: isGated ? exitVal : gateConfig },
+                                }))
+                              }
+                              className={`py-1 rounded text-center font-medium transition-colors flex items-center justify-center space-x-1 ${
+                                isGated
+                                  ? 'bg-pink-500/30 text-pink-300 border border-pink-500/40 shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              <Lock className="w-3 h-3" />
+                              <span>Gate 🔒</span>
+                            </button>
+                          </div>
+
+                          {/* Gated Exit Configuration Drawer */}
+                          {isGated && (
+                            <div className="mb-2 p-3 bg-cyber-bg/90 rounded border border-pink-500/40 space-y-3 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-pink-400 text-[11px] flex items-center space-x-1">
+                                  <Lock className="w-3 h-3" />
+                                  <span>Exit Gate Properties</span>
+                                </span>
+                                <span
+                                  className="w-3 h-3 rounded-full border border-white/40 shadow-sm"
+                                  style={{ backgroundColor: exitVal.color || getGateColor(exitVal.id) }}
+                                />
+                              </div>
+
+                              {/* Key ID Field */}
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400 text-[10px]">Required Key ID</span>
+                                </div>
+                                {existingWorldKeys.length > 0 && (
+                                  <select
+                                    onChange={(e) => {
+                                      const chosen = existingWorldKeys.find((k) => k.id === e.target.value);
+                                      if (!chosen) return;
+                                      onUpdateRoom((r) => ({
+                                        ...r,
+                                        exits: {
+                                          ...r.exits,
+                                          [dir]: {
+                                            ...exitVal,
+                                            id: chosen.id,
+                                            label: chosen.label || exitVal.label || `${chosen.id} Barrier`,
+                                            color: chosen.color || exitVal.color,
+                                          },
+                                        },
+                                      }));
+                                    }}
+                                    defaultValue=""
+                                    className="w-full text-[10px] bg-cyber-card border border-cyber-border rounded px-1.5 py-1 text-slate-300 focus:outline-none focus:border-pink-500"
+                                  >
+                                    <option value="" disabled>
+                                      Pick Existing Key...
+                                    </option>
+                                    {existingWorldKeys.map((k) => (
+                                      <option key={k.id} value={k.id}>
+                                        {k.id} {k.label ? `("${k.label}")` : ''} ({k.sourceRoomTitle})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                <input
+                                  type="text"
+                                  value={exitVal.id}
+                                  onChange={(e) => {
+                                    const newId = e.target.value;
+                                    onUpdateRoom((r) => ({
+                                      ...r,
+                                      exits: {
+                                        ...r.exits,
+                                        [dir]: { ...exitVal, id: newId },
+                                      },
+                                    }));
+                                  }}
+                                  placeholder="e.g. key_warp_core"
+                                  className="w-full bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-pink-500 focus:outline-none"
+                                />
+                                {(() => {
+                                  const matchingKey = existingWorldKeys.find((k) => k.id === exitVal.id);
+                                  if (matchingKey) {
+                                    return (
+                                      <div className="flex items-start space-x-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                                        <Key className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                                        <span className="leading-tight">
+                                          Key Item: <strong>{matchingKey.label || matchingKey.id}</strong>
+                                          <br />
+                                          <span className="text-emerald-400/70">{matchingKey.sourceRoomTitle}</span>
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+
+                              {/* Gate Label Field */}
+                              <div className="space-y-1">
+                                <span className="text-slate-400 text-[10px]">Gate Label (Displayed in UI)</span>
+                                <input
+                                  type="text"
+                                  value={exitVal.label || ''}
+                                  onChange={(e) => {
+                                    const newLabel = e.target.value;
+                                    onUpdateRoom((r) => ({
+                                      ...r,
+                                      exits: {
+                                        ...r.exits,
+                                        [dir]: { ...exitVal, label: newLabel },
+                                      },
+                                    }));
+                                  }}
+                                  placeholder="e.g. Warp Core Security Barrier"
+                                  className="w-full bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white text-xs focus:border-pink-500 focus:outline-none"
+                                />
+                              </div>
+
+                              {/* Gate Color Field */}
+                              <div className="space-y-1">
+                                <span className="text-slate-400 text-[10px]">Gate Forcefield Color</span>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="color"
+                                    value={exitVal.color || getGateColor(exitVal.id)}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      onUpdateRoom((r) => ({
+                                        ...r,
+                                        exits: {
+                                          ...r.exits,
+                                          [dir]: { ...exitVal, color: val },
+                                        },
+                                      }));
+                                    }}
+                                    className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer p-0.5"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={exitVal.color || getGateColor(exitVal.id)}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      onUpdateRoom((r) => ({
+                                        ...r,
+                                        exits: {
+                                          ...r.exits,
+                                          [dir]: { ...exitVal, color: val },
+                                        },
+                                      }));
+                                    }}
+                                    className="flex-1 bg-cyber-card border border-cyber-border rounded px-2 py-0.5 text-white font-mono text-xs focus:border-pink-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div className="flex items-center space-x-1.5 flex-wrap">
+                                  {GATE_KEY_PALETTE.map((palColor) => (
+                                    <button
+                                      key={palColor}
+                                      type="button"
+                                      onClick={() => {
+                                        onUpdateRoom((r) => ({
+                                          ...r,
+                                          exits: {
+                                            ...r.exits,
+                                            [dir]: { ...exitVal, color: palColor },
+                                          },
+                                        }));
+                                      }}
+                                      className={`w-4 h-4 rounded-full border transition-transform ${
+                                        (exitVal.color || getGateColor(exitVal.id)) === palColor
+                                          ? 'scale-125 border-white ring-1 ring-white/50'
+                                          : 'border-black/50 hover:scale-110'
+                                      }`}
+                                      style={{ backgroundColor: palColor }}
+                                      title={palColor}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Helper Action Buttons */}
+                              <div className="pt-1.5 border-t border-cyber-border/40 space-y-1.5 text-[10px]">
+                                {/* Mirror Gate to Adjacent Sector */}
+                                {info.room && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const oppDir = getOppositeDirection(dir);
+                                      const targetRoomId = info.room!.id;
+                                      onUpdateWorld((prev) => ({
+                                        ...prev,
+                                        rooms: prev.rooms.map((rm) =>
+                                          rm.id === targetRoomId
+                                            ? {
+                                                ...rm,
+                                                exits: {
+                                                  ...rm.exits,
+                                                  [oppDir]: {
+                                                    id: exitVal.id,
+                                                    label: exitVal.label,
+                                                    color: exitVal.color,
+                                                  },
+                                                },
+                                              }
+                                            : rm
+                                        ),
+                                      }));
+                                    }}
+                                    className="w-full flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 font-semibold transition-colors"
+                                    title={`Mirror gate config to ${info.room.title}'s ${getOppositeDirection(dir)} exit`}
+                                  >
+                                    <Copy className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">
+                                      Mirror Gate → {info.room.title}
+                                    </span>
+                                  </button>
+                                )}
+
+                                {/* Key Collectible Presence & Quick Spawn */}
+                                {(() => {
+                                  const keyCol = world.rooms
+                                    .flatMap((r) => (r.collectibles || []).map((c) => ({ col: c, room: r })))
+                                    .find(({ col }) => col.type === 'key' && col.id === exitVal.id);
+
+                                  if (keyCol) {
+                                    return (
+                                      <div className="flex items-center justify-between text-emerald-400 bg-emerald-500/10 p-2 rounded border border-emerald-500/20">
+                                        <span className="truncate mr-2 text-[10px]">✓ Key in {keyCol.room.title}</span>
+                                        {onSelectRoom && (
+                                          <button
+                                            type="button"
+                                            onClick={() => onSelectRoom(keyCol.room.id)}
+                                            className="text-emerald-300 hover:text-white underline text-[9px] shrink-0"
+                                          >
+                                            Jump to Room
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <div className="flex flex-col space-y-1.5 text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                                        <span className="text-[10px]">⚠️ No key collectible in world for ID: <strong className="font-mono">{exitVal.id}</strong></span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newKey: CollectibleData = {
+                                              id: exitVal.id,
+                                              type: 'key',
+                                              label: exitVal.label || 'Gate Key',
+                                              color: exitVal.color || getGateColor(exitVal.id),
+                                              x: 400,
+                                              y: 400,
+                                            };
+                                            onUpdateRoom((r) => ({
+                                              ...r,
+                                              collectibles: [...(r.collectibles || []), newKey],
+                                            }));
+                                            onSelectEntity({ type: 'collectible', id: exitVal.id });
+                                          }}
+                                          className="w-full py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-bold border border-amber-500/30"
+                                        >
+                                          + Spawn Key in This Room
+                                        </button>
+                                      </div>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Adjacent Sector Connection Status */}
                           {info.room ? (
                             <div className="flex items-center justify-between pt-1 border-t border-cyber-border/40 text-xs">
                               <div className="flex items-center space-x-1.5 truncate mr-2">
@@ -653,6 +1044,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   <span>+ Prism</span>
                 </button>
                 <button
+                  onClick={() => handleAddCollectible('key')}
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                >
+                  <Key className="w-3.5 h-3.5 text-cyber-neonPink" />
+                  <span>+ Gate Key</span>
+                </button>
+                <button
                   onClick={handleAddMovingPlatform}
                   className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
                 >
@@ -680,9 +1078,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
             {/* Active Entity Inspector */}
             {activeCollectible && (
-              <div className="p-3 bg-cyber-card rounded-lg border border-cyber-cyan space-y-2">
+              <div className="p-3 bg-cyber-card rounded-lg border border-cyber-cyan space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-cyber-cyan">Collectible ({activeCollectible.type})</span>
+                  <span className="font-bold text-cyber-cyan flex items-center space-x-1.5">
+                    {activeCollectible.type === 'key' ? (
+                      <Key className="w-4 h-4 text-cyber-neonPink" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 text-cyber-cyan" />
+                    )}
+                    <span>
+                      Collectible: {activeCollectible.type === 'key' ? 'Gate Key' : activeCollectible.type.toUpperCase()}
+                    </span>
+                  </span>
                   <button
                     onClick={() => {
                       onUpdateRoom((r) => ({
@@ -727,7 +1134,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                       onUpdateRoom((r) => ({
                         ...r,
                         collectibles: r.collectibles?.map((c) =>
-                          c.id === activeCollectible.id ? { ...c, type: t } : c
+                          c.id === activeCollectible.id
+                            ? {
+                                ...c,
+                                type: t,
+                                label: t === 'key' ? (c.label || 'Security Key') : c.label,
+                                color: t === 'key' ? (c.color || getGateColor(c.id)) : c.color,
+                              }
+                            : c
                         ),
                       }));
                     }}
@@ -738,6 +1152,137 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     <option value="key">Gate Key</option>
                   </select>
                 </div>
+
+                {/* Gate Key Specific Properties */}
+                {activeCollectible.type === 'key' && (
+                  <div className="p-2.5 bg-cyber-bg/80 border border-cyber-neonPink/40 rounded-lg space-y-2">
+                    <div className="flex items-center space-x-1.5 text-xs font-bold text-cyber-neonPink">
+                      <Key className="w-3.5 h-3.5" />
+                      <span>Gate Key Properties</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 text-[10px]">Key Label (Displayed in UI)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Warp Core Key"
+                        value={activeCollectible.label || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            collectibles: r.collectibles?.map((c) =>
+                              c.id === activeCollectible.id ? { ...c, label: val } : c
+                            ),
+                          }));
+                        }}
+                        className="w-full bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white text-xs focus:border-cyber-neonPink focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 text-[10px]">Key & Forcefield Color</span>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <input
+                          type="color"
+                          value={activeCollectible.color || getGateColor(activeCollectible.id)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              collectibles: r.collectibles?.map((c) =>
+                                c.id === activeCollectible.id ? { ...c, color: val } : c
+                              ),
+                            }));
+                          }}
+                          className="w-7 h-7 rounded border border-cyber-border bg-transparent cursor-pointer p-0.5"
+                        />
+                        <input
+                          type="text"
+                          value={activeCollectible.color || getGateColor(activeCollectible.id)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            onUpdateRoom((r) => ({
+                              ...r,
+                              collectibles: r.collectibles?.map((c) =>
+                                c.id === activeCollectible.id ? { ...c, color: val } : c
+                              ),
+                            }));
+                          }}
+                          className="w-24 bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-neonPink focus:outline-none"
+                        />
+                      </div>
+                      {/* Color Palette Presets */}
+                      <div className="flex items-center space-x-1.5 mt-2">
+                        {GATE_KEY_PALETTE.map((palColor) => (
+                          <button
+                            key={palColor}
+                            type="button"
+                            onClick={() => {
+                              onUpdateRoom((r) => ({
+                                ...r,
+                                collectibles: r.collectibles?.map((c) =>
+                                  c.id === activeCollectible.id ? { ...c, color: palColor } : c
+                                ),
+                              }));
+                            }}
+                            className={`w-4 h-4 rounded-full border transition-transform ${
+                              (activeCollectible.color || getGateColor(activeCollectible.id)) === palColor
+                                ? 'scale-125 border-white ring-1 ring-white/50'
+                                : 'border-black/50 hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: palColor }}
+                            title={palColor}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Linked Locked Gates in World */}
+                    {(() => {
+                      const linkedGates: { room: RoomData; dir: ExitDirection }[] = [];
+                      for (const r of world.rooms) {
+                        for (const dir of ['left', 'right', 'up', 'down'] as const) {
+                          const ex = r.exits?.[dir];
+                          if (isGatedExit(ex) && ex.id === activeCollectible.id) {
+                            linkedGates.push({ room: r, dir });
+                          }
+                        }
+                      }
+                      return (
+                        <div className="pt-2 border-t border-cyber-border/40 text-[10px]">
+                          <span className="text-slate-400 block mb-1">Unlocks Gates in World:</span>
+                          {linkedGates.length > 0 ? (
+                            <div className="space-y-1">
+                              {linkedGates.map(({ room: lr, dir }) => (
+                                <div
+                                  key={`${lr.id}_${dir}`}
+                                  className="flex items-center justify-between bg-cyber-card px-2 py-1 rounded border border-cyber-border/40"
+                                >
+                                  <span className="text-slate-300">
+                                    {lr.title}{' '}
+                                    <span className="text-cyber-cyan uppercase font-mono font-bold">[{dir}]</span>
+                                  </span>
+                                  {onSelectRoom && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onSelectRoom(lr.id)}
+                                      className="text-cyber-cyan hover:text-white underline text-[9px]"
+                                    >
+                                      Jump
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 italic">No gates currently require this key ID.</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 <div className="flex space-x-2">
                   <div className="flex-1">
@@ -2233,9 +2778,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         : 'bg-cyber-bg hover:bg-cyber-card text-slate-400'
                     }`}
                   >
-                    <div className="flex items-center space-x-1.5">
-                      <Sparkles className="w-3 h-3 text-cyber-cyan" />
-                      <span className="font-mono">{c.type}</span>
+                    <div className="flex items-center space-x-1.5 truncate mr-2">
+                      {c.type === 'key' ? (
+                        <Key className="w-3 h-3 shrink-0" style={{ color: c.color || getGateColor(c.id) }} />
+                      ) : (
+                        <Sparkles className="w-3 h-3 text-cyber-cyan shrink-0" />
+                      )}
+                      <span className="font-mono truncate">
+                        {c.type === 'key' ? (c.label || c.id) : c.type}
+                      </span>
                     </div>
                     <span className="text-[10px] text-slate-500">
                       ({c.x}, {c.y})

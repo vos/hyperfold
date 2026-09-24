@@ -3,11 +3,47 @@ export const GRID_ROWS = 20;
 export const ROOM_PIXEL_SIZE = 800;
 export const TILE_PIXEL_SIZE = ROOM_PIXEL_SIZE / GRID_COLS; // 40px
 
+export type ExitDirection = 'left' | 'right' | 'up' | 'down';
+
+export interface ExitGateConfig {
+  id: string;
+  color?: string;
+  label?: string;
+}
+
+export type ExitConfig = boolean | ExitGateConfig;
+
 export interface RoomExits {
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
+  left: ExitConfig;
+  right: ExitConfig;
+  up: ExitConfig;
+  down: ExitConfig;
+}
+
+export const GATE_KEY_PALETTE = [
+  '#ff0077', // Hot Magenta
+  '#ffe600', // Electric Gold
+  '#00ff66', // Cyber Emerald
+  '#00f0ff', // Plasma Cyan
+  '#b026ff', // Neon Purple
+  '#ff6600', // Radiant Orange
+  '#0088ff', // Azure Blue
+  '#ff2244', // Crimson Laser
+];
+
+export function isGatedExit(exit: ExitConfig | undefined): exit is ExitGateConfig {
+  return typeof exit === 'object' && exit !== null && typeof (exit as any).id === 'string';
+}
+
+export function getGateColor(id: string, explicitColor?: string): string {
+  if (explicitColor) return explicitColor;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % GATE_KEY_PALETTE.length;
+  return GATE_KEY_PALETTE[idx];
 }
 
 export interface CollectibleData {
@@ -15,6 +51,8 @@ export interface CollectibleData {
   type: 'core' | 'prism' | 'key';
   x: number;
   y: number;
+  color?: string;
+  label?: string;
 }
 
 export interface BouncePadConfig {

@@ -1,5 +1,5 @@
 import { LevelMap } from '../world/LevelMap';
-import { ScreenData, TileType, getSpikeDirection, ROWS, COLS } from '../world/ScreenData';
+import { ScreenData, TileType, getSpikeDirection, ROWS, COLS, getGateColor, ExitDirection, ExitGateConfig, getExitGate } from '../world/ScreenData';
 import { Player } from '../entities/Player';
 
 export interface SectorMapViewOptions {
@@ -7,6 +7,17 @@ export interface SectorMapViewOptions {
   currentCoords: { x: number; y: number };
   player: Player;
   onClose?: () => void;
+}
+
+export interface GateCorridorBadge {
+  midX: number;
+  midY: number;
+  horizontal: boolean;
+  gate: ExitGateConfig;
+  hasKey: boolean;
+  label: string;
+  color: string;
+  cKey: string;
 }
 
 export class SectorMapView {
@@ -52,6 +63,12 @@ export class SectorMapView {
   private animTime: number = 0;
   private thumbnailCache: Map<string, HTMLCanvasElement> = new Map();
 
+  // Active gate corridor badges for hover and rendering
+  private activeGateBadges: GateCorridorBadge[] = [];
+
+  // Tracks coordinates of encrypted sectors connected via corridors (ensuring they are always visible)
+  private cryptedTargetCoords: Map<string, { x: number; y: number }> = new Map();
+
   // Hover detection
   private hoveredSector: {
     x: number;
@@ -59,6 +76,21 @@ export class SectorMapView {
     isDiscovered: boolean;
     room?: ScreenData;
   } | null = null;
+
+  private getAllUnexploredCoords(): { x: number; y: number }[] {
+    const list = this.levelMap.getAdjacentUnexploredCoords();
+    const map = new Map<string, { x: number; y: number }>();
+    for (const u of list) {
+      map.set(LevelMap.coordKey(u.x, u.y), { x: u.x, y: u.y });
+    }
+    const discoveredSet = this.levelMap.getVisitedCoordinates();
+    for (const [key, pt] of this.cryptedTargetCoords.entries()) {
+      if (!discoveredSet.has(key) && !map.has(key)) {
+        map.set(key, pt);
+      }
+    }
+    return Array.from(map.values());
+  }
 
   constructor(options: SectorMapViewOptions) {
     this.levelMap = options.levelMap;
@@ -72,6 +104,10 @@ export class SectorMapView {
 
   public get visible(): boolean {
     return this.isVisible;
+  }
+
+  public getActiveGateBadges(): readonly GateCorridorBadge[] {
+    return this.activeGateBadges;
   }
 
   public setLevelMap(levelMap: LevelMap, currentCoords: { x: number; y: number }): void {
@@ -288,7 +324,7 @@ export class SectorMapView {
       coords.push({ x: r.coords.x, y: r.coords.y });
     }
 
-    const unexplored = this.levelMap.getAdjacentUnexploredCoords();
+    const unexplored = this.getAllUnexploredCoords();
     for (const u of unexplored) {
       coords.push({ x: u.x, y: u.y });
     }
@@ -509,6 +545,17 @@ export class SectorMapView {
     const wx = (mouseX - viewW * 0.5 - this.panX) / this.scale;
     const wy = (mouseY - viewH * 0.5 - this.panY) / this.scale;
 
+    // 1. Check gate corridor badges first for high-priority interactive feedback
+    const hitBadge = this.getGateBadgeAt(wx, wy);
+    if (hitBadge) {
+      this.hoveredSector = null;
+      if (this.canvas) {
+        this.canvas.style.cursor = 'pointer';
+      }
+      this.renderGateBadgeTooltip(hitBadge, mouseX, mouseY);
+      return;
+    }
+
     let hit: { x: number; y: number; isDiscovered: boolean; room?: ScreenData } | null = null;
 
     // Check discovered rooms
@@ -527,7 +574,7 @@ export class SectorMapView {
 
     // Check unexplored adjacent sectors
     if (!hit) {
-      const unexplored = this.levelMap.getAdjacentUnexploredCoords();
+      const unexplored = this.getAllUnexploredCoords();
       for (const u of unexplored) {
         const rx = u.x * this.SECTOR_SPACING;
         const ry = -u.y * this.SECTOR_SPACING;
@@ -555,6 +602,44 @@ export class SectorMapView {
     }
   }
 
+  private getGateBadgeAt(wx: number, wy: number): GateCorridorBadge | null {
+    if (!this.ctx) return null;
+    this.ctx.font = 'bold 9px "Segoe UI", -apple-system, BlinkMacSystemFont, "Courier New", monospace';
+    for (const badge of this.activeGateBadges) {
+      const textWidth = this.ctx.measureText(badge.label).width;
+      const badgeW = Math.max(52, textWidth + 28);
+      const badgeH = 18;
+      const hw = badgeW * 0.5;
+      const hh = badgeH * 0.5;
+      if (
+        wx >= badge.midX - hw &&
+        wx <= badge.midX + hw &&
+        wy >= badge.midY - hh &&
+        wy <= badge.midY + hh
+      ) {
+        return badge;
+      }
+    }
+    return null;
+  }
+
+  private renderGateBadgeTooltip(badge: GateCorridorBadge, mouseX: number, mouseY: number): void {
+    if (!this.tooltipEl) return;
+    const statusColor = badge.hasKey ? '#00ffcc' : badge.color;
+    const statusText = badge.hasKey ? 'GATE UNLOCKED (KEY IN POSSESSION)' : 'GATE LOCKED (KEY REQUIRED)';
+    const icon = badge.hasKey ? '🔓' : '🔒';
+    this.tooltipEl.innerHTML = `
+      <div class="tip-header" style="color: ${statusColor};">
+        <span class="tip-dot" style="background: ${statusColor}; box-shadow: 0 0 6px ${statusColor};"></span>
+        <span>${icon} ${statusText}</span>
+      </div>
+      <div class="tip-title" style="color: ${statusColor};">${badge.label}</div>
+      <div class="tip-sub">${badge.hasKey ? 'Security barrier unlocked. Sector connection matrix synchronized.' : `Passage blocked. Locate matching Gate Key "${badge.label}" to open this doorway.`}</div>
+    `;
+    this.tooltipEl.style.display = 'block';
+    this.positionTooltip(mouseX, mouseY);
+  }
+
   private renderTooltip(
     hit: { x: number; y: number; isDiscovered: boolean; room?: ScreenData },
     mouseX: number,
@@ -567,11 +652,35 @@ export class SectorMapView {
       const isCurrent = hit.x === this.currentCoords.x && hit.y === this.currentCoords.y;
       const collectedInRoom = r.collectibles.filter((c) => this.levelMap.isItemCollected(c.id)).length;
       const totalInRoom = r.collectibles.length;
+      const keysInRoom = r.collectibles.filter((c) => c.type === 'key');
+      const gateEntries: [ExitDirection, ExitGateConfig][] = [];
+      for (const dir of ['left', 'right', 'up', 'down'] as ExitDirection[]) {
+        const g = getExitGate(r, dir);
+        if (g) gateEntries.push([dir, g]);
+      }
 
       const hazards: string[] = [];
       if (r.laserBarriers && r.laserBarriers.length > 0) hazards.push(`${r.laserBarriers.length} Laser Barrier(s)`);
       if (r.laserTurrets && r.laserTurrets.length > 0) hazards.push(`${r.laserTurrets.length} Laser Turret(s)`);
       if (r.movingPlatforms && r.movingPlatforms.length > 0) hazards.push(`${r.movingPlatforms.length} Hover Platform(s)`);
+
+      const keysHtml = keysInRoom.length > 0
+        ? `<div class="tip-row"><span>Gate Keys:</span><span>${keysInRoom.map((k) => {
+            const col = k.color || getGateColor(k.id);
+            const collected = this.levelMap.isItemCollected(k.id);
+            const keyLabel = k.label || this.levelMap.getKeyLabel(k.id) || k.id;
+            return `<span style="color: ${col}; font-weight: bold;">🔑 ${keyLabel}${collected ? ' [FOUND]' : ''}</span>`;
+          }).join(', ')}</span></div>`
+        : '';
+
+      const gatesHtml = gateEntries.length > 0
+        ? `<div class="tip-row"><span>Closed Gates:</span><span>${gateEntries.map(([dir, g]) => {
+            const col = getGateColor(g.id, g.color);
+            const unlocked = this.levelMap.hasKey(g.id);
+            const keyLabel = this.levelMap.getRequiredKeyLabel(g);
+            return `<span style="color: ${col}; font-weight: bold;">[${dir.toUpperCase()}]: ${unlocked ? '🔓 UNLOCKED' : `🔒 LOCKED (${keyLabel})`}</span>`;
+          }).join(' ')}</span></div>`
+        : '';
 
       this.tooltipEl.innerHTML = `
         <div class="tip-header" style="color: ${r.themeColor};">
@@ -583,13 +692,42 @@ export class SectorMapView {
         ${r.subtitle ? `<div class="tip-sub">${r.subtitle}</div>` : ''}
         <div class="tip-meta">
           <div class="tip-row">
-            <span>Energy Prisms:</span>
+            <span>Collectibles:</span>
             <span class="accent-gold">${collectedInRoom} / ${totalInRoom}</span>
           </div>
+          ${keysHtml}
+          ${gatesHtml}
           ${hazards.length > 0 ? `<div class="tip-row"><span>Sensors:</span><span class="tip-hazards">${hazards.join(', ')}</span></div>` : ''}
         </div>
       `;
     } else {
+      // Check if accessed through a gate from an adjacent visited room
+      let gateNotice = '';
+      const adjacentDirs: { dir: ExitDirection; opp: ExitDirection; ox: number; oy: number }[] = [
+        { dir: 'right', opp: 'left', ox: -1, oy: 0 },
+        { dir: 'left', opp: 'right', ox: 1, oy: 0 },
+        { dir: 'up', opp: 'down', ox: 0, oy: -1 },
+        { dir: 'down', opp: 'up', ox: 0, oy: 1 },
+      ];
+      for (const adj of adjacentDirs) {
+        const fromX = hit.x + adj.ox;
+        const fromY = hit.y + adj.oy;
+        if (this.levelMap.isVisited(fromX, fromY)) {
+          const fromRoom = this.levelMap.getRoom(fromX, fromY);
+          const toRoom = this.levelMap.getRoom(hit.x, hit.y);
+          const gate = (fromRoom ? getExitGate(fromRoom, adj.dir) : undefined) ||
+                       (toRoom ? getExitGate(toRoom, adj.opp) : undefined);
+          if (gate) {
+            const hasKey = this.levelMap.hasKey(gate.id);
+            const gateCol = getGateColor(gate.id, gate.color);
+            const gateLabel = this.levelMap.getRequiredKeyLabel(gate);
+            const icon = hasKey ? '🔓' : '🔒';
+            gateNotice = `<div class="tip-row" style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(255, 255, 255, 0.15);"><span style="color: ${hasKey ? '#00ffcc' : gateCol}; font-weight: bold;">${icon} ${hasKey ? 'UNLOCKED' : 'GATE LOCKED'}:</span><span style="color: ${hasKey ? '#00ffcc' : gateCol}; font-weight: bold;">${gateLabel}</span></div>`;
+            break;
+          }
+        }
+      }
+
       this.tooltipEl.innerHTML = `
         <div class="tip-header tip-encrypted">
           <span class="tip-dot tip-dot-enc"></span>
@@ -597,10 +735,16 @@ export class SectorMapView {
         </div>
         <div class="tip-title" style="color: #ffaa00;">ENCRYPTED MANIFOLD</div>
         <div class="tip-sub">Topological distortion detected. Cross sector portal to synchronize coordinate matrix and decrypt local room layout.</div>
+        ${gateNotice}
       `;
     }
 
     this.tooltipEl.style.display = 'block';
+    this.positionTooltip(mouseX, mouseY);
+  }
+
+  private positionTooltip(mouseX: number, mouseY: number): void {
+    if (!this.tooltipEl || !this.canvas) return;
 
     // Position tooltip near cursor relative to the canvas wrapper
     const parentW = this.canvas.parentElement?.clientWidth || this.canvas.width;
@@ -660,7 +804,10 @@ export class SectorMapView {
     // 5. Discovered Rooms (Key color + Small room tile representation)
     this.drawDiscoveredRooms(ctx);
 
-    // 6. Current Player Beacon / Pulse
+    // 6. Gate Lock Badges on Corridor Connections
+    this.drawGateBadges(ctx);
+
+    // 7. Current Player Beacon / Pulse
     this.drawPlayerMarker(ctx);
 
     ctx.restore();
@@ -707,6 +854,8 @@ export class SectorMapView {
   }
 
   private drawCorridors(ctx: CanvasRenderingContext2D): void {
+    this.activeGateBadges = [];
+    this.cryptedTargetCoords.clear();
     const discovered = this.levelMap.getDiscoveredRooms();
     const discoveredSet = this.levelMap.getVisitedCoordinates();
     const unexplored = this.levelMap.getAdjacentUnexploredCoords();
@@ -715,69 +864,143 @@ export class SectorMapView {
     const hw = this.ROOM_WIDTH * 0.5;
     const hh = this.ROOM_HEIGHT * 0.5;
 
+    const drawnCorridors = new Set<string>();
+    const drawnGates = new Set<string>();
+
     for (const room of discovered) {
       const rx = room.coords.x * this.SECTOR_SPACING;
       const ry = -room.coords.y * this.SECTOR_SPACING;
 
-      // 1. Right corridor
-      if (room.exits?.right) {
-        const rightKey = LevelMap.coordKey(room.coords.x + 1, room.coords.y);
-        const targetX = (room.coords.x + 1) * this.SECTOR_SPACING;
-        const targetY = ry;
+      const directions: {
+        dir: ExitDirection;
+        oppDir: ExitDirection;
+        tx: number;
+        ty: number;
+        horizontal: boolean;
+        startOffset: [number, number];
+        endOffset: [number, number];
+      }[] = [
+        {
+          dir: 'right',
+          oppDir: 'left',
+          tx: room.coords.x + 1,
+          ty: room.coords.y,
+          horizontal: true,
+          startOffset: [hw, 0],
+          endOffset: [-hw, 0],
+        },
+        {
+          dir: 'up',
+          oppDir: 'down',
+          tx: room.coords.x,
+          ty: room.coords.y + 1,
+          horizontal: false,
+          startOffset: [0, -hh],
+          endOffset: [0, hh],
+        },
+        {
+          dir: 'left',
+          oppDir: 'right',
+          tx: room.coords.x - 1,
+          ty: room.coords.y,
+          horizontal: true,
+          startOffset: [-hw, 0],
+          endOffset: [hw, 0],
+        },
+        {
+          dir: 'down',
+          oppDir: 'up',
+          tx: room.coords.x,
+          ty: room.coords.y - 1,
+          horizontal: false,
+          startOffset: [0, hh],
+          endOffset: [0, -hh],
+        },
+      ];
 
-        if (discoveredSet.has(rightKey)) {
-          // Connected between two explored rooms
-          this.drawConnectedCorridor(ctx, rx + hw, ry, targetX - hw, targetY, true, room.themeColor);
-        } else if (unexploredSet.has(rightKey)) {
-          // Connected into an unexplored encrypted room
-          this.drawCryptedCorridor(ctx, rx + hw, ry, targetX - hw, targetY, true);
+      for (const d of directions) {
+        const targetRoom = this.levelMap.getRoom(d.tx, d.ty);
+        const exitGate = getExitGate(room, d.dir) || (targetRoom ? getExitGate(targetRoom, d.oppDir) : undefined);
+        const hasExit = room.exits?.[d.dir] === true || !!getExitGate(room, d.dir) ||
+          (targetRoom && (targetRoom.exits?.[d.oppDir] === true || !!getExitGate(targetRoom, d.oppDir)));
+
+        if (!hasExit) continue;
+
+        const corridorColor = exitGate ? getGateColor(exitGate.id, exitGate.color) : room.themeColor;
+        const targetKey = LevelMap.coordKey(d.tx, d.ty);
+        const targetWorldX = d.tx * this.SECTOR_SPACING;
+        const targetWorldY = -d.ty * this.SECTOR_SPACING;
+
+        const cKey = `${Math.min(room.coords.x, d.tx)},${Math.min(room.coords.y, d.ty)}-${Math.max(room.coords.x, d.tx)},${Math.max(room.coords.y, d.ty)}`;
+
+        const x1 = rx + d.startOffset[0];
+        const y1 = ry + d.startOffset[1];
+        const x2 = targetWorldX + d.endOffset[0];
+        const y2 = targetWorldY + d.endOffset[1];
+        const midX = (x1 + x2) * 0.5;
+        const midY = (y1 + y2) * 0.5;
+
+        const hasKey = exitGate ? this.levelMap.hasKey(exitGate.id) : false;
+        const gateLabel = exitGate ? this.levelMap.getRequiredKeyLabel(exitGate) : '';
+
+        if (discoveredSet.has(targetKey)) {
+          if (!drawnCorridors.has(cKey)) {
+            drawnCorridors.add(cKey);
+            this.drawConnectedCorridor(ctx, x1, y1, x2, y2, d.horizontal, corridorColor, exitGate, hasKey);
+            if (exitGate && !drawnGates.has(cKey)) {
+              drawnGates.add(cKey);
+              this.activeGateBadges.push({
+                midX,
+                midY,
+                horizontal: d.horizontal,
+                gate: exitGate,
+                hasKey,
+                label: gateLabel,
+                color: corridorColor,
+                cKey,
+              });
+            }
+          }
+        } else if (unexploredSet.has(targetKey) || !!exitGate || !!targetRoom) {
+          this.cryptedTargetCoords.set(targetKey, { x: d.tx, y: d.ty });
+          if (!drawnCorridors.has(cKey)) {
+            drawnCorridors.add(cKey);
+            this.drawCryptedCorridor(ctx, x1, y1, x2, y2, d.horizontal, exitGate, hasKey);
+            if (exitGate && !drawnGates.has(cKey)) {
+              drawnGates.add(cKey);
+              this.activeGateBadges.push({
+                midX,
+                midY,
+                horizontal: d.horizontal,
+                gate: exitGate,
+                hasKey,
+                label: gateLabel,
+                color: corridorColor,
+                cKey,
+              });
+            }
+          }
         } else {
           // Open doorway stub
-          this.drawOpenDoorwayStub(ctx, rx + hw, ry, 'right', room.themeColor);
-        }
-      }
-
-      // 2. Up corridor (remember +Y is upwards, so targetY is ry - SECTOR_SPACING)
-      if (room.exits?.up) {
-        const upKey = LevelMap.coordKey(room.coords.x, room.coords.y + 1);
-        const targetX = rx;
-        const targetY = -(room.coords.y + 1) * this.SECTOR_SPACING;
-
-        if (discoveredSet.has(upKey)) {
-          this.drawConnectedCorridor(ctx, rx, ry - hh, targetX, targetY + hh, false, room.themeColor);
-        } else if (unexploredSet.has(upKey)) {
-          this.drawCryptedCorridor(ctx, rx, ry - hh, targetX, targetY + hh, false);
-        } else {
-          this.drawOpenDoorwayStub(ctx, rx, ry - hh, 'up', room.themeColor);
-        }
-      }
-
-      // 3. Left exit to unexplored or boundary stub
-      if (room.exits?.left) {
-        const leftKey = LevelMap.coordKey(room.coords.x - 1, room.coords.y);
-        const targetX = (room.coords.x - 1) * this.SECTOR_SPACING;
-        const targetY = ry;
-
-        if (!discoveredSet.has(leftKey)) {
-          if (unexploredSet.has(leftKey)) {
-            this.drawCryptedCorridor(ctx, rx - hw, ry, targetX + hw, targetY, true);
-          } else {
-            this.drawOpenDoorwayStub(ctx, rx - hw, ry, 'left', room.themeColor);
-          }
-        }
-      }
-
-      // 4. Down exit to unexplored or boundary stub
-      if (room.exits?.down) {
-        const downKey = LevelMap.coordKey(room.coords.x, room.coords.y - 1);
-        const targetX = rx;
-        const targetY = -(room.coords.y - 1) * this.SECTOR_SPACING;
-
-        if (!discoveredSet.has(downKey)) {
-          if (unexploredSet.has(downKey)) {
-            this.drawCryptedCorridor(ctx, rx, ry + hh, targetX, targetY - hh, false);
-          } else {
-            this.drawOpenDoorwayStub(ctx, rx, ry + hh, 'down', room.themeColor);
+          const stubKey = `${room.coords.x},${room.coords.y}-stub-${d.dir}`;
+          if (!drawnCorridors.has(stubKey)) {
+            drawnCorridors.add(stubKey);
+            this.drawOpenDoorwayStub(ctx, x1, y1, d.dir, corridorColor, exitGate, hasKey);
+            if (exitGate && !drawnGates.has(stubKey)) {
+              drawnGates.add(stubKey);
+              const stubMidX = d.horizontal ? (d.dir === 'right' ? x1 + 10 : x1 - 10) : x1;
+              const stubMidY = !d.horizontal ? (d.dir === 'down' ? y1 + 10 : y1 - 10) : y1;
+              this.activeGateBadges.push({
+                midX: stubMidX,
+                midY: stubMidY,
+                horizontal: d.horizontal,
+                gate: exitGate,
+                hasKey,
+                label: gateLabel,
+                color: corridorColor,
+                cKey: stubKey,
+              });
+            }
           }
         }
       }
@@ -791,14 +1014,18 @@ export class SectorMapView {
     x2: number,
     y2: number,
     horizontal: boolean,
-    color: string
+    color: string,
+    gate?: ExitGateConfig,
+    hasKey?: boolean
   ): void {
     const corridorWidth = 14;
     const half = corridorWidth * 0.5;
+    const gateColor = gate ? getGateColor(gate.id, gate.color) : color;
+    const borderColor = gate ? (hasKey ? '#00ffcc' : gateColor) : color;
 
     ctx.save();
     // Dark corridor passage fill
-    ctx.fillStyle = '#060d1a';
+    ctx.fillStyle = gate ? (hasKey ? '#061314' : '#140610') : '#060d1a';
     if (horizontal) {
       ctx.fillRect(Math.min(x1, x2), y1 - half, Math.abs(x2 - x1), corridorWidth);
     } else {
@@ -806,9 +1033,9 @@ export class SectorMapView {
     }
 
     // Corridor glowing borders
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1.5;
-    ctx.shadowColor = color;
+    ctx.shadowColor = borderColor;
     ctx.shadowBlur = 4;
 
     ctx.beginPath();
@@ -826,17 +1053,36 @@ export class SectorMapView {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Animated signal pulse along the corridor
-    const pulseOffset = (this.animTime * 30) % (Math.abs(horizontal ? x2 - x1 : y2 - y1) || 1);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = 6;
-    if (horizontal) {
-      const px = Math.min(x1, x2) + pulseOffset;
-      ctx.fillRect(px - 3, y1 - 2, 6, 4);
+    if (gate && !hasKey) {
+      // Locked barrier line across corridor
+      const midX = (x1 + x2) * 0.5;
+      const midY = (y1 + y2) * 0.5;
+      ctx.strokeStyle = gateColor;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = gateColor;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      if (horizontal) {
+        ctx.moveTo(midX, y1 - half - 1);
+        ctx.lineTo(midX, y1 + half + 1);
+      } else {
+        ctx.moveTo(x1 - half - 1, midY);
+        ctx.lineTo(x1 + half + 1, midY);
+      }
+      ctx.stroke();
     } else {
-      const py = Math.min(y1, y2) + pulseOffset;
-      ctx.fillRect(x1 - 2, py - 3, 4, 6);
+      // Animated signal pulse along the corridor
+      const pulseOffset = (this.animTime * 30) % (Math.abs(horizontal ? x2 - x1 : y2 - y1) || 1);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = gate ? '#00ffcc' : '#00ffff';
+      ctx.shadowBlur = 6;
+      if (horizontal) {
+        const px = Math.min(x1, x2) + pulseOffset;
+        ctx.fillRect(px - 3, y1 - 2, 6, 4);
+      } else {
+        const py = Math.min(y1, y2) + pulseOffset;
+        ctx.fillRect(x1 - 2, py - 3, 4, 6);
+      }
     }
 
     ctx.restore();
@@ -848,24 +1094,31 @@ export class SectorMapView {
     y1: number,
     x2: number,
     y2: number,
-    horizontal: boolean
+    horizontal: boolean,
+    gate?: ExitGateConfig,
+    hasKey?: boolean
   ): void {
     const corridorWidth = 12;
     const half = corridorWidth * 0.5;
+    const gateColor = gate ? getGateColor(gate.id, gate.color) : '#aa55ff';
 
     ctx.save();
     // Dim cyber corridor fill
-    ctx.fillStyle = 'rgba(20, 10, 32, 0.7)';
+    ctx.fillStyle = gate ? (hasKey ? 'rgba(8, 28, 22, 0.75)' : 'rgba(28, 8, 20, 0.75)') : 'rgba(20, 10, 32, 0.7)';
     if (horizontal) {
       ctx.fillRect(Math.min(x1, x2), y1 - half, Math.abs(x2 - x1), corridorWidth);
     } else {
       ctx.fillRect(x1 - half, Math.min(y1, y2), corridorWidth, Math.abs(y2 - y1));
     }
 
-    // Glitched dashed amber/violet border
-    ctx.strokeStyle = '#aa55ff';
+    // Border: if gate and unlocked -> cyan/green dash; if locked -> gateColor dash; else default purple dash
+    const borderColor = gate ? (hasKey ? '#00ffcc' : gateColor) : '#aa55ff';
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1.5;
+    ctx.shadowColor = borderColor;
+    ctx.shadowBlur = gate ? 6 : 0;
     ctx.setLineDash([4, 4]);
+
     ctx.beginPath();
     if (horizontal) {
       ctx.moveTo(x1, y1 - half);
@@ -880,14 +1133,34 @@ export class SectorMapView {
     }
     ctx.stroke();
 
-    // Signal arrow entering encrypted sector
     ctx.setLineDash([]);
-    ctx.fillStyle = '#ffaa00';
-    const midX = (x1 + x2) * 0.5;
-    const midY = (y1 + y2) * 0.5;
-    ctx.beginPath();
-    ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+
+    // If gated and locked: draw glowing barrier line across corridor passage
+    if (gate && !hasKey) {
+      const midX = (x1 + x2) * 0.5;
+      const midY = (y1 + y2) * 0.5;
+      ctx.strokeStyle = gateColor;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = gateColor;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      if (horizontal) {
+        ctx.moveTo(midX, y1 - half - 1);
+        ctx.lineTo(midX, y1 + half + 1);
+      } else {
+        ctx.moveTo(x1 - half - 1, midY);
+        ctx.lineTo(x1 + half + 1, midY);
+      }
+      ctx.stroke();
+    } else {
+      // Signal dot / pulse entering encrypted sector
+      ctx.fillStyle = gate ? '#00ffcc' : '#ffaa00';
+      const midX = (x1 + x2) * 0.5;
+      const midY = (y1 + y2) * 0.5;
+      ctx.beginPath();
+      ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.restore();
   }
@@ -897,14 +1170,17 @@ export class SectorMapView {
     x: number,
     y: number,
     dir: 'left' | 'right' | 'up' | 'down',
-    color: string
+    color: string,
+    gate?: ExitGateConfig,
+    hasKey?: boolean
   ): void {
     const stubLen = 10;
     const doorW = 12;
     const half = doorW * 0.5;
+    const strokeColor = gate ? (hasKey ? '#00ffcc' : getGateColor(gate.id, gate.color)) : color;
 
     ctx.save();
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([2, 2]);
 
@@ -931,11 +1207,123 @@ export class SectorMapView {
       ctx.lineTo(x + half, y + stubLen);
     }
     ctx.stroke();
+
+    // If gated and locked, draw barrier line across stub
+    if (gate && !hasKey) {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = strokeColor;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      if (dir === 'right') {
+        ctx.moveTo(x + stubLen, y - half);
+        ctx.lineTo(x + stubLen, y + half);
+      } else if (dir === 'left') {
+        ctx.moveTo(x - stubLen, y - half);
+        ctx.lineTo(x - stubLen, y + half);
+      } else if (dir === 'up') {
+        ctx.moveTo(x - half, y - stubLen);
+        ctx.lineTo(x + half, y - stubLen);
+      } else if (dir === 'down') {
+        ctx.moveTo(x - half, y + stubLen);
+        ctx.lineTo(x + half, y + stubLen);
+      }
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  private drawGateBadges(ctx: CanvasRenderingContext2D): void {
+    if (this.activeGateBadges.length === 0) return;
+
+    for (const badge of this.activeGateBadges) {
+      this.drawGateBadge(ctx, badge);
+    }
+  }
+
+  private drawGateBadge(ctx: CanvasRenderingContext2D, badge: GateCorridorBadge): void {
+    const { midX, midY, hasKey, label, color } = badge;
+
+    ctx.save();
+    ctx.font = 'bold 9px "Segoe UI", -apple-system, BlinkMacSystemFont, "Courier New", monospace';
+    const textWidth = ctx.measureText(label).width;
+    const badgeW = Math.max(52, textWidth + 28);
+    const badgeH = 18;
+    const halfW = badgeW * 0.5;
+    const halfH = badgeH * 0.5;
+
+    ctx.translate(midX, midY);
+
+    // Pill background
+    const bgFill = hasKey ? 'rgba(5, 22, 18, 0.95)' : 'rgba(24, 6, 16, 0.95)';
+    const borderColor = hasKey ? '#00ffcc' : color;
+
+    ctx.fillStyle = bgFill;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = borderColor;
+    ctx.shadowBlur = 8;
+
+    // Rounded rectangle pill
+    const r = 4;
+    ctx.beginPath();
+    ctx.moveTo(-halfW + r, -halfH);
+    ctx.lineTo(halfW - r, -halfH);
+    ctx.arcTo(halfW, -halfH, halfW, -halfH + r, r);
+    ctx.lineTo(halfW, halfH - r);
+    ctx.arcTo(halfW, halfH, halfW - r, halfH, r);
+    ctx.lineTo(-halfW + r, halfH);
+    ctx.arcTo(-halfW, halfH, -halfW, halfH - r, r);
+    ctx.lineTo(-halfW, -halfH + r);
+    ctx.arcTo(-halfW, -halfH, -halfW + r, -halfH, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // Padlock icon on the left
+    const iconX = -halfW + 10;
+    const iconY = 0;
+
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.5;
+
+    if (hasKey) {
+      // Unlocked lock: shackle lifted and swung open to the right
+      ctx.beginPath();
+      ctx.arc(iconX - 1.5, iconY - 4.5, 3.2, Math.PI * 1.1, -Math.PI * 0.1);
+      ctx.stroke();
+    } else {
+      // Locked lock: shackle securely closed
+      ctx.beginPath();
+      ctx.arc(iconX, iconY - 2.5, 3.2, Math.PI, 0);
+      ctx.stroke();
+    }
+
+    // Padlock body
+    ctx.fillStyle = borderColor;
+    ctx.fillRect(iconX - 4.5, iconY - 0.5, 9, 6.5);
+
+    // Keyhole
+    ctx.fillStyle = bgFill;
+    ctx.beginPath();
+    ctx.arc(iconX, iconY + 2.2, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Text Label
+    ctx.fillStyle = hasKey ? '#00ffcc' : '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, iconX + 8, iconY + 0.5);
+
     ctx.restore();
   }
 
   private drawUnexploredSectors(ctx: CanvasRenderingContext2D): void {
-    const unexplored = this.levelMap.getAdjacentUnexploredCoords();
+    const unexplored = this.getAllUnexploredCoords();
     const w = this.ROOM_WIDTH;
     const h = this.ROOM_HEIGHT;
     const hw = w * 0.5;
@@ -1103,8 +1491,177 @@ export class SectorMapView {
         this.drawGoalMarker(ctx, hw - 14, hh - 14);
       }
 
+      // 6. Uncollected key symbol if room has uncollected key
+      const uncollectedKeys = this.levelMap.getUncollectedKeysInRoom(room);
+      if (uncollectedKeys.length > 0) {
+        const primaryKey = uncollectedKeys[0];
+        const keyColor = primaryKey.color || getGateColor(primaryKey.id);
+        const pulse = 0.8 + 0.2 * Math.sin(this.animTime * 6);
+        this.drawUncollectedKeyMarker(ctx, -hw + 14, hh - 14, keyColor, pulse);
+      }
+
+      // 7. Mark locked doors on room (edge indicators + key label badge)
+      const lockedGates = this.levelMap.getLockedGatesInRoom(room);
+      if (lockedGates.length > 0) {
+        this.drawRoomLockedGates(ctx, room, lockedGates, hw, hh);
+      }
+
       ctx.restore();
     }
+  }
+
+  private drawUncollectedKeyMarker(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    color: string,
+    pulse: number
+  ): void {
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Pill/circular backing badge
+    const r = 10;
+    ctx.fillStyle = 'rgba(6, 12, 24, 0.94)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8 * pulse;
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Stylized vector key in exact key color
+    ctx.shadowBlur = 4 * pulse;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 1.6;
+
+    // Key bow (circle ring)
+    ctx.beginPath();
+    ctx.arc(-2.8, -2.2, 3.2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Key shaft
+    ctx.beginPath();
+    ctx.moveTo(-0.5, 0);
+    ctx.lineTo(4.5, 4.5);
+    // Key teeth
+    ctx.moveTo(2.2, 2.2);
+    ctx.lineTo(4.5, 0.8);
+    ctx.moveTo(4.2, 4.2);
+    ctx.lineTo(6.2, 2.8);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  private drawRoomLockedGates(
+    ctx: CanvasRenderingContext2D,
+    _room: ScreenData,
+    lockedGates: { dir: ExitDirection; gate: ExitGateConfig; keyLabel: string; color: string }[],
+    hw: number,
+    hh: number
+  ): void {
+    const pulse = 0.75 + 0.25 * Math.sin(this.animTime * 6);
+
+    // A. Draw barrier stripes on locked exit edges
+    for (const g of lockedGates) {
+      ctx.save();
+      ctx.strokeStyle = g.color;
+      ctx.fillStyle = g.color;
+      ctx.shadowColor = g.color;
+      ctx.shadowBlur = 6 * pulse;
+      ctx.lineWidth = 3;
+
+      if (g.dir === 'right') {
+        const x = hw - 2;
+        ctx.beginPath();
+        ctx.moveTo(x, -20);
+        ctx.lineTo(x, 20);
+        ctx.stroke();
+        this.drawMiniLockIcon(ctx, x - 8, 0, g.color);
+      } else if (g.dir === 'left') {
+        const x = -hw + 2;
+        ctx.beginPath();
+        ctx.moveTo(x, -20);
+        ctx.lineTo(x, 20);
+        ctx.stroke();
+        this.drawMiniLockIcon(ctx, x + 8, 0, g.color);
+      } else if (g.dir === 'up') {
+        const y = -hh + 20;
+        ctx.beginPath();
+        ctx.moveTo(-20, y);
+        ctx.lineTo(20, y);
+        ctx.stroke();
+        this.drawMiniLockIcon(ctx, 0, y + 8, g.color);
+      } else if (g.dir === 'down') {
+        const y = hh - 2;
+        ctx.beginPath();
+        ctx.moveTo(-20, y);
+        ctx.lineTo(20, y);
+        ctx.stroke();
+        this.drawMiniLockIcon(ctx, 0, y - 8, g.color);
+      }
+      ctx.restore();
+    }
+
+    // B. Draw locked key label badge right below the room title header
+    const primary = lockedGates[0];
+    const badgeText = lockedGates.length > 1
+      ? `🔒 ${primary.keyLabel} (+${lockedGates.length - 1})`
+      : `🔒 ${primary.keyLabel}`;
+
+    ctx.save();
+    ctx.font = 'bold 9px "Courier New", monospace';
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeW = Math.min(hw * 2 - 16, textWidth + 12);
+    const badgeH = 15;
+    const badgeY = -hh + 28;
+
+    ctx.fillStyle = 'rgba(18, 5, 14, 0.94)';
+    ctx.strokeStyle = primary.color;
+    ctx.lineWidth = 1;
+    ctx.shadowColor = primary.color;
+    ctx.shadowBlur = 6 * pulse;
+
+    const bx = -badgeW * 0.5;
+    const by = badgeY - badgeH * 0.5;
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(bx, by, badgeW, badgeH, 3);
+    } else {
+      ctx.rect(bx, by, badgeW, badgeH);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = primary.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, 0, badgeY);
+
+    ctx.restore();
+  }
+
+  private drawMiniLockIcon(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.2;
+
+    // Shackle
+    ctx.beginPath();
+    ctx.arc(0, -2, 2.5, Math.PI, 0);
+    ctx.stroke();
+
+    // Body
+    ctx.fillRect(-3.5, -0.5, 7, 5.5);
+    ctx.restore();
   }
 
   private drawGoalMarker(ctx: CanvasRenderingContext2D, x: number, y: number): void {

@@ -1,4 +1,4 @@
-import { ScreenData } from './ScreenData';
+import { ScreenData, ExitDirection, CollectibleData, ExitGateConfig, getGateColor, getExitGate } from './ScreenData';
 
 export class LevelMap {
   private rooms: Map<string, ScreenData> = new Map();
@@ -36,6 +36,113 @@ export class LevelMap {
 
   public isItemCollected(id: string): boolean {
     return this.collectedItemIds.has(id);
+  }
+
+  public hasKey(keyId: string): boolean {
+    return this.collectedItemIds.has(keyId);
+  }
+
+  public getKeyItemLabel(keyId: string): string | undefined {
+    for (const room of this.rooms.values()) {
+      for (const col of room.collectibles) {
+        if (col.type === 'key' && col.id === keyId && col.label) {
+          return col.label;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  public getKeyLabel(keyId: string): string | undefined {
+    const itemLabel = this.getKeyItemLabel(keyId);
+    if (itemLabel) {
+      return itemLabel;
+    }
+    for (const room of this.rooms.values()) {
+      for (const dir of ['left', 'right', 'up', 'down'] as ExitDirection[]) {
+        const gate = getExitGate(room, dir);
+        if (gate && gate.id === keyId && gate.label) {
+          return gate.label;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  public getRequiredKeyLabel(gate: ExitGateConfig): string {
+    return this.getKeyItemLabel(gate.id) || this.getKeyLabel(gate.id) || gate.label || gate.id;
+  }
+
+  public getCollectedKeys(): CollectibleData[] {
+    const keys: CollectibleData[] = [];
+    const seen = new Set<string>();
+
+    for (const room of this.rooms.values()) {
+      for (const col of room.collectibles) {
+        if (col.type === 'key' && this.collectedItemIds.has(col.id)) {
+          if (!seen.has(col.id)) {
+            seen.add(col.id);
+            keys.push({
+              ...col,
+              label: col.label || this.getKeyLabel(col.id),
+              color: col.color || getGateColor(col.id),
+            });
+          }
+        }
+      }
+    }
+
+    // Also check for any standalone collected key IDs
+    for (const id of this.collectedItemIds) {
+      if (!seen.has(id)) {
+        const resolvedLabel = this.getKeyLabel(id);
+        const isKeyLike = id.startsWith('key') || id.includes('key') || !!resolvedLabel;
+        if (isKeyLike) {
+          seen.add(id);
+          keys.push({
+            id,
+            type: 'key',
+            x: 0,
+            y: 0,
+            collected: true,
+            color: getGateColor(id),
+            label: resolvedLabel,
+          });
+        }
+      }
+    }
+
+    return keys;
+  }
+
+  public isExitOpen(room: ScreenData, dir: ExitDirection): boolean {
+    const gate = getExitGate(room, dir);
+    if (gate) {
+      return this.hasKey(gate.id);
+    }
+    return room.exits?.[dir] === true;
+  }
+
+  public getUncollectedKeysInRoom(room: ScreenData): CollectibleData[] {
+    return (room.collectibles || []).filter(
+      (c) => c.type === 'key' && !this.isItemCollected(c.id)
+    );
+  }
+
+  public getLockedGatesInRoom(room: ScreenData): { dir: ExitDirection; gate: ExitGateConfig; keyLabel: string; color: string }[] {
+    const locked: { dir: ExitDirection; gate: ExitGateConfig; keyLabel: string; color: string }[] = [];
+    for (const dir of ['left', 'right', 'up', 'down'] as ExitDirection[]) {
+      const gate = getExitGate(room, dir);
+      if (gate && !this.hasKey(gate.id)) {
+        locked.push({
+          dir,
+          gate,
+          keyLabel: this.getRequiredKeyLabel(gate),
+          color: getGateColor(gate.id, gate.color),
+        });
+      }
+    }
+    return locked;
   }
 
   public getCollectedCount(): number {
@@ -85,10 +192,10 @@ export class LevelMap {
       if (!room) continue;
 
       const candidates: { x: number; y: number; exitOpen: boolean; dir: 'left' | 'right' | 'up' | 'down' }[] = [
-        { x: room.coords.x - 1, y: room.coords.y, exitOpen: !!room.exits?.left, dir: 'left' },
-        { x: room.coords.x + 1, y: room.coords.y, exitOpen: !!room.exits?.right, dir: 'right' },
-        { x: room.coords.x, y: room.coords.y + 1, exitOpen: !!room.exits?.up, dir: 'up' },
-        { x: room.coords.x, y: room.coords.y - 1, exitOpen: !!room.exits?.down, dir: 'down' },
+        { x: room.coords.x - 1, y: room.coords.y, exitOpen: this.isExitOpen(room, 'left'), dir: 'left' },
+        { x: room.coords.x + 1, y: room.coords.y, exitOpen: this.isExitOpen(room, 'right'), dir: 'right' },
+        { x: room.coords.x, y: room.coords.y + 1, exitOpen: this.isExitOpen(room, 'up'), dir: 'up' },
+        { x: room.coords.x, y: room.coords.y - 1, exitOpen: this.isExitOpen(room, 'down'), dir: 'down' },
       ];
 
       for (const cand of candidates) {

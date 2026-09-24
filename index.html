@@ -567,6 +567,103 @@
         z-index: 10;
       }
 
+      /* Key Inventory — Bottom of the Screen */
+      #key-inventory {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        background: rgba(4, 8, 18, 0.88);
+        border: 1px solid rgba(0, 255, 255, 0.25);
+        border-radius: 6px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        pointer-events: auto;
+        z-index: 15;
+        user-select: none;
+        max-width: 90vw;
+        overflow-x: auto;
+      }
+
+      .key-inventory-header {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1.5px;
+        color: #5a7a9a;
+        text-transform: uppercase;
+        padding-right: 6px;
+        border-right: 1px solid rgba(0, 255, 255, 0.15);
+        flex-shrink: 0;
+      }
+
+      .key-inv-icon {
+        font-size: 13px;
+        filter: drop-shadow(0 0 4px #ffe600);
+      }
+
+      .key-inventory-slots {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 24px;
+      }
+
+      .key-inventory-empty {
+        font-size: 10px;
+        color: #3d5570;
+        letter-spacing: 1px;
+        font-style: italic;
+        padding: 2px 6px;
+      }
+
+      .key-item-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid currentColor;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.8px;
+        background: rgba(10, 16, 28, 0.9);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+        cursor: default;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        animation: keyPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .key-item-chip:hover {
+        transform: translateY(-2px);
+      }
+
+      .key-chip-glyph {
+        font-size: 12px;
+      }
+
+      .key-chip-id {
+        white-space: nowrap;
+      }
+
+      @keyframes keyPopIn {
+        0% {
+          transform: scale(0.6);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
       /* Victory Modal */
       #win-modal {
         display: none;
@@ -1161,6 +1258,17 @@
 
     <!-- Infinite Sides Rotation Notification -->
     <div id="rotation-banner">CUBE TUMBLING: ROTATING TO NEXT FACE</div>
+
+    <!-- Key Inventory Dock — Bottom of the Screen -->
+    <div id="key-inventory" title="Gate Key Inventory: Collected keys automatically unlock matching closed exits">
+      <div class="key-inventory-header">
+        <span class="key-inv-icon">🔑</span>
+        <span class="key-inv-label">KEYS</span>
+      </div>
+      <div class="key-inventory-slots" id="key-inventory-slots">
+        <span class="key-inventory-empty">NONE</span>
+      </div>
+    </div>
 
     <!-- Help Overlay -->
     <div id="help-overlay">

@@ -1,5 +1,5 @@
 import { LevelMap } from './world/LevelMap';
-import { ScreenData } from './world/ScreenData';
+import { ScreenData, ExitDirection, ExitGateConfig, getGateColor } from './world/ScreenData';
 import { WorldRegistry } from './world/WorldRegistry';
 import { ProceduralLevelMap } from './world/ProceduralLevelMap';
 import { DifficultyLevel } from './world/ProceduralWorldGen';
@@ -74,6 +74,8 @@ class Game {
   private btnCloseProceduralModalEl: HTMLElement | null;
   private btnCancelProceduralEl: HTMLElement | null;
   private selectedDifficulty: DifficultyLevel = 'normal';
+  private keyInventorySlotsEl: HTMLElement | null = null;
+  private lastGateAlertTime: number = 0;
 
   constructor() {
     const container = document.getElementById('game-container')!;
@@ -107,6 +109,7 @@ class Game {
     this.btnGearEl = document.getElementById('btn-gear')!;
     this.btnHelpEl = document.getElementById('btn-help')!;
     this.proceduralDividerEl = document.getElementById('hud-procedural-divider');
+    this.keyInventorySlotsEl = document.getElementById('key-inventory-slots');
 
     this.perfDebug = new PerformanceDebugView({
       initialVisible: false,
@@ -178,9 +181,12 @@ class Game {
       player: this.player,
     });
 
+    this.physics.setLevelMap(this.levelMap);
+
     // Initial binding of active and adjacent rooms (rendered directly in real-time)
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
     this.updateHUD();
+    this.updateKeyInventory();
     this.setupUIEvents();
 
     requestAnimationFrame(this.gameLoop);
@@ -646,7 +652,9 @@ class Game {
         dt,
         () => this.onGoalReached(),
         () => this.onPlayerDeath(),
-        this.gameTime
+        this.gameTime,
+        this.levelMap,
+        (gate, dir) => this.onGateLockedEncounter(gate, dir)
       );
 
       // 3. Trigger 3D Infinite Cube Rotation if player crossed an edge
@@ -721,9 +729,21 @@ class Game {
 
       if (dist < 28) {
         this.levelMap.collectItem(item.id);
-        this.audio.playCollect();
-        this.particles.emitSparks(item.x, item.y, 18, item.type === 'prism' ? '#ff00aa' : '#ffe600');
+        if (item.type === 'key') {
+          this.audio.playKeyCollect();
+          const color = item.color || getGateColor(item.id);
+          this.particles.emitSparks(item.x, item.y, 35, color);
+          const keyLabel = item.label || this.levelMap.getKeyLabel(item.id) || item.id;
+          this.showTemporaryBanner(`GATE KEY ACQUIRED: "${keyLabel}" 🔑`, color, 3500);
+          // When a gate key is acquired, any closed exit matching this key opens immediately
+          this.audio.playGateOpen();
+          this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+        } else {
+          this.audio.playCollect();
+          this.particles.emitSparks(item.x, item.y, 18, item.type === 'prism' ? '#ff00aa' : '#ffe600');
+        }
         this.updateHUD();
+        this.updateKeyInventory();
         this.sectorMap.setCurrentCoords(this.currentCoords);
       }
     }
@@ -915,7 +935,9 @@ class Game {
       const threat = this.levelMap.getThreatLevel(this.currentCoords.x, this.currentCoords.y);
       this.audio.updateDepthAtmosphere(depth, threat);
     }
+    this.physics.setLevelMap(this.levelMap);
     this.updateHUD();
+    this.updateKeyInventory();
 
     if (this.bannerTimeout !== null) {
       window.clearTimeout(this.bannerTimeout);
@@ -1029,6 +1051,68 @@ class Game {
       if (this.btnProceduralSetupEl) {
         this.btnProceduralSetupEl.style.display = 'none';
       }
+    }
+  }
+
+  private showTemporaryBanner(text: string, color?: string, durationMs: number = 3000): void {
+    if (!this.bannerEl) return;
+    this.bannerEl.textContent = text;
+    this.bannerEl.style.opacity = '1';
+    if (color) {
+      this.bannerEl.style.borderColor = color;
+      this.bannerEl.style.textShadow = `0 0 8px ${color}`;
+      this.bannerEl.style.background = `${color}26`;
+    } else {
+      this.bannerEl.style.borderColor = '#ff0080';
+      this.bannerEl.style.textShadow = '0 0 8px #ff0080';
+      this.bannerEl.style.background = 'rgba(255, 0, 128, 0.2)';
+    }
+
+    if (this.bannerTimeout !== null) {
+      window.clearTimeout(this.bannerTimeout);
+    }
+    this.bannerTimeout = window.setTimeout(() => {
+      this.bannerEl.style.opacity = '0';
+      this.bannerTimeout = null;
+    }, durationMs);
+  }
+
+  private onGateLockedEncounter(gate: ExitGateConfig, _dir: ExitDirection): void {
+    if (this.gameTime - this.lastGateAlertTime > 1.2) {
+      this.lastGateAlertTime = this.gameTime;
+      const gateColor = getGateColor(gate.id, gate.color);
+      const keyLabel = this.levelMap.getRequiredKeyLabel(gate);
+      this.showTemporaryBanner(`GATE LOCKED: Requires Key "${keyLabel}" 🔒`, gateColor, 2200);
+    }
+  }
+
+  private updateKeyInventory(): void {
+    if (!this.keyInventorySlotsEl) return;
+    const keys = this.levelMap.getCollectedKeys();
+
+    if (keys.length === 0) {
+      this.keyInventorySlotsEl.innerHTML = `<span class="key-inventory-empty">NONE</span>`;
+      return;
+    }
+
+    this.keyInventorySlotsEl.innerHTML = '';
+    for (const key of keys) {
+      const color = key.color || getGateColor(key.id);
+      const displayLabel = key.label || key.id;
+      const chip = document.createElement('div');
+      chip.className = 'key-item-chip';
+      chip.style.borderColor = color;
+      chip.style.color = color;
+      chip.style.boxShadow = `0 0 10px ${color}44`;
+      chip.title = key.label
+        ? `Gate Key: "${key.label}" (ID: ${key.id})`
+        : `Gate Key "${key.id}" (Unlocks matching closed exits)`;
+
+      chip.innerHTML = `
+        <span class="key-chip-glyph" style="color: ${color}; filter: drop-shadow(0 0 4px ${color});">🔑</span>
+        <span class="key-chip-id">${displayLabel}</span>
+      `;
+      this.keyInventorySlotsEl.appendChild(chip);
     }
   }
 }

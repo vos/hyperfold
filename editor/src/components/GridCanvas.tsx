@@ -10,6 +10,8 @@ import {
   TileGlyph,
   EditorTool,
   SelectedEntity,
+  isGatedExit,
+  getGateColor,
 } from '../types/world';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
 import { getAdjacentSectors } from '../utils/navigation.ts';
@@ -594,21 +596,108 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
     // 2. Render Exit Indicators
     const borderThickness = 6;
+    const getGateKeyLabel = (ex: any): string => {
+      for (const r of world.rooms) {
+        for (const c of r.collectibles || []) {
+          if (c.type === 'key' && c.id === ex.id && c.label) {
+            return c.label;
+          }
+        }
+      }
+      return ex.label || ex.id;
+    };
+
     if (room.exits.left) {
-      ctx.fillStyle = room.themeColor;
-      ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      const ex = room.exits.left;
+      if (isGatedExit(ex)) {
+        const col = ex.color || getGateColor(ex.id);
+        ctx.fillStyle = col;
+        ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+        const keyLabel = getGateKeyLabel(ex);
+        const text = `🔒 ${keyLabel}`;
+        ctx.font = 'bold 10px monospace';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
+        ctx.fillRect(borderThickness + 4, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(borderThickness + 4, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
+        ctx.fillStyle = col;
+        ctx.textAlign = 'left';
+        ctx.fillText(text, borderThickness + 8, 13 * TILE_PIXEL_SIZE + 4);
+      } else {
+        ctx.fillStyle = room.themeColor;
+        ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      }
     }
     if (room.exits.right) {
-      ctx.fillStyle = room.themeColor;
-      ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      const ex = room.exits.right;
+      if (isGatedExit(ex)) {
+        const col = ex.color || getGateColor(ex.id);
+        ctx.fillStyle = col;
+        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+        const keyLabel = getGateKeyLabel(ex);
+        const text = `🔒 ${keyLabel}`;
+        ctx.font = 'bold 10px monospace';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
+        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness - tw - 12, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(ROOM_PIXEL_SIZE - borderThickness - tw - 12, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
+        ctx.fillStyle = col;
+        ctx.textAlign = 'left';
+        ctx.fillText(text, ROOM_PIXEL_SIZE - borderThickness - tw - 8, 13 * TILE_PIXEL_SIZE + 4);
+      } else {
+        ctx.fillStyle = room.themeColor;
+        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      }
     }
     if (room.exits.up) {
-      ctx.fillStyle = room.themeColor;
-      ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
+      const ex = room.exits.up;
+      if (isGatedExit(ex)) {
+        const col = ex.color || getGateColor(ex.id);
+        ctx.fillStyle = col;
+        ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
+        const keyLabel = getGateKeyLabel(ex);
+        const text = `🔒 ${keyLabel}`;
+        ctx.font = 'bold 10px monospace';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
+        ctx.fillRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, borderThickness + 4, tw + 8, 20);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, borderThickness + 4, tw + 8, 20);
+        ctx.fillStyle = col;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 10 * TILE_PIXEL_SIZE, borderThickness + 18);
+      } else {
+        ctx.fillStyle = room.themeColor;
+        ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
+      }
     }
     if (room.exits.down) {
-      ctx.fillStyle = room.themeColor;
-      ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
+      const ex = room.exits.down;
+      if (isGatedExit(ex)) {
+        const col = ex.color || getGateColor(ex.id);
+        ctx.fillStyle = col;
+        ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
+        const keyLabel = getGateKeyLabel(ex);
+        const text = `🔒 ${keyLabel}`;
+        ctx.font = 'bold 10px monospace';
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
+        ctx.fillRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, ROOM_PIXEL_SIZE - borderThickness - 24, tw + 8, 20);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, ROOM_PIXEL_SIZE - borderThickness - 24, tw + 8, 20);
+        ctx.fillStyle = col;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 10 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness - 10);
+      } else {
+        ctx.fillStyle = room.themeColor;
+        ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
+      }
     }
 
     // 3. Render Tiles
@@ -1003,11 +1092,28 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ctx.stroke();
           } else {
             // key
-            ctx.fillStyle = '#ffcc00';
+            const keyColor = col.color || getGateColor(col.id);
+            ctx.fillStyle = keyColor;
+            ctx.strokeStyle = isSelected ? '#ffffff' : keyColor;
+            ctx.lineWidth = isSelected ? 2.5 : 1.5;
             ctx.beginPath();
             ctx.arc(col.x - 4, col.y - 4, 6, 0, Math.PI * 2);
             ctx.fill();
+            ctx.stroke();
             ctx.fillRect(col.x, col.y - 2, 10, 4);
+
+            // Floating badge above key
+            const labelText = `🔑 ${col.label || col.id}`;
+            ctx.font = 'bold 9px monospace';
+            const tw = ctx.measureText(labelText).width;
+            ctx.fillStyle = 'rgba(6, 10, 20, 0.88)';
+            ctx.fillRect(col.x - tw * 0.5 - 4, col.y - 24, tw + 8, 16);
+            ctx.strokeStyle = isSelected ? '#ffffff' : keyColor;
+            ctx.lineWidth = isSelected ? 1.5 : 1;
+            ctx.strokeRect(col.x - tw * 0.5 - 4, col.y - 24, tw + 8, 16);
+            ctx.fillStyle = isSelected ? '#ffffff' : keyColor;
+            ctx.textAlign = 'center';
+            ctx.fillText(labelText, col.x, col.y - 12);
           }
         }
       }

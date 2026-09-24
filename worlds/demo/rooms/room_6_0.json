@@ -10,7 +10,11 @@
   "themeColor": "#ff0055",
   "accentColor": "#ffcc00",
   "exits": {
-    "left": true,
+    "left": {
+      "id": "key_warp_core",
+      "label": "Warp Core Security Barrier",
+      "color": "#ff0077"
+    },
     "right": false,
     "up": false,
     "down": false

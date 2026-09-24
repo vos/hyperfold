@@ -2,7 +2,8 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { LaserBarrier } from '../entities/LaserBarrier';
 import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection } from '../world/ScreenData';
+import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection, ExitDirection, ExitGateConfig, getGateColor, getExitGate } from '../world/ScreenData';
+import { LevelMap } from '../world/LevelMap';
 import { AudioManager } from './AudioManager';
 import { ParticleSystem } from './ParticleSystem';
 import { InputState } from './InputManager';
@@ -23,6 +24,8 @@ export class PhysicsEngine {
   private roomBarriers: Map<string, LaserBarrier[]> = new Map();
   private roomTurrets: Map<string, LaserTurret[]> = new Map();
   private roomProjectiles: Map<string, LaserProjectile[]> = new Map();
+  private levelMap?: LevelMap;
+  private lastLockedSoundTime: number = 0;
 
   constructor(audio: AudioManager, particles: ParticleSystem) {
     this.audio = audio;
@@ -156,6 +159,19 @@ export class PhysicsEngine {
     }
   }
 
+  public setLevelMap(levelMap: LevelMap): void {
+    this.levelMap = levelMap;
+  }
+
+  public isExitOpen(room: ScreenData, dir: ExitDirection, levelMap?: LevelMap): boolean {
+    const map = levelMap || this.levelMap;
+    const gate = getExitGate(room, dir);
+    if (gate) {
+      return !!map && map.hasKey(gate.id);
+    }
+    return room.exits?.[dir] === true;
+  }
+
   public update(
     player: Player,
     room: ScreenData,
@@ -163,7 +179,9 @@ export class PhysicsEngine {
     dt: number,
     onGoalReached?: () => void,
     onPlayerDeath?: () => void,
-    currentTime?: number
+    currentTime?: number,
+    levelMap?: LevelMap,
+    onGateLocked?: (gate: ExitGateConfig, dir: ExitDirection) => void
   ): TransitionEvent | null {
     this.updateCrumble(dt);
     player.wasGrounded = player.isGrounded;
@@ -349,10 +367,10 @@ export class PhysicsEngine {
     if (turretKilled) return null;
 
     // 7. Check Edge Boundaries for 3D Cube Rotation
-    return this.checkBoundaryTransitions(player, room);
+    return this.checkBoundaryTransitions(player, room, levelMap, onGateLocked);
   }
 
-  public canStandUp(player: Player, room: ScreenData, platforms?: MovingPlatform[]): boolean {
+  public canStandUp(player: Player, room: ScreenData, platforms?: MovingPlatform[], levelMap?: LevelMap): boolean {
     if (!player.isDucking) return true;
 
     const diff = player.STANDING_HEIGHT - player.height;
@@ -367,8 +385,8 @@ export class PhysicsEngine {
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         if (r < 0) {
-          // Solid ceiling if room doesn't have an upward exit
-          if (!room.exits.up) return false;
+          // Solid ceiling if room doesn't have an open upward exit
+          if (!this.isExitOpen(room, 'up', levelMap)) return false;
           continue;
         }
         if (r >= room.tiles.length || c < 0 || c >= room.tiles[0].length) continue;
@@ -643,10 +661,32 @@ export class PhysicsEngine {
     }
   }
 
-  private checkBoundaryTransitions(player: Player, room: ScreenData): TransitionEvent | null {
+  private handleLockedGateHit(
+    player: Player,
+    gate: ExitGateConfig,
+    dir: ExitDirection,
+    onGateLocked?: (gate: ExitGateConfig, dir: ExitDirection) => void
+  ): void {
+    if (this.gameTime - this.lastLockedSoundTime > 0.6) {
+      this.lastLockedSoundTime = this.gameTime;
+      this.audio.playGateLocked();
+    }
+    const color = getGateColor(gate.id, gate.color);
+    this.particles.emitSparks(player.x + player.width * 0.5, player.y + player.height * 0.5, 6, color);
+    if (onGateLocked) {
+      onGateLocked(gate, dir);
+    }
+  }
+
+  private checkBoundaryTransitions(
+    player: Player,
+    room: ScreenData,
+    levelMap?: LevelMap,
+    onGateLocked?: (gate: ExitGateConfig, dir: ExitDirection) => void
+  ): TransitionEvent | null {
     // Right Exit
     if (player.x + player.width * 0.5 >= FACE_SIZE) {
-      if (room.exits.right) {
+      if (this.isExitOpen(room, 'right', levelMap)) {
         return {
           direction: 'right',
           entryX: 4,
@@ -656,12 +696,16 @@ export class PhysicsEngine {
       } else {
         player.x = FACE_SIZE - player.width;
         player.vx = 0;
+        const gate = getExitGate(room, 'right');
+        if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+          this.handleLockedGateHit(player, gate, 'right', onGateLocked);
+        }
       }
     }
 
     // Left Exit
     if (player.x + player.width * 0.5 <= 0) {
-      if (room.exits.left) {
+      if (this.isExitOpen(room, 'left', levelMap)) {
         return {
           direction: 'left',
           entryX: FACE_SIZE - player.width - 4,
@@ -671,12 +715,16 @@ export class PhysicsEngine {
       } else {
         player.x = 0;
         player.vx = 0;
+        const gate = getExitGate(room, 'left');
+        if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+          this.handleLockedGateHit(player, gate, 'left', onGateLocked);
+        }
       }
     }
 
     // Top Exit
     if (player.y + player.height * 0.5 <= 0) {
-      if (room.exits.up) {
+      if (this.isExitOpen(room, 'up', levelMap)) {
         return {
           direction: 'up',
           entryX: player.x,
@@ -686,12 +734,16 @@ export class PhysicsEngine {
       } else {
         player.y = 0;
         player.vy = 0;
+        const gate = getExitGate(room, 'up');
+        if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+          this.handleLockedGateHit(player, gate, 'up', onGateLocked);
+        }
       }
     }
 
     // Bottom Exit
     if (player.y >= FACE_SIZE) {
-      if (room.exits.down) {
+      if (this.isExitOpen(room, 'down', levelMap)) {
         return {
           direction: 'down',
           entryX: player.x,
@@ -699,20 +751,27 @@ export class PhysicsEngine {
           preserveVy: player.vy,
         };
       } else {
-        // Fell into bottom void without exit -> respawn
-        this.audio.playDeath();
-        this.particles.emitPlayerExplosion(
-          player.x + player.width * 0.5,
-          FACE_SIZE - 20,
-          player.primaryColor,
-          player.accentColor
-        );
-        return {
-          direction: 'down', // will be treated as fall death if no room
-          entryX: 120,
-          entryY: 660,
-          preserveVy: 0,
-        };
+        const gate = getExitGate(room, 'down');
+        if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
+          player.y = FACE_SIZE - player.height;
+          player.vy = 0;
+          this.handleLockedGateHit(player, gate, 'down', onGateLocked);
+        } else {
+          // Fell into bottom void without exit -> respawn
+          this.audio.playDeath();
+          this.particles.emitPlayerExplosion(
+            player.x + player.width * 0.5,
+            FACE_SIZE - 20,
+            player.primaryColor,
+            player.accentColor
+          );
+          return {
+            direction: 'down', // will be treated as fall death if no room
+            entryX: 120,
+            entryY: 660,
+            preserveVy: 0,
+          };
+        }
       }
     }
 

@@ -10,9 +10,30 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowDown,
+  Key,
+  Lock,
 } from 'lucide-react';
 import { RoomData, WorldData } from '../types/world';
 import { cloneRoom, createEmptyRoom } from '../utils/serialization';
+
+function getKeyLabelForGate(gateId: string, world: WorldData): string {
+  for (const r of world.rooms) {
+    for (const c of r.collectibles || []) {
+      if (c.type === 'key' && c.id === gateId && c.label) {
+        return c.label;
+      }
+    }
+  }
+  for (const r of world.rooms) {
+    for (const d of ['left', 'right', 'up', 'down'] as const) {
+      const ex = r.exits?.[d];
+      if (typeof ex === 'object' && ex !== null && ex.id === gateId && ex.label) {
+        return ex.label;
+      }
+    }
+  }
+  return gateId;
+}
 
 interface WorldGraphViewProps {
   world: WorldData;
@@ -125,10 +146,10 @@ export const WorldGraphView: React.FC<WorldGraphViewProps> = ({
         return {
           ...rm,
           exits: {
-            right: hasRight,
-            left: hasLeft,
-            up: hasUp,
-            down: hasDown,
+            right: typeof rm.exits?.right === 'object' && rm.exits.right !== null ? rm.exits.right : hasRight,
+            left: typeof rm.exits?.left === 'object' && rm.exits.left !== null ? rm.exits.left : hasLeft,
+            up: typeof rm.exits?.up === 'object' && rm.exits.up !== null ? rm.exits.up : hasUp,
+            down: typeof rm.exits?.down === 'object' && rm.exits.down !== null ? rm.exits.down : hasDown,
           },
         };
       });
@@ -221,7 +242,7 @@ export const WorldGraphView: React.FC<WorldGraphViewProps> = ({
                       key={key}
                       onClick={() => handleAddRoomAt(x, y)}
                       title={`Add new sector at (${x}, ${y})`}
-                      className="h-36 rounded-xl border-2 border-dashed border-cyber-border/40 hover:border-cyber-cyan/60 bg-cyber-bg/20 hover:bg-cyber-card/40 flex flex-col items-center justify-center space-y-1.5 transition-all group"
+                      className="min-h-[160px] rounded-xl border-2 border-dashed border-cyber-border/40 hover:border-cyber-cyan/60 bg-cyber-bg/20 hover:bg-cyber-card/40 flex flex-col items-center justify-center space-y-1.5 transition-all group"
                     >
                       <Plus className="w-5 h-5 text-slate-500 group-hover:text-cyber-cyan transition-colors" />
                       <span className="text-[11px] font-mono text-slate-500 group-hover:text-slate-300">
@@ -230,15 +251,20 @@ export const WorldGraphView: React.FC<WorldGraphViewProps> = ({
                     </button>
                   );
                 }
-                return <div key={key} className="h-36" />;
+                return <div key={key} className="min-h-[160px]" />;
               }
+
+              const keysInRoom = (room.collectibles || []).filter((c) => c.type === 'key');
+              const gatedExits = (['left', 'right', 'up', 'down'] as const)
+                .filter((d) => typeof room.exits?.[d] === 'object' && room.exits[d] !== null)
+                .map((d) => [d, room.exits[d] as any] as const);
 
               // Render Room Card
               return (
                 <div
                   key={room.id}
                   onClick={() => onSelectRoom(room.id)}
-                  className={`h-36 rounded-xl p-3 flex flex-col justify-between cursor-pointer transition-all relative border ${
+                  className={`min-h-[160px] rounded-xl p-3 flex flex-col justify-between cursor-pointer transition-all relative border ${
                     isSelected
                       ? 'bg-cyber-card border-cyber-cyan ring-2 ring-cyber-cyan/40 shadow-xl scale-[1.03]'
                       : 'bg-cyber-card/80 border-cyber-border hover:border-slate-400 hover:bg-cyber-card'
@@ -275,40 +301,53 @@ export const WorldGraphView: React.FC<WorldGraphViewProps> = ({
                     </p>
                   </div>
 
+                  {/* Key Collectibles in this Sector */}
+                  {keysInRoom.length > 0 && (
+                    <div className="flex items-center space-x-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30 truncate my-0.5">
+                      <Key className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="truncate font-mono font-medium" title={keysInRoom.map((k) => `Key: ${k.label || k.id}`).join(', ')}>
+                        {keysInRoom.map((k) => k.label || k.id).join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Locked Exits in this Sector with Required Key Label */}
+                  {gatedExits.length > 0 && (
+                    <div className="flex items-center space-x-1.5 text-[10px] text-pink-300 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/30 truncate my-0.5">
+                      <Lock className="w-3 h-3 text-pink-400 shrink-0" />
+                      <span
+                        className="truncate font-mono font-medium"
+                        title={gatedExits.map(([d, g]) => `Locked ${d} door: requires "${getKeyLabelForGate(g.id, world)}"`).join('; ')}
+                      >
+                        {gatedExits.map(([d, g]) => `[${d[0].toUpperCase()}]: ${getKeyLabelForGate(g.id, world)}`).join(' ')}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Exit Direction Indicators */}
                   <div className="flex items-center space-x-1 text-[10px] font-mono">
-                    <span
-                      title="Left Exit"
-                      className={`px-1 py-0.2 rounded ${
-                        room.exits.left ? 'text-cyber-cyan bg-cyber-cyan/20' : 'text-slate-600'
-                      }`}
-                    >
-                      L
-                    </span>
-                    <span
-                      title="Right Exit"
-                      className={`px-1 py-0.2 rounded ${
-                        room.exits.right ? 'text-cyber-cyan bg-cyber-cyan/20' : 'text-slate-600'
-                      }`}
-                    >
-                      R
-                    </span>
-                    <span
-                      title="Up Exit"
-                      className={`px-1 py-0.2 rounded ${
-                        room.exits.up ? 'text-cyber-cyan bg-cyber-cyan/20' : 'text-slate-600'
-                      }`}
-                    >
-                      U
-                    </span>
-                    <span
-                      title="Down Exit"
-                      className={`px-1 py-0.2 rounded ${
-                        room.exits.down ? 'text-cyber-cyan bg-cyber-cyan/20' : 'text-slate-600'
-                      }`}
-                    >
-                      D
-                    </span>
+                    {(['left', 'right', 'up', 'down'] as const).map((d) => {
+                      const ex = room.exits?.[d];
+                      const isG = typeof ex === 'object' && ex !== null;
+                      const isOp = ex === true;
+                      const char = d[0].toUpperCase();
+                      const keyLabel = isG ? getKeyLabelForGate((ex as any).id, world) : undefined;
+                      return (
+                        <span
+                          key={d}
+                          title={isG ? `Gated ${d} exit: requires "${keyLabel}"` : `${d} exit: ${isOp ? 'Open' : 'Closed'}`}
+                          className={`px-1 py-0.2 rounded font-mono ${
+                            isG
+                              ? 'text-pink-400 bg-pink-500/20 border border-pink-500/40'
+                              : isOp
+                              ? 'text-cyber-cyan bg-cyber-cyan/20'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          {isG ? `🔒${char}` : char}
+                        </span>
+                      );
+                    })}
 
                     {/* Entities count badge */}
                     <span className="ml-auto text-[10px] text-slate-500">

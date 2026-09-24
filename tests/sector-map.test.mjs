@@ -135,5 +135,42 @@ test('2D Sector Map Verification', async (t) => {
       }
     }
   });
+
+  await t.test('Sector Map Key Symbols and Locked Gate Detection', () => {
+    const demoEntry = WorldRegistry.getWorld('demo');
+    const levelMap = demoEntry.load();
+
+    const sectorZenith = levelMap.getRoom(2, 2);
+    assert.ok(sectorZenith, 'Sector (2, 2) must exist');
+
+    const sector5 = levelMap.getRoom(5, 0);
+    assert.ok(sector5, 'Sector (5, 0) must exist');
+
+    // 1. Sector (2, 2) initially has an uncollected key
+    const uncollectedBefore = levelMap.getUncollectedKeysInRoom(sectorZenith);
+    assert.equal(uncollectedBefore.length, 1);
+    assert.equal(uncollectedBefore[0].id, 'key_warp_core');
+    assert.equal(uncollectedBefore[0].label, 'Warp Core Key');
+    assert.equal(uncollectedBefore[0].color, '#ff0077');
+
+    // 2. Sector (5, 0) initially has a locked door requiring the Warp Core Key
+    const lockedGatesBefore = levelMap.getLockedGatesInRoom(sector5);
+    assert.equal(lockedGatesBefore.length, 1);
+    assert.equal(lockedGatesBefore[0].dir, 'right');
+    assert.equal(lockedGatesBefore[0].gate.id, 'key_warp_core');
+    assert.equal(lockedGatesBefore[0].keyLabel, 'Warp Core Key');
+    assert.equal(lockedGatesBefore[0].color, '#ff0077');
+
+    // 3. Collect the key
+    levelMap.collectItem('key_warp_core');
+
+    // 4. Sector (2, 2) now has NO uncollected keys (key symbol goes away)
+    const uncollectedAfter = levelMap.getUncollectedKeysInRoom(sectorZenith);
+    assert.equal(uncollectedAfter.length, 0);
+
+    // 5. Sector (5, 0) now has NO locked doors (locked door marker goes away)
+    const lockedGatesAfter = levelMap.getLockedGatesInRoom(sector5);
+    assert.equal(lockedGatesAfter.length, 0);
+  });
 });
 

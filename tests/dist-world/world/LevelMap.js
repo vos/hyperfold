@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LevelMap = void 0;
+const ScreenData_1 = require("./ScreenData");
 class LevelMap {
     rooms = new Map();
     collectedItemIds = new Set();
@@ -29,6 +30,102 @@ class LevelMap {
     }
     isItemCollected(id) {
         return this.collectedItemIds.has(id);
+    }
+    hasKey(keyId) {
+        return this.collectedItemIds.has(keyId);
+    }
+    getKeyItemLabel(keyId) {
+        for (const room of this.rooms.values()) {
+            for (const col of room.collectibles) {
+                if (col.type === 'key' && col.id === keyId && col.label) {
+                    return col.label;
+                }
+            }
+        }
+        return undefined;
+    }
+    getKeyLabel(keyId) {
+        const itemLabel = this.getKeyItemLabel(keyId);
+        if (itemLabel) {
+            return itemLabel;
+        }
+        for (const room of this.rooms.values()) {
+            for (const dir of ['left', 'right', 'up', 'down']) {
+                const gate = (0, ScreenData_1.getExitGate)(room, dir);
+                if (gate && gate.id === keyId && gate.label) {
+                    return gate.label;
+                }
+            }
+        }
+        return undefined;
+    }
+    getRequiredKeyLabel(gate) {
+        return this.getKeyItemLabel(gate.id) || this.getKeyLabel(gate.id) || gate.label || gate.id;
+    }
+    getCollectedKeys() {
+        const keys = [];
+        const seen = new Set();
+        for (const room of this.rooms.values()) {
+            for (const col of room.collectibles) {
+                if (col.type === 'key' && this.collectedItemIds.has(col.id)) {
+                    if (!seen.has(col.id)) {
+                        seen.add(col.id);
+                        keys.push({
+                            ...col,
+                            label: col.label || this.getKeyLabel(col.id),
+                            color: col.color || (0, ScreenData_1.getGateColor)(col.id),
+                        });
+                    }
+                }
+            }
+        }
+        for (const id of this.collectedItemIds) {
+            if (!seen.has(id)) {
+                const resolvedLabel = this.getKeyLabel(id);
+                const isKeyLike = id.startsWith('key') || id.includes('key') || !!resolvedLabel;
+                if (isKeyLike) {
+                    seen.add(id);
+                    keys.push({
+                        id,
+                        type: 'key',
+                        x: 0,
+                        y: 0,
+                        collected: true,
+                        color: (0, ScreenData_1.getGateColor)(id),
+                        label: resolvedLabel,
+                    });
+                }
+            }
+        }
+        return keys;
+    }
+    isExitOpen(room, dir) {
+        const exitVal = room.exits?.[dir];
+        const gate = (0, ScreenData_1.getExitGate)(room, dir);
+        if (gate) {
+            return this.hasKey(gate.id);
+        }
+        return exitVal === true;
+    }
+    getUncollectedKeysInRoom(room) {
+        return (room.collectibles || []).filter(
+            (c) => c.type === 'key' && !this.isItemCollected(c.id)
+        );
+    }
+    getLockedGatesInRoom(room) {
+        const locked = [];
+        for (const dir of ['left', 'right', 'up', 'down']) {
+            const gate = (0, ScreenData_1.getExitGate)(room, dir);
+            if (gate && !this.hasKey(gate.id)) {
+                locked.push({
+                    dir,
+                    gate,
+                    keyLabel: this.getRequiredKeyLabel(gate),
+                    color: (0, ScreenData_1.getGateColor)(gate.id, gate.color),
+                });
+            }
+        }
+        return locked;
     }
     getCollectedCount() {
         return this.collectedItemIds.size;
@@ -68,10 +165,10 @@ class LevelMap {
             const room = this.rooms.get(key);
             if (!room) continue;
             const candidates = [
-                { x: room.coords.x - 1, y: room.coords.y, exitOpen: !!room.exits?.left, dir: 'left' },
-                { x: room.coords.x + 1, y: room.coords.y, exitOpen: !!room.exits?.right, dir: 'right' },
-                { x: room.coords.x, y: room.coords.y + 1, exitOpen: !!room.exits?.up, dir: 'up' },
-                { x: room.coords.x, y: room.coords.y - 1, exitOpen: !!room.exits?.down, dir: 'down' },
+                { x: room.coords.x - 1, y: room.coords.y, exitOpen: this.isExitOpen(room, 'left'), dir: 'left' },
+                { x: room.coords.x + 1, y: room.coords.y, exitOpen: this.isExitOpen(room, 'right'), dir: 'right' },
+                { x: room.coords.x, y: room.coords.y + 1, exitOpen: this.isExitOpen(room, 'up'), dir: 'up' },
+                { x: room.coords.x, y: room.coords.y - 1, exitOpen: this.isExitOpen(room, 'down'), dir: 'down' },
             ];
             for (const cand of candidates) {
                 if (!cand.exitOpen) continue;

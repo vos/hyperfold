@@ -1,4 +1,16 @@
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection, LaserTurretConfig } from '../world/ScreenData';
+import {
+  FACE_SIZE,
+  ScreenData,
+  TILE_SIZE,
+  TileType,
+  getSpikeDirection,
+  LaserTurretConfig,
+  CollectibleData,
+  ExitDirection,
+  ExitGateConfig,
+  getGateColor,
+  getExitGate,
+} from '../world/ScreenData';
 import { Player } from '../entities/Player';
 import { ParticleSystem } from '../engine/ParticleSystem';
 import { LevelMap } from '../world/LevelMap';
@@ -167,7 +179,7 @@ export class FaceRenderer {
     // 3. Render Collectibles
     for (const item of room.collectibles) {
       if (levelMap.isItemCollected(item.id)) continue;
-      this.drawCollectible(ctx, item.x, item.y, item.type, primary);
+      this.drawCollectible(ctx, item, primary);
     }
 
     // 3.5 Render Moving Platforms (Holographic guide rails, hover chassis, thrusters)
@@ -186,7 +198,7 @@ export class FaceRenderer {
     }
 
     // 4. Render Exit Boundary Portals / Indicators (pulsing animated arrows)
-    this.drawExitIndicators(ctx, room);
+    this.drawExitIndicators(ctx, room, levelMap);
 
     // 5. Render Room Header / Subtitle (overlay on top of obstacles)
     this.drawRoomHeader(ctx, room);
@@ -405,17 +417,89 @@ export class FaceRenderer {
 
   private drawCollectible(
     ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    type: 'core' | 'prism' | 'key',
+    item: CollectibleData,
     _primary: string
   ): void {
-    ctx.save();
+    const { x, y, type } = item;
     const floatY = Math.sin(this.time * 4 + x) * 6;
-    const rot = this.time * 3;
     const cx = x;
     const cy = y + floatY;
 
+    if (type === 'key') {
+      const color = item.color || getGateColor(item.id);
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      // Rotating cyber key
+      const rot = Math.sin(this.time * 2.5 + x * 0.04) * 0.3 - 0.15;
+      ctx.rotate(rot);
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 16;
+      ctx.lineWidth = 2.5;
+
+      // Outer head ring (hexagonal or rounded cyber head)
+      ctx.beginPath();
+      ctx.arc(0, -12, 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner head cutout
+      ctx.beginPath();
+      ctx.arc(0, -12, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#080c14';
+      ctx.fill();
+      ctx.stroke();
+
+      // Cyber core node inside head
+      ctx.beginPath();
+      ctx.arc(0, -12, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // Stem / Shaft
+      ctx.fillStyle = color;
+      ctx.fillRect(-2.5, -3, 5, 22);
+
+      // Teeth / Bits (two stepped digital cuts)
+      ctx.fillRect(2.5, 7, 7, 3.5);
+      ctx.fillRect(2.5, 14, 9, 4);
+
+      // Specular highlight line along shaft
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-1, -2, 2, 20);
+
+      ctx.restore();
+
+      // Floating holographic ID badge above key
+      ctx.save();
+      ctx.translate(cx, cy - 28);
+      ctx.font = 'bold 9px "Courier New", monospace';
+      const displayKeyText = item.label || item.id;
+      const labelText = `KEY: ${displayKeyText}`;
+      const textWidth = ctx.measureText(labelText).width;
+      const pad = 6;
+      ctx.fillStyle = 'rgba(8, 12, 22, 0.88)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.rect(-textWidth * 0.5 - pad, -9, textWidth + pad * 2, 18);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labelText, 0, 0);
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    const rot = this.time * 3;
     ctx.translate(cx, cy);
     ctx.rotate(rot);
 
@@ -439,43 +523,279 @@ export class FaceRenderer {
     ctx.restore();
   }
 
-  private drawExitIndicators(ctx: CanvasRenderingContext2D, room: ScreenData): void {
+  private drawExitIndicators(ctx: CanvasRenderingContext2D, room: ScreenData, levelMap?: LevelMap): void {
     ctx.save();
     const arrowPulse = (Math.sin(this.time * 5) + 1) * 0.5; // 0 to 1
-    const color = room.themeColor;
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
+
+    const dirs: ExitDirection[] = ['right', 'left', 'up', 'down'];
+
+    for (const dir of dirs) {
+      const gate = getExitGate(room, dir);
+      const isGated = !!gate;
+      const isUnlocked = isGated ? (levelMap ? levelMap.hasKey(gate.id) : false) : false;
+      const isOpen = isGated ? isUnlocked : room.exits[dir] === true;
+
+      if (isGated) {
+        const gateColor = getGateColor(gate.id, gate.color);
+        const displayLabel = levelMap ? levelMap.getRequiredKeyLabel(gate) : (gate.label || gate.id);
+        if (!isUnlocked) {
+          this.drawLockedGateBarrier(ctx, dir, gate, gateColor, displayLabel);
+        } else {
+          this.drawUnlockedGateway(ctx, dir, gate, gateColor, arrowPulse, displayLabel);
+        }
+      } else if (isOpen) {
+        const color = room.themeColor;
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 3;
+
+        if (dir === 'right') {
+          const ax = FACE_SIZE - 25 + arrowPulse * 6;
+          const ay = FACE_SIZE * 0.75;
+          this.drawArrow(ctx, ax, ay, 0);
+        } else if (dir === 'left') {
+          const ax = 25 - arrowPulse * 6;
+          const ay = FACE_SIZE * 0.75;
+          this.drawArrow(ctx, ax, ay, Math.PI);
+        } else if (dir === 'up') {
+          const ax = FACE_SIZE * 0.5;
+          const ay = 25 - arrowPulse * 6;
+          this.drawArrow(ctx, ax, ay, -Math.PI / 2);
+        } else if (dir === 'down') {
+          const ax = FACE_SIZE * 0.5;
+          const ay = FACE_SIZE - 25 + arrowPulse * 6;
+          this.drawArrow(ctx, ax, ay, Math.PI / 2);
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  private drawLockedGateBarrier(
+    ctx: CanvasRenderingContext2D,
+    dir: ExitDirection,
+    gate: ExitGateConfig,
+    gateColor: string,
+    displayLabel?: string
+  ): void {
+    ctx.save();
+    const pulse = 0.7 + 0.3 * Math.sin(this.time * 8);
+
+    ctx.strokeStyle = gateColor;
+    ctx.fillStyle = gateColor;
+    ctx.shadowColor = gateColor;
+    ctx.shadowBlur = 14 * pulse;
+
+    const nodeLabel = displayLabel || gate.label || gate.id;
+
+    if (dir === 'right' || dir === 'left') {
+      const isRight = dir === 'right';
+      const bx = isRight ? FACE_SIZE - 8 : 8;
+      const y1 = 480;
+      const y2 = 720;
+      const ay = FACE_SIZE * 0.75;
+
+      // Emitter pylons
+      ctx.fillRect(isRight ? FACE_SIZE - 14 : 2, y1 - 10, 12, 14);
+      ctx.fillRect(isRight ? FACE_SIZE - 14 : 2, y2 - 4, 12, 14);
+
+      // Shimmering Laser Forcefield lines
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(bx, y1);
+      ctx.lineTo(bx, y2);
+      ctx.moveTo(isRight ? bx - 6 : bx + 6, y1);
+      ctx.lineTo(isRight ? bx - 6 : bx + 6, y2);
+      ctx.stroke();
+
+      // Energy mesh crossbars
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.4 * pulse;
+      ctx.beginPath();
+      for (let y = y1 + 15; y < y2; y += 20) {
+        ctx.moveTo(isRight ? bx - 10 : bx, y);
+        ctx.lineTo(isRight ? bx : bx + 10, y + 10);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      // Holographic Lock Node
+      const nodeX = isRight ? FACE_SIZE - 68 : 68;
+      this.drawLockBadge(ctx, nodeX, ay, nodeLabel, gateColor);
+    } else {
+      // 'up' or 'down'
+      const isUp = dir === 'up';
+      const by = isUp ? 8 : FACE_SIZE - 8;
+      const x1 = 300;
+      const x2 = 500;
+      const ax = FACE_SIZE * 0.5;
+
+      // Emitter pylons
+      ctx.fillRect(x1 - 10, isUp ? 2 : FACE_SIZE - 14, 14, 12);
+      ctx.fillRect(x2 - 4, isUp ? 2 : FACE_SIZE - 14, 14, 12);
+
+      // Shimmering Laser Forcefield lines
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, by);
+      ctx.lineTo(x2, by);
+      ctx.moveTo(x1, isUp ? by + 6 : by - 6);
+      ctx.lineTo(x2, isUp ? by + 6 : by - 6);
+      ctx.stroke();
+
+      // Energy mesh crossbars
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.4 * pulse;
+      ctx.beginPath();
+      for (let x = x1 + 15; x < x2; x += 20) {
+        ctx.moveTo(x, isUp ? by : by - 10);
+        ctx.lineTo(x + 10, isUp ? by + 10 : by);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      // Holographic Lock Node
+      const nodeY = isUp ? 68 : FACE_SIZE - 68;
+      this.drawLockBadge(ctx, ax, nodeY, nodeLabel, gateColor);
+    }
+
+    ctx.restore();
+  }
+
+  private drawUnlockedGateway(
+    ctx: CanvasRenderingContext2D,
+    dir: ExitDirection,
+    gate: ExitGateConfig,
+    gateColor: string,
+    arrowPulse: number,
+    displayLabel?: string
+  ): void {
+    ctx.save();
+    ctx.strokeStyle = gateColor;
+    ctx.fillStyle = gateColor;
+    ctx.shadowColor = gateColor;
+    ctx.shadowBlur = 12;
     ctx.lineWidth = 3;
 
-    // Right Exit Arrow
-    if (room.exits.right) {
+    const nodeLabel = displayLabel || gate.label || gate.id;
+
+    // Draw animated exit arrows in the gate's color
+    if (dir === 'right') {
       const ax = FACE_SIZE - 25 + arrowPulse * 6;
       const ay = FACE_SIZE * 0.75;
       this.drawArrow(ctx, ax, ay, 0);
-    }
-
-    // Left Exit Arrow
-    if (room.exits.left) {
+      this.drawUnlockedBadge(ctx, FACE_SIZE - 68, ay, nodeLabel, gateColor);
+    } else if (dir === 'left') {
       const ax = 25 - arrowPulse * 6;
       const ay = FACE_SIZE * 0.75;
       this.drawArrow(ctx, ax, ay, Math.PI);
-    }
-
-    // Up Exit Arrow
-    if (room.exits.up) {
+      this.drawUnlockedBadge(ctx, 68, ay, nodeLabel, gateColor);
+    } else if (dir === 'up') {
       const ax = FACE_SIZE * 0.5;
       const ay = 25 - arrowPulse * 6;
       this.drawArrow(ctx, ax, ay, -Math.PI / 2);
-    }
-
-    // Down Exit Arrow
-    if (room.exits.down) {
+      this.drawUnlockedBadge(ctx, ax, 68, nodeLabel, gateColor);
+    } else if (dir === 'down') {
       const ax = FACE_SIZE * 0.5;
       const ay = FACE_SIZE - 25 + arrowPulse * 6;
       this.drawArrow(ctx, ax, ay, Math.PI / 2);
+      this.drawUnlockedBadge(ctx, ax, FACE_SIZE - 68, nodeLabel, gateColor);
     }
+
+    ctx.restore();
+  }
+
+  private drawLockBadge(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    displayName: string,
+    color: string
+  ): void {
+    const label = `LOCKED: ${displayName}`;
+    ctx.font = 'bold 9px "Courier New", monospace';
+    const textWidth = ctx.measureText(label).width;
+    const badgeW = textWidth + 34;
+    const badgeH = 22;
+
+    const halfW = badgeW * 0.5;
+    const drawX = Math.max(halfW + 8, Math.min(FACE_SIZE - halfW - 8, x));
+
+    ctx.save();
+    ctx.translate(drawX, y);
+
+    // Badge frame
+    ctx.fillStyle = 'rgba(6, 10, 20, 0.92)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.rect(-badgeW * 0.5, -badgeH * 0.5, badgeW, badgeH);
+    ctx.fill();
+    ctx.stroke();
+
+    // Padlock icon on the left
+    const iconX = -badgeW * 0.5 + 11;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(iconX, -2.5, 3.5, Math.PI, 0); // shackle
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.fillRect(iconX - 4.5, -0.5, 9, 7); // padlock body
+
+    ctx.fillStyle = '#060a14';
+    ctx.beginPath();
+    ctx.arc(iconX, 2.5, 1.2, 0, Math.PI * 2); // keyhole
+    ctx.fill();
+
+    // Label text
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, iconX + 8, 0.5);
+
+    ctx.restore();
+  }
+
+  private drawUnlockedBadge(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    displayName: string,
+    color: string
+  ): void {
+    const label = `OPEN: ${displayName}`;
+    ctx.font = 'bold 9px "Courier New", monospace';
+    const textWidth = ctx.measureText(label).width;
+    const badgeW = textWidth + 18;
+    const badgeH = 18;
+
+    const halfW = badgeW * 0.5;
+    const drawX = Math.max(halfW + 8, Math.min(FACE_SIZE - halfW - 8, x));
+
+    ctx.save();
+    ctx.translate(drawX, y);
+
+    ctx.fillStyle = 'rgba(6, 10, 20, 0.85)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.rect(-badgeW * 0.5, -badgeH * 0.5, badgeW, badgeH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, 0.5);
 
     ctx.restore();
   }

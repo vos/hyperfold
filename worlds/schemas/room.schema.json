@@ -56,13 +56,73 @@
     },
     "exits": {
       "type": "object",
-      "description": "Accessible border exits to adjacent hypercube faces",
+      "description": "Accessible border exits to adjacent hypercube faces. Each direction is either a boolean (true = open exit, false = solid wall) or a gate object for a closed exit requiring a key with matching ID.",
       "required": ["left", "right", "up", "down"],
       "properties": {
-        "left": { "type": "boolean" },
-        "right": { "type": "boolean" },
-        "up": { "type": "boolean" },
-        "down": { "type": "boolean" }
+        "left": {
+          "oneOf": [
+            { "type": "boolean", "description": "true = open exit corridor, false = solid wall" },
+            {
+              "type": "object",
+              "description": "Closed exit gated by a key",
+              "required": ["id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "description": "Unique key ID required to automatically open this exit" },
+                "label": { "type": "string", "description": "Optional human-readable label for HUD alerts and tooltips" },
+                "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", "description": "Color matching the corresponding gate key" }
+              }
+            }
+          ]
+        },
+        "right": {
+          "oneOf": [
+            { "type": "boolean", "description": "true = open exit corridor, false = solid wall" },
+            {
+              "type": "object",
+              "description": "Closed exit gated by a key",
+              "required": ["id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "description": "Unique key ID required to automatically open this exit" },
+                "label": { "type": "string", "description": "Optional human-readable label for HUD alerts and tooltips" },
+                "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", "description": "Color matching the corresponding gate key" }
+              }
+            }
+          ]
+        },
+        "up": {
+          "oneOf": [
+            { "type": "boolean", "description": "true = open exit corridor, false = solid wall" },
+            {
+              "type": "object",
+              "description": "Closed exit gated by a key",
+              "required": ["id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "description": "Unique key ID required to automatically open this exit" },
+                "label": { "type": "string", "description": "Optional human-readable label for HUD alerts and tooltips" },
+                "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", "description": "Color matching the corresponding gate key" }
+              }
+            }
+          ]
+        },
+        "down": {
+          "oneOf": [
+            { "type": "boolean", "description": "true = open exit corridor, false = solid wall" },
+            {
+              "type": "object",
+              "description": "Closed exit gated by a key",
+              "required": ["id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "description": "Unique key ID required to automatically open this exit" },
+                "label": { "type": "string", "description": "Optional human-readable label for HUD alerts and tooltips" },
+                "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", "description": "Color matching the corresponding gate key" }
+              }
+            }
+          ]
+        }
       }
     },
     "spawnPoint": {
@@ -113,7 +173,9 @@
             "items": false,
             "minItems": 2,
             "maxItems": 2
-          }
+          },
+          "color": { "type": "string" },
+          "label": { "type": "string" }
         }
       }
     },

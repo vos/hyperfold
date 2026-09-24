@@ -4,6 +4,9 @@ import {
   ScreenData,
   TileType,
   RoomExits,
+  ExitDirection,
+  ExitGateConfig,
+  getGateColor,
   BouncePadConfig,
   SpikeConfig,
   MovingPlatformConfig,
@@ -22,7 +25,7 @@ export interface RoomDataJson {
   subtitle?: string;
   themeColor: string;
   accentColor: string;
-  exits: RoomExits;
+  exits: RoomExits | Record<string, any>;
   spawnPoint?: [number, number] | { x: number; y: number };
   grid: string[];
   collectibles?: Array<{
@@ -32,6 +35,8 @@ export interface RoomDataJson {
     y?: number;
     pos?: [number, number];
     collected?: boolean;
+    color?: string;
+    label?: string;
   }>;
   bounceProps?: Record<string, BouncePadConfig>;
   spikeProps?: Record<string, SpikeConfig>;
@@ -130,6 +135,78 @@ export class LevelLoader {
         : { x: data.spawnPoint.x, y: data.spawnPoint.y };
     }
 
+    const exits: RoomExits = {
+      left: false,
+      right: false,
+      up: false,
+      down: false,
+    };
+    const gates: Partial<Record<ExitDirection, ExitGateConfig>> = {};
+    const dirs: ExitDirection[] = ['left', 'right', 'up', 'down'];
+
+    if (data.exits) {
+      for (const d of dirs) {
+        const val = (data.exits as any)[d];
+        if (typeof val === 'boolean') {
+          exits[d] = val;
+        } else if (typeof val === 'string' && val.trim().length > 0) {
+          const gate: ExitGateConfig = {
+            id: val.trim(),
+            color: getGateColor(val.trim()),
+          };
+          gates[d] = gate;
+          exits[d] = gate;
+        } else if (typeof val === 'object' && val !== null && val.id) {
+          const gate: ExitGateConfig = {
+            id: val.id,
+            color: getGateColor(val.id, val.color),
+            label: val.label,
+          };
+          gates[d] = gate;
+          exits[d] = gate;
+        }
+      }
+    }
+
+    // Optional legacy fallback if top-level gates/closedExits were supplied:
+    const legacyGates = (data as any).gates || (data as any).closedExits;
+    if (legacyGates) {
+      if (Array.isArray(legacyGates)) {
+        for (const g of legacyGates) {
+          if (g && g.direction && g.id) {
+            const gate: ExitGateConfig = {
+              id: g.id,
+              color: getGateColor(g.id, g.color),
+              label: g.label,
+            };
+            const dir = g.direction as ExitDirection;
+            gates[dir] = gate;
+            exits[dir] = gate;
+          }
+        }
+      } else if (typeof legacyGates === 'object') {
+        for (const d of dirs) {
+          const g = (legacyGates as any)[d];
+          if (typeof g === 'string' && g.trim().length > 0) {
+            const gate: ExitGateConfig = {
+              id: g.trim(),
+              color: getGateColor(g.trim()),
+            };
+            gates[d] = gate;
+            exits[d] = gate;
+          } else if (typeof g === 'object' && g !== null && g.id) {
+            const gate: ExitGateConfig = {
+              id: g.id,
+              color: getGateColor(g.id, g.color),
+              label: g.label,
+            };
+            gates[d] = gate;
+            exits[d] = gate;
+          }
+        }
+      }
+    }
+
     const collectibles: CollectibleData[] = (data.collectibles || []).map((c) => {
       const x = c.pos ? c.pos[0] : (c.x ?? 0);
       const y = c.pos ? c.pos[1] : (c.y ?? 0);
@@ -139,6 +216,8 @@ export class LevelLoader {
         x,
         y,
         collected: c.collected ?? false,
+        color: c.color || (c.type === 'key' ? getGateColor(c.id) : undefined),
+        label: c.label,
       };
     });
 
@@ -150,7 +229,8 @@ export class LevelLoader {
       themeColor: data.themeColor,
       accentColor: data.accentColor,
       tiles,
-      exits: { ...data.exits },
+      exits,
+      gates: Object.keys(gates).length > 0 ? gates : undefined,
       collectibles,
       spawnPoint,
       bounceProps: Object.keys(bounceProps).length > 0 ? bounceProps : undefined,
