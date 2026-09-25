@@ -2,19 +2,11 @@
 
 > Traverse infinite sectors folded across the faces of a rotating 3D hypercube.
 
-<p align="left">
-  <a href="https://vos.github.io/hyperfold/" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/🎮%20Play%20Game-GitHub%20Pages-00ffff?style=for-the-badge" alt="Play Game" />
-  </a>
-  <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/🛠️%20World%20Editor-Online%20App-ff8800?style=for-the-badge" alt="World Editor" />
-  </a>
-  <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT" />
-  </a>
-</p>
+[![Play Game](https://img.shields.io/badge/🎮%20Play%20Game-GitHub%20Pages-00ffff?style=for-the-badge)](https://vos.github.io/hyperfold/)
+[![World Editor](https://img.shields.io/badge/🛠️%20World%20Editor-Online%20App-ff8800?style=for-the-badge)](https://vos.github.io/hyperfold/editor/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-**Play online:** <a href="https://vos.github.io/hyperfold/" target="_blank" rel="noopener noreferrer">🎮 Launch Hyperfold Game ↗</a> &bull; <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer">🛠️ Launch World Editor ↗</a>
+**Play online:** [🎮 Launch Hyperfold Game ↗](https://vos.github.io/hyperfold/) &bull; [🛠️ Launch World Editor ↗](https://vos.github.io/hyperfold/editor/)
 
 The game combines classic 2D jump & run platforming mechanics with a pseudo-3D cube world that tumbles 90° whenever the player crosses any of the four screen edges. While physically appearing as a 3D cube tumbling in deep space, topologically the game world is an **infinite non-Euclidean manifold** featuring fixed, hand-crafted screens that never loop in circles (unless specifically designed) and always preserve round-trip navigation.
 
@@ -32,7 +24,7 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ---
 
-### � Precision 2D Platforming Kinematics
+### 🏃 Precision 2D Platforming Kinematics
 * **Fluid Movement**: Snappy ground acceleration, crisp deceleration, and variable jump height (cutting vertical velocity on early jump release).
 * **Coyote Time (100ms)**: Jump gracefully even after walking off a platform ledge.
 * **Jump Buffering (120ms)**: Queue jumps immediately before touching down on solid ground.
@@ -118,13 +110,9 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ## 🛠️ Hyperfold World Editor
 
-Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory. You can design levels directly in your browser using the online editor at <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer"><strong>vos.github.io/hyperfold/editor/ ↗</strong></a> or run it locally.
+Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory. You can design levels directly in your browser using the online editor at **[vos.github.io/hyperfold/editor/ ↗](https://vos.github.io/hyperfold/editor/)** or run it locally.
 
 ### Key Editor Features
-* **Streamlined Application `File ▾` Menu**:
-  * Consolidated top-level navigation dropdown for creating new blank worlds, importing and exporting JSON bundles, loading built-in presets (*Mini Hypercube*, *Hyperfold Genesis*), inspecting live diagnostics, and viewing shortcuts.
-* **Responsive Non-Wrapping Header**:
-  * Single-row, height-stable header bar designed for split-screen and laptop displays with adaptive sector name truncation, responsive text scaling, and conditional issue badges (`[⚠ X]`) that appear only when diagnostics errors or warnings are detected.
 * **Instant `F5` Playtesting & Browser Tab Reuse**:
   * **Dedicated Quick-Access Shortcut**: Hit **`F5`** anywhere in the editor (or click the prominent **Test in Game [F5]** button in the header) to instantly playtest your level.
   * **Accidental Reload Protection**: Intercepts `F5` with `e.preventDefault()`, safeguarding against browser page reloads and lost level edits.
