@@ -14,6 +14,7 @@ import { validateWorld } from '../editor/src/utils/validator.ts';
 import { PRESET_WORLDS } from '../editor/src/utils/presets.ts';
 import { getAdjacentSectors, getAdjacentCoords, getOppositeDirection } from '../editor/src/utils/navigation.ts';
 import { TILE_DEFINITIONS, TILE_GLYPH_ORDER, TILE_HOTKEYS } from '../editor/src/utils/tileDefinitions.ts';
+import { computeGameTestUrl, DEFAULT_GAME_PORT, STORAGE_KEY_CUSTOM_WORLD, STORAGE_KEY_GAME_PORT, GAME_WINDOW_NAME } from '../editor/src/utils/testInGame.ts';
 
 test('Editor & Game Engine Integration Verification', async (t) => {
   await t.test('createEmptyWorld produces valid world loadable by Hyperfold LevelLoader', () => {
@@ -447,6 +448,25 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(registered.name, 'Mini Hypercube (3 Sectors)');
     const loadedMap = registered.load();
     assert.equal(loadedMap.getAllRooms().length, 3);
+  });
+
+  await t.test('Test in Game quick access URL computation and storage keys are properly configured', () => {
+    assert.equal(DEFAULT_GAME_PORT, '3000');
+    assert.equal(STORAGE_KEY_CUSTOM_WORLD, 'hyperfold_custom_world');
+    assert.equal(STORAGE_KEY_GAME_PORT, 'hyperfold_game_port');
+    assert.equal(GAME_WINDOW_NAME, 'hyperfold_playtest_window', 'Must use dedicated window name to reuse game tab');
+
+    // Default node test environment fallback
+    const defaultUrl = computeGameTestUrl('3000');
+    assert.ok(defaultUrl.includes('load_custom=1'), 'URL must include load_custom=1 query parameter');
+  });
+
+  await t.test('Test in Game shortcut (F5) does not collide with tile hotkeys (1-9) or tool hotkeys', () => {
+    const playtestKeys = ['F5', 'f5'];
+    for (const key of playtestKeys) {
+      assert.ok(!TILE_HOTKEYS[key], `Playtest shortcut '${key}' must not conflict with tile hotkeys`);
+      assert.ok(!/^[1-9]$/.test(key), `Playtest shortcut '${key}' must not be a number 1-9`);
+    }
   });
 
   await t.test('Laser turret export strips mode-inapplicable parameters (beam mode strips fireInterval and projectileSpeed)', () => {

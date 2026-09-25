@@ -13,6 +13,7 @@ import { ImportModal } from './components/ImportModal';
 import { HelpModal } from './components/HelpModal';
 import { getAdjacentSectors } from './utils/navigation.ts';
 import { TILE_HOTKEYS } from './utils/tileDefinitions';
+import { launchGameTest } from './utils/testInGame';
 
 export const App: React.FC = () => {
   // World State
@@ -41,6 +42,30 @@ export const App: React.FC = () => {
 
   // Live Diagnostics
   const diagnostics = validateWorld(world);
+
+  // Playtest in Game state & launcher
+  const [testingStatus, setTestingStatus] = useState<'idle' | 'opening' | 'connected'>('idle');
+  const testCleanupRef = useRef<(() => void) | null>(null);
+
+  const handleTestInGame = useCallback(
+    (port?: string) => {
+      if (testCleanupRef.current) {
+        testCleanupRef.current();
+      }
+      testCleanupRef.current = launchGameTest(world, port, (status) => {
+        setTestingStatus(status);
+      });
+    },
+    [world]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (testCleanupRef.current) {
+        testCleanupRef.current();
+      }
+    };
+  }, []);
 
   // Active Room Resolution
   const activeRoom = world.rooms.find((r) => r.id === activeRoomId) || world.rooms[0];
@@ -138,6 +163,13 @@ export const App: React.FC = () => {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Quick Access Playtest: F5
+      if (e.key === 'F5') {
+        e.preventDefault();
+        handleTestInGame();
+        return;
+      }
+
       // Don't intercept when user is typing in inputs or textareas
       if (
         e.target instanceof HTMLInputElement ||
@@ -227,7 +259,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, activeRoom, world, showHelpModal, selectedEntity]);
+  }, [handleUndo, handleRedo, handleTestInGame, activeRoom, world, showHelpModal, selectedEntity]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-cyber-bg text-slate-100 overflow-hidden font-sans">
@@ -243,6 +275,8 @@ export const App: React.FC = () => {
         onOpenImport={() => setShowImportModal(true)}
         onOpenExport={() => setShowExportModal(true)}
         onOpenHelp={() => setShowHelpModal(true)}
+        onTestInGame={() => handleTestInGame()}
+        testingStatus={testingStatus}
         onLoadPreset={handleLoadPreset}
         diagnostics={diagnostics}
         onOpenDiagnostics={() => {
@@ -342,6 +376,8 @@ export const App: React.FC = () => {
         <ExportModal
           world={world}
           onClose={() => setShowExportModal(false)}
+          onTestInGame={handleTestInGame}
+          testingStatus={testingStatus}
         />
       )}
 

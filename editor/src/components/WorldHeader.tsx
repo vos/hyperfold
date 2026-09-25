@@ -33,6 +33,8 @@ interface WorldHeaderProps {
   activeRoomId?: string;
   onSelectRoom?: (roomId: string) => void;
   onOpenHelp?: () => void;
+  onTestInGame?: () => void;
+  testingStatus?: 'idle' | 'opening' | 'connected';
 }
 
 export const WorldHeader: React.FC<WorldHeaderProps> = ({
@@ -46,6 +48,8 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
   onOpenImport,
   onOpenExport,
   onOpenHelp,
+  onTestInGame,
+  testingStatus,
   onLoadPreset,
   diagnostics,
   onOpenDiagnostics,
@@ -280,6 +284,31 @@ export const WorldHeader: React.FC<WorldHeaderProps> = ({
           >
             <HelpCircle className="w-3.5 h-3.5 text-cyber-cyan" />
             <span>Help</span>
+          </button>
+        )}
+
+        {/* Test in Game Quick Access */}
+        {onTestInGame && (
+          <button
+            onClick={onTestInGame}
+            disabled={testingStatus === 'opening'}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+            title="Test current world directly in game [F5]"
+          >
+            {testingStatus === 'connected' ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400 font-bold">Tested!</span>
+              </>
+            ) : (
+              <>
+                <Play className={`w-3.5 h-3.5 fill-current ${testingStatus === 'opening' ? 'animate-pulse text-cyber-cyan' : ''}`} />
+                <span>{testingStatus === 'opening' ? 'Launching...' : 'Test in Game'}</span>
+                <kbd className="ml-1 px-1.5 py-0.5 bg-black/40 border border-emerald-500/30 text-[10px] text-emerald-400 rounded font-mono font-bold">
+                  F5
+                </kbd>
+              </>
+            )}
           </button>
         )}
 

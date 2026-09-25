@@ -180,6 +180,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
                   <span className="text-slate-300">Close Dialogs / Deselect</span>
                   <kbd className="px-2 py-0.5 bg-cyber-bg border border-cyber-border text-white rounded font-bold">Esc</kbd>
                 </div>
+                <div className="flex items-center justify-between py-1 border-b border-cyber-border/20">
+                  <span className="text-emerald-300 font-semibold">Test in Game (Playtest)</span>
+                  <kbd className="px-2 py-0.5 bg-cyber-bg border border-emerald-500/40 text-emerald-400 rounded font-bold">F5</kbd>
+                </div>
               </div>
             </div>
           </div>

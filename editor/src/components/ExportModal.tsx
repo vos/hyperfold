@@ -1,48 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Download, Copy, Check, Play, ExternalLink } from 'lucide-react';
 import { WorldData } from '../types/world';
 import { exportWorldJson } from '../utils/serialization';
+import { getStoredGamePort, setStoredGamePort, launchGameTest } from '../utils/testInGame';
 
 interface ExportModalProps {
   world: WorldData;
   onClose: () => void;
+  onTestInGame?: (port?: string) => void;
+  testingStatus?: 'idle' | 'opening' | 'connected';
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
+export const ExportModal: React.FC<ExportModalProps> = ({
+  world,
+  onClose,
+  onTestInGame,
+  testingStatus: propTestingStatus,
+}) => {
   const [copied, setCopied] = useState(false);
-  const [gamePort, setGamePort] = useState(
-    window.location.port === '5174' ? '3000' : (window.location.port || '')
-  );
-  const [testingStatus, setTestingStatus] = useState<'idle' | 'opening' | 'connected'>('idle');
-  const postIntervalRef = useRef<number | null>(null);
+  const [gamePort, setGamePort] = useState(getStoredGamePort());
+  const [localTestingStatus, setLocalTestingStatus] = useState<'idle' | 'opening' | 'connected'>('idle');
+  const testCleanupRef = useRef<(() => void) | null>(null);
 
+  const activeTestingStatus = propTestingStatus !== undefined ? propTestingStatus : localTestingStatus;
   const jsonContent = exportWorldJson(world);
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'HYPERFOLD_GAME_READY') {
-        (event.source as Window)?.postMessage(
-          { type: 'HYPERFOLD_LOAD_WORLD', json: jsonContent },
-          '*'
-        );
-      } else if (event.data?.type === 'HYPERFOLD_WORLD_LOADED') {
-        setTestingStatus('connected');
-        if (postIntervalRef.current) {
-          window.clearInterval(postIntervalRef.current);
-          postIntervalRef.current = null;
-        }
-        setTimeout(() => setTestingStatus('idle'), 3000);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      if (postIntervalRef.current) {
-        window.clearInterval(postIntervalRef.current);
-      }
-    };
-  }, [jsonContent]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonContent);
@@ -60,68 +41,38 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handlePlayInGame = () => {
-    try {
-      localStorage.setItem('hyperfold_custom_world', jsonContent);
-    } catch {
-      // LocalStorage fallback
-    }
-
-    const protocol = window.location.protocol;
-    const host = window.location.hostname || 'localhost';
-    const currentPort = window.location.port;
-    const port = gamePort.trim();
-
-    // Determine the game base path by stripping '/editor' (and anything after it) from the current pathname
-    const gameBasePath = window.location.pathname.replace(/\/editor(\/.*)?$/i, '') || '/';
-    const normalizedBasePath = gameBasePath.endsWith('/') ? gameBasePath : `${gameBasePath}/`;
-
-    // If a different port is specified (e.g. 3000 while editor is on 5174):
-    let targetUrl: string;
-    if (port && port !== currentPort && port !== '80' && port !== '443') {
-      targetUrl = `${protocol}//${host}:${port}${normalizedBasePath}?load_custom=1`;
+  const handlePlayInGame = useCallback(() => {
+    if (onTestInGame) {
+      onTestInGame(gamePort);
     } else {
-      // Deployed or same-port: use origin-relative path preserving the subfolder
-      targetUrl = `${normalizedBasePath}?load_custom=1`;
-    }
-
-    setTestingStatus('opening');
-
-    try {
-      const gameWin = window.open(targetUrl, '_blank');
-      if (!gameWin) {
-        setTestingStatus('idle');
-        alert('Popup was blocked by your browser. Please allow popups for this page or download the JSON.');
-        return;
+      if (testCleanupRef.current) {
+        testCleanupRef.current();
       }
-
-      // Periodically postMessage in case game loads or is already ready
-      let attempts = 0;
-      if (postIntervalRef.current) {
-        window.clearInterval(postIntervalRef.current);
-      }
-      postIntervalRef.current = window.setInterval(() => {
-        attempts++;
-        if (gameWin.closed) {
-          if (postIntervalRef.current) window.clearInterval(postIntervalRef.current);
-          setTestingStatus('idle');
-          return;
-        }
-        try {
-          gameWin.postMessage({ type: 'HYPERFOLD_LOAD_WORLD', json: jsonContent }, '*');
-        } catch {
-          // Cross-origin warning suppression
-        }
-        if (attempts > 25) { // 5s timeout
-          if (postIntervalRef.current) window.clearInterval(postIntervalRef.current);
-          setTestingStatus('idle');
-        }
-      }, 200);
-    } catch {
-      setTestingStatus('idle');
-      handleDownload();
+      testCleanupRef.current = launchGameTest(world, gamePort, (status) => {
+        setLocalTestingStatus(status);
+      });
     }
-  };
+  }, [onTestInGame, gamePort, world]);
+
+  // Keyboard shortcut inside modal (F5)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F5') {
+        e.preventDefault();
+        handlePlayInGame();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePlayInGame]);
+
+  useEffect(() => {
+    return () => {
+      if (testCleanupRef.current) {
+        testCleanupRef.current();
+      }
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 select-none animate-in fade-in duration-200">
@@ -161,19 +112,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePlayInGame}
-              disabled={testingStatus === 'opening'}
+              disabled={activeTestingStatus === 'opening'}
               className="flex items-center space-x-2 px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-              title={`Send and launch world directly in game on port ${gamePort || '3000'}`}
+              title={`Send and launch world directly in game on port ${gamePort || '3000'} [F5]`}
             >
-              {testingStatus === 'connected' ? (
+              {activeTestingStatus === 'connected' ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-400">Loaded in Game!</span>
                 </>
               ) : (
                 <>
-                  <Play className={`w-4 h-4 fill-current ${testingStatus === 'opening' ? 'animate-pulse text-cyber-cyan' : ''}`} />
-                  <span>{testingStatus === 'opening' ? 'Launching Game...' : 'Test in Game'}</span>
+                  <Play className={`w-4 h-4 fill-current ${activeTestingStatus === 'opening' ? 'animate-pulse text-cyber-cyan' : ''}`} />
+                  <span>{activeTestingStatus === 'opening' ? 'Launching Game...' : 'Test in Game'}</span>
+                  <kbd className="ml-1 px-1.5 py-0.5 bg-black/40 border border-emerald-500/40 text-[10px] text-emerald-400 rounded font-mono font-bold">
+                    F5
+                  </kbd>
                 </>
               )}
             </button>
@@ -183,7 +137,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
               <input
                 type="text"
                 value={gamePort}
-                onChange={(e) => setGamePort(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setGamePort(val);
+                  setStoredGamePort(val);
+                }}
                 className="w-12 bg-black/70 border border-cyber-border/70 rounded px-1.5 py-0.5 text-xs text-cyber-cyan font-bold text-center focus:outline-none focus:border-cyber-cyan"
                 placeholder="3000"
                 title="Port where Hyperfold game is running (default 3000)"
@@ -222,4 +180,3 @@ export const ExportModal: React.FC<ExportModalProps> = ({ world, onClose }) => {
     </div>
   );
 };
-
