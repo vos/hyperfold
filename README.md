@@ -18,7 +18,7 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ---
 
-### 🏃 Precision 2D Platforming Kinematics
+### � Precision 2D Platforming Kinematics
 * **Fluid Movement**: Snappy ground acceleration, crisp deceleration, and variable jump height (cutting vertical velocity on early jump release).
 * **Coyote Time (100ms)**: Jump gracefully even after walking off a platform ledge.
 * **Jump Buffering (120ms)**: Queue jumps immediately before touching down on solid ground.
@@ -124,8 +124,11 @@ Hyperfold includes a visual web-based world editor built with **React**, **TypeS
   * **Keys & Locked Gates**: Assign key colors, labels, and bind keys to sector exit doorways.
 * **Diagnostics & Linting Validator**:
   * Real-time validation flagging duplicate IDs, broken portal targets, self-targeting portals, missing keys, and solid obstructions.
+* **Direct Export to Game & Instant Playtesting**:
+  * **One-Click "Test in Game"**: Click **Export ➔ Test in Game** in the editor toolbar to immediately launch or focus the running game instance with your custom world loaded and ready to play via a real-time cross-window `postMessage` / `localStorage` bridge.
+  * **Custom World File Loading**: Download complete world bundles (`.json`) or single room files from the editor, and load them directly into the game at any time using the in-game **"+ Load Custom World (.json)..."** menu dropdown.
 * **Import & Export**:
-  * Direct export and import of complete world bundles or individual room JSON files conforming to [`room.schema.json`](./worlds/schemas/room.schema.json).
+  * Direct export and import of complete world bundles or individual room JSON files conforming to [`room.schema.json`](./worlds/schemas/room.schema.json), with clipboard copying and local file downloads.
 
 ---
 
@@ -206,6 +209,8 @@ npm run editor:build
 npm run editor:preview
 ```
 Open `http://localhost:5173` in your browser.
+
+> **💡 Instant Playtesting:** You can directly export and test your custom levels in the game with zero manual setup by clicking **Export ➔ Test in Game** in the editor toolbar, or by downloading the `.json` world bundle and selecting **"+ Load Custom World (.json)..."** from the game's world selection dropdown.
 
 ---
 
