@@ -144,6 +144,18 @@ export interface LaserTurretConfig {
   themeColor?: string;      // custom neon color override
 }
 
+export interface PortalConfig {
+  id: string;               // Unique portal identifier
+  x: number;                // in pixels (0 to 800)
+  y: number;                // in pixels (0 to 800)
+  width?: number;           // width in pixels (defaults to 44)
+  height?: number;          // height in pixels (defaults to 68)
+  targetPortalId?: string;  // ID of destination portal (optional, undefined = destination only)
+  themeColor?: string;      // custom neon color override
+  label?: string;           // optional friendly label
+  reverseVelocity?: boolean;// if true, inverts outbound velocity vector (negates vx and vy) when emerging
+}
+
 export interface SpikeConfig {
   direction?: 'up' | 'down' | 'left' | 'right';
 }
@@ -165,6 +177,7 @@ export interface ScreenData {
   movingPlatforms?: MovingPlatformConfig[];
   laserBarriers?: LaserBarrierConfig[];
   laserTurrets?: LaserTurretConfig[];
+  portals?: PortalConfig[];
 }
 
 /**

@@ -197,6 +197,11 @@ export class FaceRenderer {
       this.drawLaserTurrets(ctx, room, projectiles, particles, player, turrets);
     }
 
+    // 3.8 Render Quantum Teleportation Portals (Vibrating outer border, destination color reflection)
+    if (room.portals && room.portals.length > 0) {
+      this.drawPortals(ctx, room, levelMap);
+    }
+
     // 4. Render Exit Boundary Portals / Indicators (pulsing animated arrows)
     this.drawExitIndicators(ctx, room, levelMap);
 
@@ -1296,6 +1301,241 @@ export class FaceRenderer {
 
         ctx.restore();
       }
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Renders quantum teleportation portals with cyber glow, vibrating outer borders,
+   * swirling dimensional vortex, and interior reflecting the destination sector's color.
+   */
+  public drawPortals(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    levelMap: LevelMap
+  ): void {
+    if (!room.portals || room.portals.length === 0) return;
+
+    for (const portal of room.portals) {
+      const x = portal.x;
+      const y = portal.y;
+      const w = portal.width ?? 44;
+      const h = portal.height ?? 68;
+      const cx = x + w * 0.5;
+      const cy = y + h * 0.5;
+
+      const portalColor = portal.themeColor || room.themeColor;
+      const destColor = levelMap.getDestinationColor(portal, room);
+      const isSource = !!portal.targetPortalId;
+
+      ctx.save();
+
+      // 1. High-Frequency Parametric Border Vibration
+      const vibX = Math.sin(this.time * 34 + cy * 0.2) * 2.2;
+      const vibY = Math.cos(this.time * 28 + cx * 0.2) * 2.2;
+      const pulseGlow = 12 + Math.sin(this.time * 6) * 4;
+
+      // 2. Base Ground Plate & Emitter Runner
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.strokeStyle = portalColor;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = portalColor;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.roundRect(x - 4, y + h - 6, w + 8, 8, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top Emitter Cap
+      ctx.beginPath();
+      ctx.roundRect(x + 4, y - 4, w - 8, 6, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 3. Inner Dimensional Aperture (Reflecting destination sector color)
+      const apertureMargin = 6;
+      const aptX = x + apertureMargin;
+      const aptY = y + apertureMargin;
+      const aptW = w - apertureMargin * 2;
+      const aptH = h - apertureMargin * 2 - 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(aptX, aptY, aptW, aptH, Math.min(aptW * 0.5, 16));
+      ctx.clip();
+
+      // Dimensional Abyss Gradient with Destination Sector Color
+      const radGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, aptH * 0.55);
+      radGrad.addColorStop(0, '#ffffff');
+      radGrad.addColorStop(0.25, destColor);
+      radGrad.addColorStop(0.65, `${destColor}44`);
+      radGrad.addColorStop(1, '#060a12');
+
+      ctx.fillStyle = radGrad;
+      ctx.fillRect(aptX, aptY, aptW, aptH);
+
+      // Swirling Dimensional Vortex Rings (Rotating with time)
+      const ringAngle1 = this.time * 3.2;
+      const ringAngle2 = -this.time * 2.8;
+
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = destColor;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = destColor;
+
+      // Orbit Ring 1
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, aptW * 0.38, aptH * 0.18, ringAngle1, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Orbit Ring 2
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, aptW * 0.28, aptH * 0.12, ringAngle2, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Flow Chevrons / Quantum Motes
+      const numMotes = 5;
+      for (let i = 0; i < numMotes; i++) {
+        // Source flows inward (0 to 1), destination flows outward
+        const progress = isSource
+          ? (1 - ((this.time * 1.8 + (i / numMotes)) % 1))
+          : ((this.time * 1.8 + (i / numMotes)) % 1);
+
+        const moteDist = progress * (aptH * 0.45);
+        const moteAngle = (i / numMotes) * Math.PI * 2 + this.time * 2.5;
+        const mx = cx + Math.cos(moteAngle) * (moteDist * (aptW / aptH));
+        const my = cy + Math.sin(moteAngle) * moteDist;
+        const moteAlpha = Math.sin(progress * Math.PI);
+
+        ctx.fillStyle = i % 2 === 0 ? destColor : '#ffffff';
+        ctx.globalAlpha = Math.max(0, Math.min(1, moteAlpha));
+        ctx.beginPath();
+        ctx.arc(mx, my, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+
+      // Central Singularity Core
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = destColor;
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3 + Math.sin(this.time * 10) * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kinetic Inversion Chevrons for reverseVelocity portals
+      if (portal.reverseVelocity) {
+        const revPhase = (this.time * 3) % 1;
+        ctx.strokeStyle = '#ff3366';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ff3366';
+        ctx.shadowBlur = 8;
+        const arrowY1 = cy - aptH * 0.25 + revPhase * 6;
+        const arrowY2 = cy + aptH * 0.25 - revPhase * 6;
+        ctx.beginPath();
+        ctx.moveTo(cx - 5, arrowY1 + 3);
+        ctx.lineTo(cx, arrowY1);
+        ctx.lineTo(cx + 5, arrowY1 + 3);
+        ctx.moveTo(cx - 5, arrowY2 - 3);
+        ctx.lineTo(cx, arrowY2);
+        ctx.lineTo(cx + 5, arrowY2 - 3);
+        ctx.stroke();
+      }
+
+      ctx.restore(); // Restore clip
+
+      // 4. Vibrating Outer Neon Frame & Containment Brackets
+      ctx.shadowColor = portalColor;
+      ctx.shadowBlur = pulseGlow;
+      ctx.strokeStyle = portalColor;
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      // Draw vibrating outer border
+      ctx.roundRect(
+        x + vibX * 0.6,
+        y + vibY * 0.6,
+        w - vibX * 0.6,
+        h - 2 - vibY * 0.6,
+        Math.min(w * 0.5, 18)
+      );
+      ctx.stroke();
+
+      // Secondary Vibrating Inner Pylon Contour
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.roundRect(
+        x + 2 + vibX,
+        y + 2 + vibY,
+        w - 4 - vibX,
+        h - 6 - vibY,
+        Math.min((w - 4) * 0.5, 16)
+      );
+      ctx.stroke();
+
+      // Corner Containment Brackets & Energy Nodes
+      const cornerSize = 7;
+      ctx.strokeStyle = portalColor;
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 10;
+
+      // Top-Left bracket
+      ctx.beginPath();
+      ctx.moveTo(x - 2 + vibX, y + cornerSize);
+      ctx.lineTo(x - 2 + vibX, y - 2 + vibY);
+      ctx.lineTo(x + cornerSize, y - 2 + vibY);
+      ctx.stroke();
+
+      // Top-Right bracket
+      ctx.beginPath();
+      ctx.moveTo(x + w + 2 - vibX, y + cornerSize);
+      ctx.lineTo(x + w + 2 - vibX, y - 2 + vibY);
+      ctx.lineTo(x + w - cornerSize, y - 2 + vibY);
+      ctx.stroke();
+
+      // Bottom-Left bracket
+      ctx.beginPath();
+      ctx.moveTo(x - 2 + vibX, y + h - cornerSize);
+      ctx.lineTo(x - 2 + vibX, y + h + 2 - vibY);
+      ctx.lineTo(x + cornerSize, y + h + 2 - vibY);
+      ctx.stroke();
+
+      // Bottom-Right bracket
+      ctx.beginPath();
+      ctx.moveTo(x + w + 2 - vibX, y + h - cornerSize);
+      ctx.lineTo(x + w + 2 - vibX, y + h + 2 - vibY);
+      ctx.lineTo(x + w - cornerSize, y + h + 2 - vibY);
+      ctx.stroke();
+
+      // 5. Monospace Holographic Label / Target Tag
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+
+      const revTag = portal.reverseVelocity ? '↺ ' : '';
+      const tagText = revTag + (portal.label || (isSource ? `${portal.id} ➔ ${portal.targetPortalId}` : portal.id));
+      const tagW = ctx.measureText(tagText).width + 8;
+      const tagH = 13;
+      const tagX = cx - tagW * 0.5;
+      const tagY = y - 8;
+
+      ctx.fillStyle = 'rgba(8, 12, 20, 0.85)';
+      ctx.strokeStyle = portalColor;
+      ctx.lineWidth = 1;
+      ctx.shadowColor = portalColor;
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.roundRect(tagX, tagY, tagW, tagH, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = isSource ? '#ffffff' : portalColor;
+      ctx.shadowBlur = 0;
+      ctx.fillText(tagText, cx, tagY + tagH - 2);
+
       ctx.restore();
     }
   }

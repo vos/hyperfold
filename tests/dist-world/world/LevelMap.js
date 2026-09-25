@@ -183,6 +183,43 @@ class LevelMap {
         }
         return Array.from(unexplored.values());
     }
+    findPortal(portalId) {
+        for (const room of this.rooms.values()) {
+            if (room.portals) {
+                for (const portal of room.portals) {
+                    if (portal.id === portalId) {
+                        return { room, portal };
+                    }
+                }
+            }
+        }
+        return undefined;
+    }
+    getDestinationRoomForPortal(portal) {
+        if (!portal.targetPortalId) return undefined;
+        const dest = this.findPortal(portal.targetPortalId);
+        return dest?.room;
+    }
+    getDestinationColor(portal, currentRoom) {
+        if (portal.targetPortalId) {
+            const dest = this.findPortal(portal.targetPortalId);
+            if (dest) {
+                return dest.room.themeColor;
+            }
+        }
+        return portal.themeColor || currentRoom.themeColor;
+    }
+    getAllPortals() {
+        const list = [];
+        for (const room of this.rooms.values()) {
+            if (room.portals) {
+                for (const portal of room.portals) {
+                    list.push({ room, portal });
+                }
+            }
+        }
+        return list;
+    }
     isDynamicMap() {
         return false;
     }

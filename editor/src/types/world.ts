@@ -121,6 +121,18 @@ export interface LaserTurretConfig {
   themeColor?: string;
 }
 
+export interface PortalConfig {
+  id: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  targetPortalId?: string;
+  themeColor?: string;
+  label?: string;
+  reverseVelocity?: boolean;
+}
+
 export interface RoomData {
   $schema?: string;
   id: string;
@@ -138,6 +150,7 @@ export interface RoomData {
   movingPlatforms?: MovingPlatformConfig[];
   laserBarriers?: LaserBarrierConfig[];
   laserTurrets?: LaserTurretConfig[];
+  portals?: PortalConfig[];
 }
 
 export interface WorldData {
@@ -174,6 +187,7 @@ export type SelectedEntity =
   | { type: 'movingPlatform'; id: string }
   | { type: 'laserBarrier'; id: string }
   | { type: 'laserTurret'; id: string }
+  | { type: 'portal'; id: string }
   | { type: 'bouncePad'; row: number; col: number }
   | null;
 

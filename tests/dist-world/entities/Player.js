@@ -33,6 +33,7 @@ class Player {
     jumpBufferTime = 0;
     JUMP_BUFFER_DURATION = 0.12;
     dropThroughTimer = 0;
+    disabledPortalId = null;
     // Visuals & animation
     animTimer = 0;
     trailTimer = 0;

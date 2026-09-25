@@ -80,5 +80,17 @@
       "initialPhase": 0.5,
       "themeColor": "#00ffff"
     }
+  ],
+  "portals": [
+    {
+      "id": "portal_genesis_to_zenith",
+      "x": 498,
+      "y": 492,
+      "width": 44,
+      "height": 68,
+      "targetPortalId": "portal_zenith_core",
+      "themeColor": "#00ffff",
+      "label": "Zenith Warp"
+    }
   ]
 }

@@ -44,6 +44,7 @@ export class Player {
   public jumpBufferTime: number = 0;
   public readonly JUMP_BUFFER_DURATION = 0.12;
   public dropThroughTimer: number = 0;
+  public disabledPortalId: string | null = null;
 
   // Visuals & animation
   public animTimer: number = 0;

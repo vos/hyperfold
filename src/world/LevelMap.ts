@@ -1,4 +1,4 @@
-import { ScreenData, ExitDirection, CollectibleData, ExitGateConfig, getGateColor, getExitGate } from './ScreenData';
+import { ScreenData, ExitDirection, CollectibleData, ExitGateConfig, getGateColor, getExitGate, PortalConfig } from './ScreenData';
 
 export class LevelMap {
   private rooms: Map<string, ScreenData> = new Map();
@@ -212,6 +212,47 @@ export class LevelMap {
     }
 
     return Array.from(unexplored.values());
+  }
+
+  public findPortal(portalId: string): { room: ScreenData; portal: PortalConfig } | undefined {
+    for (const room of this.rooms.values()) {
+      if (room.portals) {
+        for (const portal of room.portals) {
+          if (portal.id === portalId) {
+            return { room, portal };
+          }
+        }
+      }
+    }
+    return undefined;
+  }
+
+  public getDestinationRoomForPortal(portal: PortalConfig): ScreenData | undefined {
+    if (!portal.targetPortalId) return undefined;
+    const dest = this.findPortal(portal.targetPortalId);
+    return dest?.room;
+  }
+
+  public getDestinationColor(portal: PortalConfig, currentRoom: ScreenData): string {
+    if (portal.targetPortalId) {
+      const dest = this.findPortal(portal.targetPortalId);
+      if (dest) {
+        return dest.room.themeColor;
+      }
+    }
+    return portal.themeColor || currentRoom.themeColor;
+  }
+
+  public getAllPortals(): Array<{ room: ScreenData; portal: PortalConfig }> {
+    const list: Array<{ room: ScreenData; portal: PortalConfig }> = [];
+    for (const room of this.rooms.values()) {
+      if (room.portals) {
+        for (const portal of room.portals) {
+          list.push({ room, portal });
+        }
+      }
+    }
+    return list;
   }
 
   protected isDynamicMap(): boolean {

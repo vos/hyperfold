@@ -10,6 +10,7 @@ import {
   Lock,
   Move,
   GripVertical,
+  Orbit,
 } from 'lucide-react';
 import { RoomData, WorldData } from '../types/world';
 import { createEmptyRoom, moveSector, copySector } from '../utils/serialization';
@@ -517,6 +518,19 @@ export const WorldGraphView: React.FC<WorldGraphViewProps> = ({
                       <Key className="w-3 h-3 text-amber-400 shrink-0" />
                       <span className="truncate font-mono font-medium" title={keysInRoom.map((k) => `Key: ${k.label || k.id}`).join(', ')}>
                         {keysInRoom.map((k) => k.label || k.id).join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Quantum Portals in this Sector */}
+                  {room.portals && room.portals.length > 0 && (
+                    <div className="flex items-center space-x-1.5 text-[10px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/30 truncate my-0.5">
+                      <Orbit className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span
+                        className="truncate font-mono font-medium"
+                        title={room.portals.map((p) => p.targetPortalId ? `Portal ${p.id} ➔ ${p.targetPortalId}` : `Portal ${p.id} (Dest Only)`).join(', ')}
+                      >
+                        {room.portals.map((p) => p.targetPortalId ? `Portal ➔ ${p.targetPortalId}` : `Portal (${p.id})`).join(', ')}
                       </span>
                     </div>
                   )}

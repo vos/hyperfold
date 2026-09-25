@@ -7,7 +7,7 @@ import { Player } from './entities/Player';
 import { InputManager } from './engine/InputManager';
 import { AudioManager } from './engine/AudioManager';
 import { ParticleSystem } from './engine/ParticleSystem';
-import { PhysicsEngine } from './engine/PhysicsEngine';
+import { PhysicsEngine, TransitionEvent } from './engine/PhysicsEngine';
 import { CubeRenderer, RotationDirection } from './graphics/CubeRenderer';
 import { PerformanceDebugView } from './ui/PerformanceDebugView';
 import { SectorMapView } from './ui/SectorMapView';
@@ -657,9 +657,13 @@ class Game {
         (gate, dir) => this.onGateLockedEncounter(gate, dir)
       );
 
-      // 3. Trigger 3D Infinite Cube Rotation if player crossed an edge
+      // 3. Trigger 3D Infinite Cube Rotation if player crossed an edge or entered a portal
       if (transition) {
-        this.handleEdgeTransition(transition.direction, transition.entryX, transition.entryY, transition.preserveVy);
+        if (transition.isPortal) {
+          this.handlePortalTransition(transition);
+        } else {
+          this.handleEdgeTransition(transition.direction, transition.entryX, transition.entryY, transition.preserveVy);
+        }
       }
     }
 
@@ -747,6 +751,91 @@ class Game {
         this.sectorMap.setCurrentCoords(this.currentCoords);
       }
     }
+  }
+
+  private handlePortalTransition(transition: TransitionEvent): void {
+    const destRoom = transition.destRoom || (transition.targetCoords ? this.levelMap.getRoom(transition.targetCoords.x, transition.targetCoords.y) : null);
+    if (!destRoom) return;
+
+    const targetX = destRoom.coords.x;
+    const targetY = destRoom.coords.y;
+    const direction = transition.direction;
+
+    // Begin 3D Cube Rotation for portal transition
+    this.gameState = 'ROTATING';
+    this.sidesTraversed++;
+    this.audio.playPortalTeleport();
+
+    if (this.bannerTimeout !== null) {
+      window.clearTimeout(this.bannerTimeout);
+      this.bannerTimeout = null;
+    }
+
+    const sourceTag = transition.sourcePortal?.label || transition.sourcePortal?.id || 'PORTAL';
+    const destTag = transition.destPortal?.label || transition.destPortal?.id || 'PORTAL';
+    this.bannerEl.textContent = `QUANTUM WARP: [${sourceTag}] ➔ [${destTag}] (SECTOR [${targetX},${targetY}])`;
+    this.bannerEl.style.opacity = '1';
+
+    // Place player at destination portal position
+    this.player.setPosition(transition.entryX, transition.entryY);
+    if (transition.preserveVy !== undefined) {
+      this.player.vy = transition.preserveVy;
+      if (transition.preserveVy < -50) {
+        this.player.isBouncePropelled = true;
+        this.player.isGrounded = false;
+      }
+    }
+    if (transition.preserveVx !== undefined) {
+      this.player.vx = transition.preserveVx;
+    }
+    this.player.standingPlatform = null;
+    this.pendingNextRoom = destRoom;
+
+    // Emit arrival sparks at destination
+    this.particles.emitSparks(
+      transition.entryX + this.player.width * 0.5,
+      transition.entryY + this.player.height * 0.5,
+      36,
+      destRoom.themeColor
+    );
+
+    // Prepare transition on CubeRenderer
+    this.cubeRenderer.prepareTransition(
+      direction,
+      destRoom,
+      this.levelMap,
+      this.currentRoom,
+      this.player,
+      this.particles
+    );
+
+    this.cubeRenderer.rotateTo(direction, () => {
+      this.currentCoords = { x: targetX, y: targetY };
+      this.currentRoom = destRoom;
+      this.pendingNextRoom = null;
+      this.levelMap.markVisited(targetX, targetY);
+      this.sectorMap.setCurrentCoords(this.currentCoords);
+
+      this.cubeRenderer.resetRotationToZero();
+      this.physics.resetCrumblingTiles();
+      this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+
+      this.gameState = 'PLAYING';
+      if (this.levelMap instanceof ProceduralLevelMap) {
+        const depth = Math.abs(targetX) + Math.abs(targetY);
+        const threat = this.levelMap.getThreatLevel(targetX, targetY);
+        this.audio.updateDepthAtmosphere(depth, threat);
+      }
+      this.updateHUD();
+
+      if (this.bannerTimeout !== null) {
+        window.clearTimeout(this.bannerTimeout);
+      }
+      this.bannerTimeout = window.setTimeout(() => {
+        this.bannerEl.style.opacity = '0';
+        this.bannerTimeout = null;
+      }, 3000);
+    });
   }
 
   private handleEdgeTransition(
@@ -922,6 +1011,7 @@ class Game {
     this.player.setDucking(false);
     this.player.isAlive = true;
     this.player.resetHoldProgress = 0;
+    this.player.disabledPortalId = null;
 
     // Visual & audio reset feedback
     this.particles.emitPlayerExplosion(spawn.x, spawn.y, '#00ffff', '#ffe600');
@@ -978,6 +1068,7 @@ class Game {
     this.player.vx = 0;
     this.player.vy = 0;
     this.player.standingPlatform = null;
+    this.player.disabledPortalId = null;
     this.particles.emitSparks(spawn.x, spawn.y, 16, this.currentRoom.themeColor);
   }
 

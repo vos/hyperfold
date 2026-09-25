@@ -741,7 +741,8 @@ export class CubeRenderer {
     return (
       (room.movingPlatforms !== undefined && room.movingPlatforms.length > 0) ||
       (room.laserBarriers !== undefined && room.laserBarriers.length > 0) ||
-      (room.laserTurrets !== undefined && room.laserTurrets.length > 0)
+      (room.laserTurrets !== undefined && room.laserTurrets.length > 0) ||
+      (room.portals !== undefined && room.portals.length > 0)
     );
   }
 

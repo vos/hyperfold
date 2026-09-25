@@ -14,6 +14,7 @@ import {
   LaserTurretConfig,
   CollectibleData,
   getSpikeDirection,
+  PortalConfig,
 } from './ScreenData';
 import { LevelMap } from './LevelMap';
 
@@ -43,6 +44,7 @@ export interface RoomDataJson {
   movingPlatforms?: MovingPlatformConfig[];
   laserBarriers?: LaserBarrierConfig[];
   laserTurrets?: LaserTurretConfig[];
+  portals?: PortalConfig[];
 }
 
 export interface WorldDataJson {
@@ -238,6 +240,7 @@ export class LevelLoader {
       movingPlatforms: data.movingPlatforms && data.movingPlatforms.length > 0 ? [...data.movingPlatforms] : undefined,
       laserBarriers: data.laserBarriers && data.laserBarriers.length > 0 ? [...data.laserBarriers] : undefined,
       laserTurrets: data.laserTurrets && data.laserTurrets.length > 0 ? [...data.laserTurrets] : undefined,
+      portals: data.portals && data.portals.length > 0 ? [...data.portals] : undefined,
     };
 
     return room;

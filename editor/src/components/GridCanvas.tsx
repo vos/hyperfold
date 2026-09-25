@@ -90,7 +90,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       | 'laserBarrierEnd2'
       | 'laserBarrierEndBeam'
       | 'laserBarrierBeam'
-      | 'laserTurret';
+      | 'laserTurret'
+      | 'portal';
     id?: string;
     initialCoords?: {
       x1: number;
@@ -381,6 +382,35 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         }
       }
 
+      // 5.5 Check Portals
+      if (room.portals) {
+        for (const p of room.portals) {
+          const pw = p.width ?? 44;
+          const ph = p.height ?? 68;
+          if (
+            coords.pixelX >= p.x - 4 &&
+            coords.pixelX <= p.x + pw + 4 &&
+            coords.pixelY >= p.y - 4 &&
+            coords.pixelY <= p.y + ph + 4
+          ) {
+            onSelectEntity({ type: 'portal', id: p.id });
+            setDraggingEntityHandle({
+              entityType: 'portal',
+              id: p.id,
+              initialCoords: {
+                x1: p.x,
+                y1: p.y,
+                x2: 0,
+                y2: 0,
+                startX: p.x,
+                startY: p.y,
+              },
+            });
+            return;
+          }
+        }
+      }
+
       // 6. Check Bounce Pad tile
       const clickedTile = room.grid[coords.row]?.[coords.col];
       if (clickedTile === 'B') {
@@ -519,6 +549,20 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ...prev,
             laserTurrets: prev.laserTurrets?.map((t) =>
               t.id === draggingEntityHandle.id ? { ...t, x: snapX, y: snapY } : t
+            ),
+          };
+        }
+        if (draggingEntityHandle.entityType === 'portal') {
+          return {
+            ...prev,
+            portals: prev.portals?.map((p) =>
+              p.id === draggingEntityHandle.id
+                ? {
+                    ...p,
+                    x: Math.max(0, Math.min(ROOM_PIXEL_SIZE - (p.width ?? 44), snapX - (p.width ?? 44) * 0.5)),
+                    y: Math.max(0, Math.min(ROOM_PIXEL_SIZE - (p.height ?? 68), snapY - (p.height ?? 68) * 0.5 + 6)),
+                  }
+                : p
             ),
           };
         }
@@ -1643,7 +1687,159 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         }
       }
 
-      // E. Player Spawn Point
+      // E. Quantum Teleportation Portals (Simple, static editor representation)
+      if (room.portals) {
+        for (const p of room.portals) {
+          const isSelected = selectedEntity?.type === 'portal' && selectedEntity.id === p.id;
+          const x = p.x;
+          const y = p.y;
+          const w = p.width ?? 44;
+          const h = p.height ?? 68;
+          const cx = x + w * 0.5;
+          const cy = y + h * 0.5;
+          const portalColor = p.themeColor || room.themeColor;
+          const isSource = !!p.targetPortalId;
+
+          // Find target room for destination color reflection
+          let destRoom: RoomData | undefined;
+          let destPortal: any = null;
+          if (p.targetPortalId) {
+            for (const r of world.rooms) {
+              const found = r.portals?.find((other) => other.id === p.targetPortalId);
+              if (found) {
+                destRoom = r;
+                destPortal = found;
+                break;
+              }
+            }
+          }
+          const destColor = destRoom?.themeColor || portalColor;
+
+          ctx.save();
+
+          // 1. Base pedestal line
+          ctx.fillStyle = portalColor;
+          ctx.fillRect(x - 2, y + h - 3, w + 4, 3);
+
+          // 2. Static Portal Frame
+          const cornerRadius = Math.min(w * 0.5, 10);
+          ctx.fillStyle = 'rgba(10, 16, 30, 0.85)';
+          ctx.strokeStyle = isSelected ? '#ffffff' : portalColor;
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h - 2, cornerRadius);
+          ctx.fill();
+          ctx.stroke();
+
+          // 3. Simple Inner Aperture
+          const pad = 6;
+          const innerW = w - pad * 2;
+          const innerH = h - pad * 2 - 2;
+          ctx.fillStyle = `${destColor}33`;
+          ctx.strokeStyle = `${destColor}88`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(x + pad, y + pad, innerW, innerH, Math.min(innerW * 0.5, 8));
+          ctx.fill();
+          ctx.stroke();
+
+          // 4. Static Gateway Glyph (Oval & Core Dot)
+          ctx.strokeStyle = destColor;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, innerW * 0.35, innerH * 0.3, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = isSource ? '#ffffff' : destColor;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (p.reverseVelocity) {
+            ctx.fillStyle = '#ff3366';
+            ctx.font = 'bold 7px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('REV', cx, cy + innerH * 0.32);
+          }
+
+          // 5. Static Label Badge
+          const revTag = p.reverseVelocity ? '↺ ' : '';
+          const labelText = revTag + (p.label || (isSource ? `${p.id} ➔ ${p.targetPortalId}` : p.id));
+          ctx.font = 'bold 9px monospace';
+          const tw = ctx.measureText(labelText).width;
+          const badgeW = tw + 8;
+          const badgeH = 14;
+          const badgeX = cx - badgeW * 0.5;
+          const badgeY = y - 10;
+
+          ctx.fillStyle = '#080d1a';
+          ctx.strokeStyle = isSelected ? '#ffffff' : portalColor;
+          ctx.lineWidth = isSelected ? 1.5 : 1;
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = isSelected ? '#ffffff' : (isSource ? '#00e5ff' : portalColor);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelText, cx, badgeY + badgeH * 0.5);
+
+          // 6. Simple Link Line to Destination (when selected)
+          if (isSelected && destRoom && destRoom.id === room.id && destPortal) {
+            const destCx = destPortal.x + (destPortal.width ?? 44) * 0.5;
+            const destCy = destPortal.y + (destPortal.height ?? 68) * 0.5;
+
+            ctx.save();
+            ctx.strokeStyle = destColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(destCx, destCy);
+            ctx.stroke();
+
+            // Destination highlight box
+            ctx.setLineDash([]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = destColor;
+            const dw = destPortal.width ?? 44;
+            const dh = destPortal.height ?? 68;
+            ctx.strokeRect(destPortal.x - 2, destPortal.y - 2, dw + 4, dh + 4);
+            ctx.restore();
+          } else if (isSelected && destRoom && destRoom.id !== room.id) {
+            // Static destination beacon badge
+            ctx.save();
+            const beaconText = `➔ Sector [${destRoom.coords[0]}, ${destRoom.coords[1]}]: ${destRoom.title}`;
+            ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
+            const bTw = ctx.measureText(beaconText).width;
+            const bW = bTw + 12;
+            const bH = 18;
+            const bX = cx - bW * 0.5;
+            const bY = y + h + 6;
+
+            ctx.fillStyle = '#0a101d';
+            ctx.strokeStyle = destColor;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(bX, bY, bW, bH, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(beaconText, cx, bY + bH * 0.5);
+            ctx.restore();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      // F. Player Spawn Point
       if (room.spawnPoint) {
         const [sx, sy] = room.spawnPoint;
         const isSelected = selectedEntity?.type === 'spawn';

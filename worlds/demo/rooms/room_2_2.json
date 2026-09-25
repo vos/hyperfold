@@ -115,5 +115,16 @@
       "initialPhase": 0.3,
       "themeColor": "#ff8800"
     }
+  ],
+  "portals": [
+    {
+      "id": "portal_zenith_core",
+      "x": 378,
+      "y": 132,
+      "width": 44,
+      "height": 68,
+      "themeColor": "#ffe600",
+      "label": "No Return"
+    }
   ]
 }

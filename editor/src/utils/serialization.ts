@@ -49,6 +49,7 @@ export function createEmptyRoom(coords: [number, number], customId?: string): Ro
     movingPlatforms: [],
     laserBarriers: [],
     laserTurrets: [],
+    portals: [],
   };
 }
 
@@ -385,6 +386,7 @@ export function parseRoomData(rm: any, defaultCoords: [number, number] = [0, 0])
     movingPlatforms: rm.movingPlatforms || [],
     laserBarriers: rm.laserBarriers || [],
     laserTurrets: (rm.laserTurrets || []).map(sanitizeLaserTurret),
+    portals: rm.portals || [],
   };
 }
 
@@ -563,6 +565,10 @@ export function exportWorldJson(world: WorldData): string {
 
       if (room.laserTurrets && room.laserTurrets.length > 0) {
         roomPayload.laserTurrets = room.laserTurrets.map(sanitizeLaserTurret);
+      }
+
+      if (room.portals && room.portals.length > 0) {
+        roomPayload.portals = room.portals;
       }
 
       return roomPayload;

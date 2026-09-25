@@ -268,6 +268,25 @@
           "themeColor": { "type": "string" }
         }
       }
+    },
+    "portals": {
+      "type": "array",
+      "description": "Quantum teleportation portals for intra-sector and inter-sector travel",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "y"],
+        "properties": {
+          "id": { "type": "string", "description": "Unique portal identifier" },
+          "x": { "type": "number", "description": "Portal X position in pixels" },
+          "y": { "type": "number", "description": "Portal Y position in pixels" },
+          "width": { "type": "number", "description": "Portal visual width (defaults to 44)" },
+          "height": { "type": "number", "description": "Portal visual height (defaults to 68)" },
+          "targetPortalId": { "type": "string", "description": "Destination portal unique ID (empty = destination only)" },
+          "themeColor": { "type": "string", "description": "Custom neon glow color override" },
+          "label": { "type": "string", "description": "Optional human-readable label" },
+          "reverseVelocity": { "type": "boolean", "description": "If true, inverts outbound velocity vector (negates vx and vy) when emerging" }
+        }
+      }
     }
   }
 }

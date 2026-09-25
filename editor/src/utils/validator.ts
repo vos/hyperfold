@@ -241,6 +241,66 @@ export function validateWorld(world: WorldData): DiagnosticIssue[] {
     });
   }
 
+  // 4. Portal Validation (Duplicate IDs, target resolution, self-targeting)
+  const allPortals = new Map<string, { portalId: string; roomId: string; roomTitle: string }>();
+  for (const room of world.rooms) {
+    if (room.portals) {
+      for (const p of room.portals) {
+        if (allPortals.has(p.id)) {
+          const prev = allPortals.get(p.id)!;
+          issues.push({
+            id: `duplicate-portal-id-${p.id}`,
+            severity: 'error',
+            roomId: room.id,
+            message: `Duplicate portal ID '${p.id}' found in '${room.title}' and '${prev.roomTitle}'. Portal IDs must be unique.`,
+          });
+        } else {
+          allPortals.set(p.id, { portalId: p.id, roomId: room.id, roomTitle: room.title });
+        }
+      }
+    }
+  }
+
+  for (const room of world.rooms) {
+    if (room.portals) {
+      for (const p of room.portals) {
+        if (p.targetPortalId) {
+          if (p.targetPortalId === p.id) {
+            issues.push({
+              id: `portal-self-target-${p.id}`,
+              severity: 'warning',
+              roomId: room.id,
+              message: `Portal '${p.id}' in '${room.title}' targets itself.`,
+            });
+          } else if (!allPortals.has(p.targetPortalId)) {
+            issues.push({
+              id: `portal-missing-target-${p.id}`,
+              severity: 'warning',
+              roomId: room.id,
+              message: `Portal '${p.id}' in '${room.title}' targets missing portal ID '${p.targetPortalId}'. Destination does not exist.`,
+            });
+          }
+        }
+
+        // Check if placed inside a solid block
+        const pCenterX = p.x + (p.width ?? 44) * 0.5;
+        const pCenterY = p.y + (p.height ?? 68) * 0.5;
+        const col = Math.floor(pCenterX / TILE_PIXEL_SIZE);
+        const row = Math.floor(pCenterY / TILE_PIXEL_SIZE);
+        if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+          if (room.grid[row]?.[col] === '#') {
+            issues.push({
+              id: `portal-in-solid-${p.id}`,
+              severity: 'warning',
+              roomId: room.id,
+              message: `Portal '${p.id}' center is placed inside a Solid block at row ${row}, col ${col}.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
   return issues;
 }
 

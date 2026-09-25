@@ -511,6 +511,96 @@ export class AudioManager {
     osc.stop(ctx.currentTime + 0.15);
   }
 
+  /**
+   * Procedural synthwave quantum portal teleportation sound effect.
+   * Multi-layer: FM phase-shift warp chirp + resonant sub-bass drop + crystalline arrival chime.
+   */
+  public playPortalTeleport(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+
+    // 1. FM Quantum Warp Phase-Shift Chirp
+    const carrier = ctx.createOscillator();
+    const modulator = ctx.createOscillator();
+    const modGain = ctx.createGain();
+    const carrierGain = ctx.createGain();
+
+    carrier.type = 'sine';
+    carrier.frequency.setValueAtTime(240, t);
+    carrier.frequency.exponentialRampToValueAtTime(1420, t + 0.18);
+    carrier.frequency.exponentialRampToValueAtTime(480, t + 0.42);
+
+    modulator.type = 'sine';
+    modulator.frequency.setValueAtTime(95, t);
+    modulator.frequency.exponentialRampToValueAtTime(320, t + 0.2);
+
+    modGain.gain.setValueAtTime(450, t);
+    modGain.gain.exponentialRampToValueAtTime(20, t + 0.38);
+
+    modulator.connect(modGain);
+    modGain.connect(carrier.frequency);
+
+    carrierGain.gain.setValueAtTime(0.01, t);
+    carrierGain.gain.linearRampToValueAtTime(0.22, t + 0.08);
+    carrierGain.gain.exponentialRampToValueAtTime(0.001, t + 0.44);
+
+    carrier.connect(carrierGain);
+    carrierGain.connect(ctx.destination);
+
+    carrier.start(t);
+    modulator.start(t);
+    carrier.stop(t + 0.45);
+    modulator.stop(t + 0.45);
+
+    // 2. Sub-Bass Dimensional Drop Whomp
+    const subOsc = ctx.createOscillator();
+    const subFilter = ctx.createBiquadFilter();
+    const subGain = ctx.createGain();
+
+    subOsc.type = 'sawtooth';
+    subOsc.frequency.setValueAtTime(140, t);
+    subOsc.frequency.exponentialRampToValueAtTime(35, t + 0.45);
+
+    subFilter.type = 'lowpass';
+    subFilter.frequency.setValueAtTime(480, t);
+    subFilter.frequency.exponentialRampToValueAtTime(55, t + 0.45);
+    subFilter.Q.setValueAtTime(4, t);
+
+    subGain.gain.setValueAtTime(0.24, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+
+    subOsc.connect(subFilter);
+    subFilter.connect(subGain);
+    subGain.connect(ctx.destination);
+
+    subOsc.start(t);
+    subOsc.stop(t + 0.5);
+
+    // 3. Crystalline Rematerialization Shimmer (4 rapid ascending harmonic pings)
+    const notes = [1046.5, 1318.5, 1567.98, 2093.0]; // C6, E6, G6, C7
+    notes.forEach((freq, idx) => {
+      const pingOsc = ctx.createOscillator();
+      const pingGain = ctx.createGain();
+      const noteStart = t + 0.14 + idx * 0.045;
+
+      pingOsc.type = 'sine';
+      pingOsc.frequency.setValueAtTime(freq, noteStart);
+      pingOsc.frequency.exponentialRampToValueAtTime(freq * 1.05, noteStart + 0.12);
+
+      pingGain.gain.setValueAtTime(0.08, noteStart);
+      pingGain.gain.exponentialRampToValueAtTime(0.0005, noteStart + 0.14);
+
+      pingOsc.connect(pingGain);
+      pingGain.connect(ctx.destination);
+
+      pingOsc.start(noteStart);
+      pingOsc.stop(noteStart + 0.15);
+    });
+  }
+
   private startAmbientDrone(): void {
     if (!this.ctx) return;
     const ctx = this.ctx;

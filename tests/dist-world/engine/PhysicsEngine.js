@@ -313,7 +313,12 @@ class PhysicsEngine {
         const turretKilled = this.updateLaserTurrets(player, room, platforms, dt, onPlayerDeath);
         if (turretKilled)
             return null;
-        // 7. Check Edge Boundaries for 3D Cube Rotation
+        // 7. Check Portals for intra-room relocation or inter-sector warp
+        const portalTransition = this.checkPortals(player, room, levelMap);
+        if (portalTransition) {
+            return portalTransition;
+        }
+        // 8. Check Edge Boundaries for 3D Cube Rotation
         return this.checkBoundaryTransitions(player, room, levelMap, onGateLocked);
     }
     canStandUp(player, room, platforms) {
@@ -689,6 +694,141 @@ class PhysicsEngine {
                 }
             }
         }
+        return null;
+    }
+    checkPortals(player, room, levelMap) {
+        if (!room.portals || room.portals.length === 0) {
+            player.disabledPortalId = null;
+            return null;
+        }
+        const map = levelMap || this.levelMap;
+        if (!map) return null;
+
+        // Check if player has moved away from the collision box of the portal they emerged from
+        if (player.disabledPortalId) {
+            const disabledPortal = room.portals.find((p) => p.id === player.disabledPortalId);
+            if (disabledPortal) {
+                const dpW = disabledPortal.width ?? 44;
+                const dpH = disabledPortal.height ?? 68;
+                const stillOverlapping =
+                    player.x + player.width > disabledPortal.x &&
+                    player.x < disabledPortal.x + dpW &&
+                    player.y + player.height > disabledPortal.y &&
+                    player.y < disabledPortal.y + dpH;
+
+                if (!stillOverlapping) {
+                    player.disabledPortalId = null;
+                }
+            } else {
+                player.disabledPortalId = null;
+            }
+        }
+
+        for (const portal of room.portals) {
+            if (!portal.targetPortalId) continue;
+            if (portal.id === player.disabledPortalId) continue;
+
+            const portalW = portal.width ?? 44;
+            const portalH = portal.height ?? 68;
+
+            const overlap =
+                player.x + player.width > portal.x &&
+                player.x < portal.x + portalW &&
+                player.y + player.height > portal.y &&
+                player.y < portal.y + portalH;
+
+            if (!overlap) continue;
+
+            const dest = map.findPortal(portal.targetPortalId);
+            if (!dest) continue;
+
+            const destPortal = dest.portal;
+            const destRoom = dest.room;
+            const destW = destPortal.width ?? 44;
+            const destH = destPortal.height ?? 68;
+
+            const targetEntryX = Math.max(4, Math.min(ScreenData_1.FACE_SIZE - player.width - 4, destPortal.x + destW * 0.5 - player.width * 0.5));
+            const targetEntryY = Math.max(4, Math.min(ScreenData_1.FACE_SIZE - player.height - 4, destPortal.y + destH - player.height));
+
+            // Disable the destination portal until the player leaves its collision box (if it has a target set)
+            if (destPortal.targetPortalId) {
+                player.disabledPortalId = destPortal.id;
+            } else {
+                player.disabledPortalId = null;
+            }
+
+            // Invert outbound velocity vector if destination portal has reverseVelocity enabled
+            const outboundVx = destPortal.reverseVelocity ? -player.vx : player.vx;
+            const outboundVy = destPortal.reverseVelocity ? -player.vy : player.vy;
+
+            // Intra-room teleportation (same room)
+            if (destRoom.id === room.id) {
+                if (this.particles && this.particles.emitPlayerExplosion) {
+                    this.particles.emitPlayerExplosion(
+                        portal.x + portalW * 0.5,
+                        portal.y + portalH * 0.5,
+                        portal.themeColor || room.themeColor,
+                        map.getDestinationColor(portal, room)
+                    );
+                }
+
+                player.setPosition(targetEntryX, targetEntryY);
+                player.vx = outboundVx;
+                player.vy = outboundVy;
+                if (outboundVy < -50) {
+                    player.isBouncePropelled = true;
+                    player.isGrounded = false;
+                }
+                player.standingPlatform = null;
+
+                if (this.particles && this.particles.emitSparks) {
+                    this.particles.emitSparks(
+                        destPortal.x + destW * 0.5,
+                        destPortal.y + destH * 0.5,
+                        32,
+                        destPortal.themeColor || destRoom.themeColor
+                    );
+                }
+
+                if (this.audio && this.audio.playPortalTeleport) {
+                    this.audio.playPortalTeleport();
+                }
+                return null;
+            }
+
+            // Inter-sector teleportation (different room)
+            const dx = destRoom.coords.x - room.coords.x;
+            const dy = destRoom.coords.y - room.coords.y;
+            let rotDir = 'right';
+            if (Math.abs(dx) >= Math.abs(dy)) {
+                rotDir = dx >= 0 ? 'right' : 'left';
+            } else {
+                rotDir = dy >= 0 ? 'up' : 'down';
+            }
+
+            if (this.particles && this.particles.emitPlayerExplosion) {
+                this.particles.emitPlayerExplosion(
+                    portal.x + portalW * 0.5,
+                    portal.y + portalH * 0.5,
+                    portal.themeColor || room.themeColor,
+                    map.getDestinationColor(portal, room)
+                );
+            }
+
+            return {
+                direction: rotDir,
+                entryX: targetEntryX,
+                entryY: targetEntryY,
+                preserveVy: outboundVy,
+                preserveVx: outboundVx,
+                isPortal: true,
+                sourcePortal: portal,
+                destPortal: destPortal,
+                destRoom: destRoom,
+                targetCoords: { x: destRoom.coords.x, y: destRoom.coords.y },
+            };
+        }
+
         return null;
     }
     checkLaserBarriers(player, room, onPlayerDeath) {

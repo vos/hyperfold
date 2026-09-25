@@ -19,6 +19,8 @@ import {
   Lock,
   Unlock,
   Copy,
+  Orbit,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DiagnosticIssue,
@@ -29,6 +31,7 @@ import {
   MovingPlatformConfig,
   LaserBarrierConfig,
   LaserTurretConfig,
+  PortalConfig,
   ExitGateConfig,
   ExitDirection,
   GATE_KEY_PALETTE,
@@ -197,6 +200,38 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     onSelectEntity({ type: 'laserTurret', id });
   };
 
+  // Helper to add a new portal
+  const handleAddPortal = () => {
+    const id = `${room.id}_portal_${Date.now().toString().slice(-4)}`;
+    const newPortal: PortalConfig = {
+      id,
+      x: 378,
+      y: 652,
+      width: 44,
+      height: 68,
+      themeColor: room.themeColor,
+      label: `Portal ${id.slice(-4)}`,
+    };
+    onUpdateRoom((prev) => ({
+      ...prev,
+      portals: [...(prev.portals || []), newPortal],
+    }));
+    onSelectEntity({ type: 'portal', id });
+  };
+
+  // Find all portals across the world for the target selector
+  const allWorldPortals = React.useMemo(() => {
+    const list: Array<{ portal: PortalConfig; room: RoomData }> = [];
+    for (const r of world.rooms) {
+      if (r.portals) {
+        for (const p of r.portals) {
+          list.push({ portal: p, room: r });
+        }
+      }
+    }
+    return list;
+  }, [world.rooms]);
+
   // Find active entity objects
   const activeCollectible =
     selectedEntity?.type === 'collectible'
@@ -216,6 +251,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const activeTurret =
     selectedEntity?.type === 'laserTurret'
       ? room.laserTurrets?.find((t) => t.id === selectedEntity.id)
+      : null;
+
+  const activePortal =
+    selectedEntity?.type === 'portal'
+      ? room.portals?.find((p) => p.id === selectedEntity.id)
       : null;
 
   const activeBouncePadKey =
@@ -1070,6 +1110,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 >
                   <Radio className="w-3.5 h-3.5 text-cyber-neonGreen shrink-0" />
                   <span>+ Laser Turret</span>
+                </button>
+                <button
+                  onClick={handleAddPortal}
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs col-span-2"
+                >
+                  <Orbit className="w-3.5 h-3.5 text-cyber-cyan shrink-0" />
+                  <span>+ Portal</span>
                 </button>
               </div>
             </div>
@@ -2761,6 +2808,326 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               </div>
             )}
 
+            {/* Active Quantum Portal */}
+            {activePortal && (
+              <div className="p-3 bg-cyber-card rounded-lg border border-cyber-cyan space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-cyber-cyan flex items-center space-x-1.5 truncate w-48">
+                    <Orbit className="w-4 h-4 text-cyber-cyan shrink-0" />
+                    <span className="truncate">Portal: {activePortal.id}</span>
+                  </span>
+                  <div className="flex items-center space-x-1 shrink-0">
+                    <button
+                      onClick={() => {
+                        const newId = `${room.id}_portal_${Date.now().toString().slice(-4)}`;
+                        const cloned: PortalConfig = {
+                          ...activePortal,
+                          id: newId,
+                          x: Math.min(750, activePortal.x + 20),
+                          y: Math.min(730, activePortal.y + 20),
+                          label: activePortal.label ? `${activePortal.label} (Copy)` : undefined,
+                        };
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: [...(r.portals || []), cloned],
+                        }));
+                        onSelectEntity({ type: 'portal', id: newId });
+                      }}
+                      className="p-1 hover:bg-cyber-hover rounded text-slate-400 hover:text-white"
+                      title="Duplicate Portal"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.filter((p) => p.id !== activePortal.id),
+                        }));
+                        onSelectEntity(null);
+                      }}
+                      className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
+                      title="Delete Portal"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Portal ID</span>
+                  <input
+                    type="text"
+                    value={activePortal.id}
+                    onChange={(e) => {
+                      const newId = e.target.value.trim();
+                      if (!newId) return;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        portals: r.portals?.map((p) =>
+                          p.id === activePortal.id ? { ...p, id: newId } : p
+                        ),
+                      }));
+                      onSelectEntity({ type: 'portal', id: newId });
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-slate-500 text-[10px]">Friendly Label</span>
+                  <input
+                    type="text"
+                    value={activePortal.label || ''}
+                    placeholder="e.g. Starlight Link"
+                    onChange={(e) => {
+                      const label = e.target.value;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        portals: r.portals?.map((p) =>
+                          p.id === activePortal.id ? { ...p, label: label || undefined } : p
+                        ),
+                      }));
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white text-xs focus:border-cyber-cyan focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-[10px]">Position (X, Y)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const snapX = Math.round(activePortal.x / 40) * 40;
+                        const ph = activePortal.height ?? 68;
+                        const snapY = Math.round((activePortal.y + ph) / 40) * 40 - ph;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id ? { ...p, x: snapX, y: snapY } : p
+                          ),
+                        }));
+                      }}
+                      className="text-[9px] text-cyber-cyan hover:underline"
+                    >
+                      Snap to 40px Grid
+                    </button>
+                  </div>
+                  <div className="flex space-x-1.5 mt-0.5">
+                    <input
+                      type="number"
+                      value={activePortal.x}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id ? { ...p, x: val } : p
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                    />
+                    <input
+                      type="number"
+                      value={activePortal.y}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id ? { ...p, y: val } : p
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-cyber-bg border border-cyber-border rounded px-1.5 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Target Destination Portal */}
+                <div className="space-y-1">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    Target Destination Portal
+                  </span>
+                  <select
+                    value={activePortal.targetPortalId || ''}
+                    onChange={(e) => {
+                      const targetId = e.target.value;
+                      onUpdateRoom((r) => ({
+                        ...r,
+                        portals: r.portals?.map((p) =>
+                          p.id === activePortal.id
+                            ? { ...p, targetPortalId: targetId ? targetId : undefined }
+                            : p
+                        ),
+                      }));
+                    }}
+                    className="w-full bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white text-xs font-mono focus:border-cyber-cyan focus:outline-none"
+                  >
+                    <option value="">None (Destination Only)</option>
+                    {allWorldPortals
+                      .filter((entry) => entry.portal.id !== activePortal.id)
+                      .map((entry) => (
+                        <option key={entry.portal.id} value={entry.portal.id}>
+                          {entry.portal.id} ({entry.room.title})
+                        </option>
+                      ))}
+                  </select>
+
+                  {/* Destination Info & Jump Button */}
+                  {(() => {
+                    if (!activePortal.targetPortalId) return null;
+                    const dest = allWorldPortals.find(
+                      (e) => e.portal.id === activePortal.targetPortalId
+                    );
+                    if (!dest) {
+                      return (
+                        <div className="p-1.5 bg-red-900/30 border border-red-500/50 rounded text-[11px] text-red-300">
+                          ⚠️ Target portal '{activePortal.targetPortalId}' not found in world!
+                        </div>
+                      );
+                    }
+                    const isOtherRoom = dest.room.id !== room.id;
+                    return (
+                      <div className="p-2 bg-cyber-bg/80 border border-cyber-border rounded space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 text-[10px]">Destination Sector:</span>
+                          <span className="font-mono text-cyber-cyan text-[11px]">
+                            [{dest.room.coords[0]}, {dest.room.coords[1]}]
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full shrink-0 border border-white/30"
+                            style={{ backgroundColor: dest.room.themeColor }}
+                            title={`Reflected Destination Color: ${dest.room.themeColor}`}
+                          />
+                          <span className="font-bold text-white truncate text-[11px]">
+                            {dest.room.title}
+                          </span>
+                        </div>
+                        {isOtherRoom && onSelectRoom && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSelectRoom(dest.room.id);
+                              onSelectEntity({ type: 'portal', id: dest.portal.id });
+                            }}
+                            className="w-full mt-1 py-1 px-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-cyan/50 hover:border-cyber-cyan rounded text-[10px] text-cyber-cyan flex items-center justify-center space-x-1 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Jump to Destination Sector</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Neon Color Customization */}
+                <div className="space-y-1.5">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    Neon Glow Color
+                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    <input
+                      type="color"
+                      value={activePortal.themeColor || room.themeColor}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id
+                              ? {
+                                  ...p,
+                                  themeColor:
+                                    color.toLowerCase() === room.themeColor.toLowerCase()
+                                      ? undefined
+                                      : color,
+                                }
+                              : p
+                          ),
+                        }));
+                      }}
+                      className="w-6 h-6 rounded border border-cyber-border bg-transparent cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={activePortal.themeColor || ''}
+                      placeholder={`${room.themeColor} (Sector Default)`}
+                      onChange={(e) => {
+                        const color = e.target.value.trim();
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id
+                              ? {
+                                  ...p,
+                                  themeColor:
+                                    !color || color.toLowerCase() === room.themeColor.toLowerCase()
+                                      ? undefined
+                                      : color,
+                                }
+                              : p
+                          ),
+                        }));
+                      }}
+                      className="flex-1 bg-cyber-bg border border-cyber-border rounded px-2 py-1 text-white font-mono text-xs"
+                    />
+                  </div>
+                  {/* Color Preset Palette */}
+                  <div className="flex space-x-1">
+                    {COLOR_PRESETS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          onUpdateRoom((r) => ({
+                            ...r,
+                            portals: r.portals?.map((p) =>
+                              p.id === activePortal.id ? { ...p, themeColor: color } : p
+                            ),
+                          }));
+                        }}
+                        className="w-4 h-4 rounded-full border border-white/20 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reversed Outbound Velocity */}
+                <div className="flex items-center justify-between pt-2 border-t border-cyber-border/40">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-300 block">Reversed Velocity</span>
+                    <span className="text-[10px] text-slate-500">Inverts outbound velocity vector upon emergence (vx = -vx, vy = -vy)</span>
+                  </div>
+                  <label className="flex items-center space-x-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(activePortal.reverseVelocity)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        onUpdateRoom((r) => ({
+                          ...r,
+                          portals: r.portals?.map((p) =>
+                            p.id === activePortal.id
+                              ? { ...p, reverseVelocity: val ? true : undefined }
+                              : p
+                          ),
+                        }));
+                      }}
+                      className="rounded bg-cyber-bg border-cyber-border text-cyber-cyan focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* List of Entities in Sector */}
             <div className="space-y-1 pt-2">
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">
@@ -2861,10 +3228,34 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 ))}
 
+                {room.portals?.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => onSelectEntity({ type: 'portal', id: p.id })}
+                    className={`flex items-center justify-between p-1.5 rounded cursor-pointer text-xs ${
+                      selectedEntity?.type === 'portal' && selectedEntity.id === p.id
+                        ? 'bg-cyber-card border border-cyber-cyan text-white'
+                        : 'bg-cyber-bg hover:bg-cyber-card text-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1.5 truncate mr-2">
+                      <Orbit
+                        className="w-3 h-3 shrink-0"
+                        style={{ color: p.themeColor || room.themeColor }}
+                      />
+                      <span className="truncate">{p.label || p.id}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 shrink-0 font-mono">
+                      {p.targetPortalId ? `➔ ${p.targetPortalId}` : 'Dest Only'}
+                    </span>
+                  </div>
+                ))}
+
                 {(!room.collectibles?.length &&
                   !room.movingPlatforms?.length &&
                   !room.laserBarriers?.length &&
-                  !room.laserTurrets?.length) && (
+                  !room.laserTurrets?.length &&
+                  !room.portals?.length) && (
                   <div className="text-center py-4 text-slate-600 text-xs">
                     No dynamic entities placed yet.
                   </div>
