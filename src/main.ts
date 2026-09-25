@@ -1,5 +1,5 @@
 import { LevelMap } from './world/LevelMap';
-import { ScreenData, ExitDirection, ExitGateConfig, getGateColor } from './world/ScreenData';
+import { FACE_SIZE, ScreenData, ExitDirection, ExitGateConfig, getGateColor } from './world/ScreenData';
 import { WorldRegistry } from './world/WorldRegistry';
 import { ProceduralLevelMap } from './world/ProceduralLevelMap';
 import { DifficultyLevel } from './world/ProceduralWorldGen';
@@ -11,6 +11,8 @@ import { PhysicsEngine, TransitionEvent } from './engine/PhysicsEngine';
 import { CubeRenderer, RotationDirection } from './graphics/CubeRenderer';
 import { PerformanceDebugView } from './ui/PerformanceDebugView';
 import { SectorMapView } from './ui/SectorMapView';
+import { DevManager } from './engine/DevManager';
+import { DevDebugOverlay } from './ui/DevDebugOverlay';
 
 type GameState = 'PLAYING' | 'ROTATING' | 'GOAL_REACHED' | 'RESPAWNING';
 
@@ -53,6 +55,9 @@ class Game {
   private worldFileInputEl: HTMLInputElement;
   private perfDebug: PerformanceDebugView;
   private sectorMap: SectorMapView;
+  private devManager: DevManager;
+  private devOverlay: DevDebugOverlay;
+  private btnDevEl: HTMLElement | null = null;
 
   // New UI Elements
   private helpOverlayEl: HTMLElement;
@@ -173,13 +178,40 @@ class Game {
     this.audio = new AudioManager();
     this.particles = new ParticleSystem();
     this.physics = new PhysicsEngine(this.audio, this.particles);
+    this.devManager = DevManager.getInstance();
+    this.physics.setDevManager(this.devManager);
     this.cubeRenderer = new CubeRenderer(container);
 
     this.sectorMap = new SectorMapView({
       levelMap: this.levelMap,
       currentCoords: this.currentCoords,
       player: this.player,
+      onWarpToSector: (coords) => {
+        this.goToRoom(coords.x, coords.y);
+      },
     });
+
+    this.devOverlay = new DevDebugOverlay({
+      goToRoom: (x, y, spawnTarget) => this.goToRoom(x, y, spawnTarget),
+      teleportPlayer: (x, y) => this.teleportPlayer(x, y),
+      giveAllKeys: () => this.giveAllKeys(),
+      collectAllPrisms: (roomOnly) => this.collectAllPrisms(roomOnly),
+      resetRoomState: () => this.resetRoomState(),
+      triggerWin: () => this.onGoalReached(),
+      clearProjectiles: () => this.physics.clearProjectiles(),
+      getCurrentRoom: () => this.currentRoom,
+      getLevelMap: () => this.levelMap,
+      getPlayer: () => this.player,
+      getCurrentCoords: () => this.currentCoords,
+    });
+
+    this.cubeRenderer.onShiftClickTeleportCallback = (x, y) => {
+      if (this.devManager.enabled) {
+        this.teleportPlayer(x, y);
+      }
+    };
+
+    this.btnDevEl = document.getElementById('btn-dev');
 
     this.physics.setLevelMap(this.levelMap);
 
@@ -242,6 +274,29 @@ class Game {
 
     this.btnPerfEl?.addEventListener('click', () => {
       this.perfDebug.toggle();
+    });
+
+    const btnDevToggleEl = document.getElementById('btn-dev-toggle');
+    const gearDevStatusEl = document.getElementById('gear-dev-status');
+    const updateGearDevStatus = () => {
+      if (gearDevStatusEl) {
+        gearDevStatusEl.textContent = this.devManager.enabled ? 'ON' : 'OFF';
+        gearDevStatusEl.style.color = this.devManager.enabled ? '#00ffaa' : '#ff5577';
+      }
+    };
+    this.devManager.onToggle(() => updateGearDevStatus());
+    this.devManager.subscribe(() => updateGearDevStatus());
+    updateGearDevStatus();
+
+    btnDevToggleEl?.addEventListener('click', () => {
+      this.devManager.toggleEnabled();
+      this.devOverlay.updateUIState();
+      this.devOverlay.updateBadges();
+    });
+
+    this.btnDevEl?.addEventListener('click', () => {
+      this.devOverlay.toggle();
+      this.toggleGearMenu(false);
     });
 
     // World Editor link in gear menu
@@ -427,8 +482,14 @@ class Game {
           this.openProceduralModal();
         }
       }
+      if (e.code === 'F2') {
+        e.preventDefault();
+        this.devOverlay.toggle();
+      }
       if (e.code === 'Escape') {
-        if (this.helpOverlayEl.classList.contains('open')) {
+        if (this.devOverlay.visible) {
+          this.devOverlay.toggle(false);
+        } else if (this.helpOverlayEl.classList.contains('open')) {
           this.toggleHelp(false);
         } else if (this.gearMenuEl.classList.contains('open')) {
           this.toggleGearMenu(false);
@@ -576,8 +637,23 @@ class Game {
     this.perfDebug.recordFrame(time);
 
     if (this.lastTime === 0) this.lastTime = time;
-    const dt = Math.min((time - this.lastTime) / 1000, 0.05);
+    let dt = Math.min((time - this.lastTime) / 1000, 0.05);
     this.lastTime = time;
+
+    // Developer Time Scale and Freeze
+    if (this.devManager.enabled) {
+      if (this.devManager.isPaused) {
+        if (this.devManager.stepFrameRequested) {
+          this.devManager.stepFrameRequested = false;
+          dt = 0.016;
+        } else {
+          dt = 0;
+        }
+      } else {
+        dt *= this.devManager.timeScale;
+      }
+    }
+
     this.gameTime += dt;
 
     // Keep all rendering faces and physics 100% in lockstep
@@ -716,6 +792,8 @@ class Game {
       coords: this.currentCoords,
       cameraMode: this.camera3DMode ? '3D Orbit' : '2D Flat',
     });
+
+    this.devOverlay.updateTelemetry();
 
     requestAnimationFrame(this.gameLoop);
   };
@@ -857,6 +935,13 @@ class Game {
     if (!nextRoom) {
       // Bottom void hazard without an underground room -> respawn
       if (direction === 'down') {
+        if (this.devManager.enabled && this.devManager.godMode) {
+          const spawn = this.currentRoom.spawnPoint || { x: 80, y: 660 };
+          this.player.setPosition(spawn.x, spawn.y);
+          this.player.vy = 0;
+          this.gameState = 'PLAYING';
+          return;
+        }
         this.onPlayerDeath();
       }
       return;
@@ -1038,6 +1123,84 @@ class Game {
       this.bannerEl.style.opacity = '0';
       this.bannerTimeout = null;
     }, 3000);
+    this.devOverlay?.onSectorChanged();
+  }
+
+  public goToRoom(targetX: number, targetY: number, spawnTarget?: { x: number; y: number }): boolean {
+    const nextRoom = (this.levelMap instanceof ProceduralLevelMap)
+      ? this.levelMap.getRoom(targetX, targetY, true)
+      : this.levelMap.getRoom(targetX, targetY);
+    if (!nextRoom) return false;
+
+    this.currentCoords = { x: targetX, y: targetY };
+    this.currentRoom = nextRoom;
+    this.pendingNextRoom = null;
+    this.levelMap.markVisited(targetX, targetY);
+    this.sectorMap.setCurrentCoords(this.currentCoords);
+
+    this.cubeRenderer.resetRotationToZero();
+    this.physics.resetCrumblingTiles();
+    this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+
+    const spawn = spawnTarget || nextRoom.spawnPoint || { x: 80, y: 660 };
+    this.player.setPosition(spawn.x, spawn.y);
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.standingPlatform = null;
+    this.player.disabledPortalId = null;
+
+    this.gameState = 'PLAYING';
+    if (this.levelMap instanceof ProceduralLevelMap) {
+      const depth = Math.abs(targetX) + Math.abs(targetY);
+      const threat = this.levelMap.getThreatLevel(targetX, targetY);
+      this.audio.updateDepthAtmosphere(depth, threat);
+    }
+    this.updateHUD();
+    this.updateKeyInventory();
+    this.audio.playLand();
+    this.particles.emitSparks(spawn.x, spawn.y, 20, '#00ffff');
+    this.devOverlay?.onSectorChanged();
+    return true;
+  }
+
+  public teleportPlayer(x: number, y: number): void {
+    const clampedX = Math.max(0, Math.min(FACE_SIZE - this.player.width, x));
+    const clampedY = Math.max(0, Math.min(FACE_SIZE - this.player.height, y));
+    this.player.setPosition(clampedX, clampedY);
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.standingPlatform = null;
+    this.player.disabledPortalId = null;
+    this.audio.playLand();
+    this.particles.emitSparks(clampedX + this.player.width * 0.5, clampedY + this.player.height * 0.5, 20, '#00ffcc');
+  }
+
+  public giveAllKeys(): void {
+    this.levelMap.collectAllKeys();
+    this.updateKeyInventory();
+    this.audio.playKeyCollect();
+    this.particles.emitSparks(this.player.x + this.player.width * 0.5, this.player.y + this.player.height * 0.5, 24, '#ffe600');
+  }
+
+  public collectAllPrisms(roomOnly: boolean = false): void {
+    if (roomOnly) {
+      this.levelMap.collectAllInRoom(this.currentRoom);
+    } else {
+      this.levelMap.collectAllPrisms();
+    }
+    this.updateHUD();
+    this.audio.playCollect();
+    this.particles.emitSparks(this.player.x + this.player.width * 0.5, this.player.y + this.player.height * 0.5, 24, '#ffe600');
+  }
+
+  public resetRoomState(): void {
+    this.levelMap.resetRoomCollectibles(this.currentRoom);
+    this.physics.resetCrumblingTiles();
+    this.physics.clearProjectiles();
+    this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+    this.updateHUD();
+    this.updateKeyInventory();
+    this.audio.playLand();
   }
 
   private resetWholeLevel(): void {
@@ -1143,6 +1306,8 @@ class Game {
         this.btnProceduralSetupEl.style.display = 'none';
       }
     }
+
+    this.devOverlay?.onSectorChanged();
   }
 
   private showTemporaryBanner(text: string, color?: string, durationMs: number = 3000): void {

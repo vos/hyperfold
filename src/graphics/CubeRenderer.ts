@@ -105,6 +105,9 @@ export class CubeRenderer {
   private lastPointerX: number = 0;
   private lastPointerY: number = 0;
 
+  // Shift+Click Teleport callback for dev mode
+  public onShiftClickTeleportCallback?: (roomX: number, roomY: number) => void;
+
   private time: number = 0;
 
   constructor(container: HTMLElement) {
@@ -299,6 +302,15 @@ export class CubeRenderer {
     const el = this.renderer.domElement;
 
     el.addEventListener('pointerdown', (e: PointerEvent) => {
+      // Shift + Left Click for Dev Mode Click-to-Teleport
+      if (e.button === 0 && e.shiftKey) {
+        if (this.handleShiftClickTeleport(e.clientX, e.clientY)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+
       // Left button (0) or right button (2)
       if (e.button === 0 || e.button === 2) {
         this.isPointerDragging = true;
@@ -349,6 +361,45 @@ export class CubeRenderer {
 
     // Prevent context menu on right click drag
     el.addEventListener('contextmenu', (e: Event) => e.preventDefault());
+  }
+
+  /**
+   * Raycasts from screen coordinates to the front face of the 3D cube,
+   * returning exact pixel coordinates [0, FACE_SIZE] inside the room.
+   */
+  public getRoomCoordsFromScreen(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      return null;
+    }
+    const mouseX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const mouseY = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), this.camera);
+    const intersects = raycaster.intersectObject(this.cubeMesh);
+    if (intersects.length > 0) {
+      const hit = intersects[0];
+      // Front face (+Z) corresponds to materialIndex 4
+      if (hit.uv && (hit.face?.materialIndex === 4 || !hit.face)) {
+        const roomX = Math.round(hit.uv.x * FACE_SIZE);
+        const roomY = Math.round((1 - hit.uv.y) * FACE_SIZE);
+        const clampedX = Math.max(0, Math.min(FACE_SIZE, roomX));
+        const clampedY = Math.max(0, Math.min(FACE_SIZE, roomY));
+        return { x: clampedX, y: clampedY };
+      }
+    }
+    return null;
+  }
+
+  private handleShiftClickTeleport(clientX: number, clientY: number): boolean {
+    if (!this.onShiftClickTeleportCallback) return false;
+    const coords = this.getRoomCoordsFromScreen(clientX, clientY);
+    if (coords) {
+      this.onShiftClickTeleportCallback(coords.x, coords.y);
+      return true;
+    }
+    return false;
   }
 
   /**

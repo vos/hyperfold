@@ -65,6 +65,155 @@
         flex-shrink: 0;
       }
 
+      /* Dev Mode Status Badges (Center of Top Menu Bar) */
+      .hud-center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        pointer-events: auto;
+        z-index: 12;
+      }
+
+      .hud-dev-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 26px;
+        padding: 0 9px;
+        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        border-radius: 4px;
+        background: rgba(6, 12, 24, 0.92);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        line-height: 26px;
+        border: 1px solid rgba(0, 255, 255, 0.35);
+      }
+
+      .hud-dev-badge:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.25);
+      }
+
+      .hud-dev-badge .badge-icon {
+        font-size: 11px;
+      }
+
+      .hud-dev-badge.badge-god {
+        color: #39ff14;
+        border-color: rgba(57, 255, 20, 0.6);
+        background: rgba(57, 255, 20, 0.14);
+        box-shadow: 0 0 10px rgba(57, 255, 20, 0.25);
+      }
+      .hud-dev-badge.badge-god:hover {
+        box-shadow: 0 0 14px rgba(57, 255, 20, 0.5);
+      }
+
+      .hud-dev-badge.badge-frozen {
+        color: #00f0ff;
+        border-color: rgba(0, 240, 255, 0.6);
+        background: rgba(0, 240, 255, 0.14);
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+      }
+      .hud-dev-badge.badge-frozen:hover {
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.5);
+      }
+
+      .hud-dev-badge.badge-nonlethal {
+        color: #ffe600;
+        border-color: rgba(255, 230, 0, 0.6);
+        background: rgba(255, 230, 0, 0.14);
+        box-shadow: 0 0 10px rgba(255, 230, 0, 0.25);
+      }
+      .hud-dev-badge.badge-nonlethal:hover {
+        box-shadow: 0 0 14px rgba(255, 230, 0, 0.5);
+      }
+
+      .hud-dev-badge.badge-fly {
+        color: #ff00aa;
+        border-color: rgba(255, 0, 170, 0.6);
+        background: rgba(255, 0, 170, 0.14);
+        box-shadow: 0 0 10px rgba(255, 0, 170, 0.25);
+      }
+      .hud-dev-badge.badge-fly:hover {
+        box-shadow: 0 0 14px rgba(255, 0, 170, 0.5);
+      }
+
+      .hud-dev-badge.badge-spikes {
+        color: #ffe600;
+        border-color: rgba(255, 230, 0, 0.6);
+        background: rgba(255, 230, 0, 0.14);
+        box-shadow: 0 0 10px rgba(255, 230, 0, 0.25);
+      }
+      .hud-dev-badge.badge-spikes:hover {
+        box-shadow: 0 0 14px rgba(255, 230, 0, 0.5);
+      }
+
+      .hud-dev-badge.badge-jump {
+        color: #00f0ff;
+        border-color: rgba(0, 240, 255, 0.6);
+        background: rgba(0, 240, 255, 0.14);
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+      }
+      .hud-dev-badge.badge-jump:hover {
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.5);
+      }
+
+      .hud-dev-badge.badge-paused {
+        color: #ff3366;
+        border-color: rgba(255, 51, 102, 0.6);
+        background: rgba(255, 51, 102, 0.15);
+        box-shadow: 0 0 10px rgba(255, 51, 102, 0.3);
+      }
+      .hud-dev-badge.badge-paused:hover {
+        box-shadow: 0 0 14px rgba(255, 51, 102, 0.6);
+      }
+
+      .hud-dev-badge.badge-speed {
+        color: #ffaa00;
+        border-color: rgba(255, 170, 0, 0.6);
+        background: rgba(255, 170, 0, 0.14);
+        box-shadow: 0 0 10px rgba(255, 170, 0, 0.25);
+      }
+      .hud-dev-badge.badge-speed:hover {
+        box-shadow: 0 0 14px rgba(255, 170, 0, 0.5);
+      }
+
+      .hud-dev-badge.badge-dev-master {
+        color: #00ffaa;
+        border-color: rgba(0, 255, 170, 0.6);
+        background: rgba(0, 255, 170, 0.18);
+        box-shadow: 0 0 10px rgba(0, 255, 170, 0.35);
+        font-weight: 900;
+      }
+      .hud-dev-badge.badge-dev-master:hover {
+        box-shadow: 0 0 16px rgba(0, 255, 170, 0.65);
+        background: rgba(0, 255, 170, 0.28);
+      }
+
+      .hud-dev-badge.badge-dev-off {
+        color: #ffaa00;
+        border-color: rgba(255, 170, 0, 0.6);
+        background: rgba(255, 170, 0, 0.14);
+        box-shadow: 0 0 10px rgba(255, 170, 0, 0.25);
+        font-weight: 900;
+      }
+      .hud-dev-badge.badge-dev-off:hover {
+        box-shadow: 0 0 16px rgba(255, 170, 0, 0.5);
+        background: rgba(255, 170, 0, 0.26);
+      }
+
       /* Inline info chips */
       .hud-chip {
         pointer-events: auto;
@@ -542,9 +691,433 @@
         padding-top: 4px;
       }
 
-      .accent-cyan {
+      /* Developer Debug Overlay Panel */
+      .dev-overlay-panel {
+        position: absolute;
+        top: 50px;
+        right: 14px;
+        width: 330px;
+        max-height: calc(100vh - 70px);
+        background: rgba(6, 12, 24, 0.96);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        z-index: 90;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: inherit;
+        color: #c0d8f0;
+        pointer-events: auto;
+        user-select: none;
+      }
+
+      .dev-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: rgba(0, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+      }
+
+      .dev-title-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .dev-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #00ffaa;
+        box-shadow: 0 0 8px #00ffaa;
+        transition: all 0.2s ease;
+      }
+
+      .dev-status-dot.off {
+        background: #ff3366;
+        box-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+      }
+
+      .dev-title {
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1.5px;
         color: #00ffff;
-        text-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+      }
+
+      .dev-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .dev-header-icon-btn {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        transition: all 0.15s ease;
+        background: rgba(0, 255, 255, 0.08);
+        border: 1px solid rgba(0, 255, 255, 0.25);
+        color: #c0d8f0;
+      }
+
+      .dev-header-icon-btn:hover {
+        background: rgba(0, 255, 255, 0.2);
+        border-color: #00ffff;
+        color: #00ffff;
+        box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+      }
+
+      .dev-header-power-btn.active {
+        background: rgba(0, 255, 170, 0.15);
+        border-color: rgba(0, 255, 170, 0.6);
+        color: #00ffaa;
+        box-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
+      }
+
+      .dev-header-power-btn.active:hover {
+        background: rgba(0, 255, 170, 0.3);
+        border-color: #00ffaa;
+        box-shadow: 0 0 12px rgba(0, 255, 170, 0.5);
+      }
+
+      .dev-header-power-btn.off {
+        background: rgba(255, 51, 102, 0.12);
+        border-color: rgba(255, 51, 102, 0.5);
+        color: #ff5577;
+        box-shadow: 0 0 6px rgba(255, 51, 102, 0.2);
+      }
+
+      .dev-header-power-btn.off:hover {
+        background: rgba(255, 51, 102, 0.25);
+        border-color: #ff3366;
+        box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+      }
+
+      .dev-header-reset-btn {
+        font-size: 14px;
+        color: #88a0c0;
+      }
+
+      .dev-header-reset-btn:hover {
+        color: #ffe600;
+        border-color: #ffe600;
+        background: rgba(255, 230, 0, 0.15);
+        box-shadow: 0 0 10px rgba(255, 230, 0, 0.35);
+        transform: rotate(-90deg);
+      }
+
+      .dev-close-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #5a7a9a;
+        font-size: 16px;
+      }
+
+      .dev-close-btn:hover {
+        color: #ff0055;
+        border-color: rgba(255, 0, 85, 0.3);
+        background: rgba(255, 0, 85, 0.1);
+      }
+
+      .dev-tabs {
+        display: flex;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+        overflow-x: auto;
+      }
+
+      .dev-tab-btn {
+        flex: 1;
+        padding: 7px 4px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #6b8ea8;
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+
+      .dev-tab-btn:hover {
+        color: #c0d8f0;
+        background: rgba(0, 255, 255, 0.04);
+      }
+
+      .dev-tab-btn.active {
+        color: #00ffff;
+        border-bottom-color: #00ffff;
+        background: rgba(0, 255, 255, 0.08);
+      }
+
+      .dev-body {
+        padding: 12px;
+        overflow-y: auto;
+        max-height: calc(100vh - 170px);
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .dev-tab-content {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .dev-tab-content.active {
+        display: flex;
+      }
+
+      .dev-section-title {
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 1.2px;
+        color: #5a7a9a;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+
+      .dev-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .dev-label {
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        color: #5a7a9a;
+      }
+
+      .dev-select {
+        flex: 1;
+        background: rgba(10, 20, 36, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        color: #00ffff;
+        border-radius: 4px;
+        padding: 5px 8px;
+        font-family: inherit;
+        font-size: 11px;
+        outline: none;
+      }
+
+      .dev-select option {
+        background: #060b16;
+        color: #00ffff;
+      }
+
+      .dev-input {
+        width: 54px;
+        background: rgba(10, 20, 36, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        color: #ffffff;
+        border-radius: 4px;
+        padding: 4px 6px;
+        font-family: monospace;
+        font-size: 11px;
+        text-align: center;
+        outline: none;
+      }
+
+      .dev-btn {
+        background: rgba(10, 24, 44, 0.85);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        color: #c0d8f0;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: all 0.12s;
+        text-align: center;
+      }
+
+      .dev-btn:hover {
+        background: rgba(0, 255, 255, 0.15);
+        border-color: #00ffff;
+        color: #ffffff;
+        box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+      }
+
+      .dev-btn.active {
+        background: rgba(0, 255, 255, 0.25);
+        border-color: #00ffaa;
+        color: #00ffaa;
+        box-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
+      }
+
+      .dev-btn-full {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px;
+      }
+
+      .dev-btn-row {
+        display: flex;
+        gap: 4px;
+      }
+
+      .dev-btn-row .dev-btn {
+        flex: 1;
+        padding: 5px 2px;
+      }
+
+      .dev-cardinal-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr 1fr;
+        gap: 4px;
+        width: 100%;
+      }
+
+      .dev-btn-cardinal {
+        padding: 6px 2px;
+        font-size: 10px;
+      }
+
+      .dev-btn:disabled,
+      .dev-btn.disabled,
+      .dev-btn-cardinal:disabled,
+      .dev-btn-cardinal.disabled {
+        opacity: 0.28;
+        cursor: not-allowed !important;
+        border-color: #223344 !important;
+        background: rgba(8, 16, 28, 0.4) !important;
+        color: #445566 !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+      }
+
+      .dev-segmented-control {
+        display: flex;
+        background: rgba(4, 8, 16, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .dev-seg-btn {
+        flex: 1;
+        padding: 6px 2px;
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        border: none;
+        background: transparent;
+        color: #6b8ea8;
+        cursor: pointer;
+        transition: all 0.12s;
+      }
+
+      .dev-seg-btn:hover {
+        color: #ffffff;
+      }
+
+      .dev-seg-btn.active {
+        background: rgba(0, 255, 255, 0.2);
+        color: #00ffff;
+        box-shadow: inset 0 0 6px rgba(0, 255, 255, 0.3);
+      }
+
+      .dev-desc {
+        font-size: 10px;
+        color: #88a0c0;
+        line-height: 1.4;
+        margin-top: 2px;
+      }
+
+      .dev-toggle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(0, 255, 255, 0.08);
+        font-size: 11px;
+      }
+
+      .dev-toggle-btn {
+        width: 44px;
+        padding: 3px 0;
+        background: rgba(255, 0, 80, 0.15);
+        border: 1px solid rgba(255, 0, 80, 0.4);
+        color: #ff5588;
+        border-radius: 3px;
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.12s;
+      }
+
+      .dev-toggle-btn.active {
+        background: rgba(0, 255, 170, 0.2);
+        border-color: #00ffaa;
+        color: #00ffaa;
+        box-shadow: 0 0 6px rgba(0, 255, 170, 0.3);
+      }
+
+      .dev-tip-box {
+        background: rgba(0, 255, 255, 0.05);
+        border-left: 2px solid #00ffff;
+        padding: 6px 10px;
+        font-size: 10px;
+        line-height: 1.4;
+        color: #c0d8f0;
+      }
+
+      .dev-key {
+        display: inline-block;
+        padding: 1px 5px;
+        background: rgba(0, 255, 255, 0.15);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 3px;
+        color: #00ffff;
+        font-family: monospace;
+        font-size: 9px;
+      }
+
+      .dev-telemetry-box {
+        background: rgba(4, 8, 16, 0.9);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 8px;
+        font-family: monospace;
+        font-size: 10px;
+        line-height: 1.6;
+        color: #39ff14;
+      }
+
+      .dev-footer {
+        padding: 6px 12px;
+        background: rgba(0, 0, 0, 0.4);
+        border-top: 1px solid rgba(0, 255, 255, 0.1);
+        font-size: 9px;
+        color: #5a7a9a;
+        text-align: center;
       }
 
       /* Rotation / Infinite Cube Banner */
@@ -1219,6 +1792,9 @@
         </div>
       </div>
 
+      <!-- Dev Mode Status Badges (Center of Top Menu Bar) -->
+      <div class="hud-center" id="hud-dev-badges"></div>
+
       <div class="hud-right">
         <!-- World Selector -->
         <select class="hud-select" id="world-select" title="Switch World or Load Custom Map">
@@ -1240,6 +1816,8 @@
             <button class="gear-menu-item" id="btn-camera"><span class="gear-icon">👁</span> View: 3D Depth <span class="gear-key">C</span></button>
             <button class="gear-menu-item" id="btn-reset-cam"><span class="gear-icon">↺</span> Reset View <span class="gear-key">V</span></button>
             <button class="gear-menu-item" id="btn-perf"><span class="gear-icon">📊</span> Perf: OFF <span class="gear-key">P</span></button>
+            <button class="gear-menu-item" id="btn-dev-toggle"><span class="gear-icon">⚡</span> Dev Mode: <span id="gear-dev-status" style="color: #ff5577;">OFF</span></button>
+            <button class="gear-menu-item" id="btn-dev"><span class="gear-icon">🛠</span> Dev Tools <span class="gear-key">F2</span></button>
             <div class="gear-menu-sep"></div>
             <button class="gear-menu-item" id="btn-reset" title="Press to Die &amp; Respawn | Hold to Restart Whole Level"><span class="gear-icon">💀</span> Die / Respawn <span class="gear-key">R</span></button>
             <button class="gear-menu-item" id="btn-procedural-setup" style="display: none;"><span class="gear-icon">🌌</span> Void Setup <span class="gear-key">N</span></button>
@@ -1302,6 +1880,7 @@
             <h3>System</h3>
             <div class="help-row"><span class="help-keys"><span class="help-key">U</span></span> <span class="help-action">Sound On / Off</span></div>
             <div class="help-row"><span class="help-keys"><span class="help-key">P</span><span class="help-key">F3</span></span> <span class="help-action">Perf Stats</span></div>
+            <div class="help-row"><span class="help-keys"><span class="help-key">F2</span></span> <span class="help-action">Dev Tools</span></div>
             <div class="help-row"><span class="help-keys"><span class="help-key">Esc</span></span> <span class="help-action">Close Menus</span></div>
           </div>
         </div>

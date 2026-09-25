@@ -5,9 +5,11 @@ const MovingPlatform_1 = require("../entities/MovingPlatform");
 const LaserBarrier_1 = require("../entities/LaserBarrier");
 const LaserTurret_1 = require("../entities/LaserTurret");
 const ScreenData_1 = require("../world/ScreenData");
+const DevManager_1 = require("./DevManager");
 class PhysicsEngine {
     audio;
     particles;
+    devManager = DevManager_1.DevManager.getInstance();
     crumblingTiles = new Map();
     gameTime = 0;
     roomPlatforms = new Map();
@@ -19,6 +21,14 @@ class PhysicsEngine {
     constructor(audio, particles) {
         this.audio = audio;
         this.particles = particles;
+    }
+    setDevManager(dev) {
+        this.devManager = dev;
+        this.devManager.subscribe((key, val) => {
+            if (key === 'hazardMode' && val === 'frozen') {
+                this.clearProjectiles();
+            }
+        });
     }
     getPlatformsForRoom(room, time) {
         const t = time ?? this.gameTime;
@@ -176,6 +186,19 @@ class PhysicsEngine {
                 player.standingPlatform = null;
             }
         }
+        // Developer Fly Mode (No-clip)
+        if (this.devManager.enabled && this.devManager.flyMode) {
+            const flySpeed = 600;
+            player.vx = 0;
+            player.vy = 0;
+            if (input.left) player.x -= flySpeed * dt;
+            if (input.right) player.x += flySpeed * dt;
+            if (input.up) player.y -= flySpeed * dt;
+            if (input.down) player.y += flySpeed * dt;
+            player.isGrounded = false;
+            player.standingPlatform = null;
+            return this.checkBoundaryTransitions(player, room, levelMap, onGateLocked);
+        }
         // 1. Horizontal Target Velocity
         let targetVx = 0;
         const currentSpeed = player.isDucking ? player.CRAWL_SPEED : player.MOVE_SPEED;
@@ -236,6 +259,9 @@ class PhysicsEngine {
         // 2. Jump input & Coyote Time & Jump Buffering & Platform Momentum Inheritance & Drop-Through
         if (input.jumpJustPressed) {
             player.jumpBufferTime = player.JUMP_BUFFER_DURATION;
+            if (this.devManager.enabled && this.devManager.infiniteJump) {
+                player.coyoteTime = player.COYOTE_DURATION;
+            }
         }
         const canDropThrough = input.down &&
             player.jumpBufferTime > 0 &&
@@ -499,6 +525,9 @@ class PhysicsEngine {
         }
     }
     checkSpikeCollisions(player, room, onPlayerDeath) {
+        if (this.devManager.enabled && (this.devManager.godMode || this.devManager.disableSpikes)) {
+            return false;
+        }
         const minCol = Math.floor((player.x - 2) / ScreenData_1.TILE_SIZE);
         const maxCol = Math.floor((player.x + player.width + 2) / ScreenData_1.TILE_SIZE);
         const minRow = Math.floor((player.y - 2) / ScreenData_1.TILE_SIZE);
@@ -682,6 +711,12 @@ class PhysicsEngine {
                     this.handleLockedGateHit(player, gate, 'down', onGateLocked);
                 }
                 else {
+                    if (this.devManager.enabled && this.devManager.godMode) {
+                        player.y = ScreenData_1.FACE_SIZE - player.height - 10;
+                        player.vy = -600;
+                        this.audio.playBounce();
+                        return null;
+                    }
                     // Fell into bottom void without exit -> respawn
                     this.audio.playDeath();
                     this.particles.emitPlayerExplosion(player.x + player.width * 0.5, ScreenData_1.FACE_SIZE - 20, player.primaryColor, player.accentColor);
@@ -832,6 +867,9 @@ class PhysicsEngine {
         return null;
     }
     checkLaserBarriers(player, room, onPlayerDeath) {
+        if (this.devManager.enabled && this.devManager.hazardMode === 'frozen') {
+            return false;
+        }
         const barriers = this.getBarriersForRoom(room, this.gameTime);
         for (const barrier of barriers) {
             if (barrier.justEnteredWarning()) {
@@ -853,6 +891,9 @@ class PhysicsEngine {
                 }
             }
             if (barrier.intersectsPlayer(player)) {
+                if (!this.devManager.isDynamicHazardLethal()) {
+                    continue;
+                }
                 player.standingPlatform = null;
                 this.audio.playDeath();
                 this.particles.emitPlayerExplosion(player.x + player.width * 0.5, player.y + player.height * 0.5, player.primaryColor, barrier.themeColor);
@@ -864,6 +905,10 @@ class PhysicsEngine {
         return false;
     }
     updateLaserTurrets(player, room, platforms, dt, onPlayerDeath) {
+        if (this.devManager.enabled && this.devManager.hazardMode === 'frozen') {
+            this.clearProjectiles();
+            return false;
+        }
         const turrets = this.getTurretsForRoom(room);
         let projectiles = this.roomProjectiles.get(room.id);
         if (!projectiles) {
@@ -892,12 +937,14 @@ class PhysicsEngine {
                         this.particles.emitLaserSparks(ray.hitX, ray.hitY, 2, turret.themeColor, ray.normalX, ray.normalY);
                     }
                     if (LaserTurret_1.LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, player)) {
-                        player.standingPlatform = null;
-                        this.audio.playDeath();
-                        this.particles.emitPlayerExplosion(player.x + player.width * 0.5, player.y + player.height * 0.5, player.primaryColor, turret.themeColor);
-                        if (onPlayerDeath)
-                            onPlayerDeath();
-                        return true;
+                        if (this.devManager.isDynamicHazardLethal()) {
+                            player.standingPlatform = null;
+                            this.audio.playDeath();
+                            this.particles.emitPlayerExplosion(player.x + player.width * 0.5, player.y + player.height * 0.5, player.primaryColor, turret.themeColor);
+                            if (onPlayerDeath)
+                                onPlayerDeath();
+                            return true;
+                        }
                     }
                 }
                 else if (turret.beamState === 'WARNING') {
@@ -982,12 +1029,17 @@ class PhysicsEngine {
             const tailY = p.y - Math.sin(p.angle) * p.width * 0.5;
             if (LaserBarrier_1.LaserBarrier.lineIntersectsBox(tailX, tailY, checkX, checkY, player.x, player.y, player.width, player.height, 4)) {
                 projectiles.splice(i, 1);
-                player.standingPlatform = null;
-                this.audio.playDeath();
-                this.particles.emitPlayerExplosion(player.x + player.width * 0.5, player.y + player.height * 0.5, player.primaryColor, p.color);
-                if (onPlayerDeath)
-                    onPlayerDeath();
-                return true;
+                if (this.devManager.isDynamicHazardLethal()) {
+                    player.standingPlatform = null;
+                    this.audio.playDeath();
+                    this.particles.emitPlayerExplosion(player.x + player.width * 0.5, player.y + player.height * 0.5, player.primaryColor, p.color);
+                    if (onPlayerDeath)
+                        onPlayerDeath();
+                    return true;
+                }
+                else {
+                    this.particles.emitLaserSparks(checkX, checkY, 4, p.color);
+                }
             }
         }
         return false;

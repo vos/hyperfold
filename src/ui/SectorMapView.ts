@@ -1,12 +1,14 @@
 import { LevelMap } from '../world/LevelMap';
 import { ScreenData, TileType, getSpikeDirection, ROWS, COLS, getGateColor, ExitDirection, ExitGateConfig, getExitGate } from '../world/ScreenData';
 import { Player } from '../entities/Player';
+import { DevManager } from '../engine/DevManager';
 
 export interface SectorMapViewOptions {
   levelMap: LevelMap;
   currentCoords: { x: number; y: number };
   player: Player;
   onClose?: () => void;
+  onWarpToSector?: (coords: { x: number; y: number }) => void;
 }
 
 export interface GateCorridorBadge {
@@ -37,6 +39,9 @@ export class SectorMapView {
   private currentCoords: { x: number; y: number };
   private player: Player;
   private onCloseCallback?: () => void;
+  private onWarpToSectorCallback?: (coords: { x: number; y: number }) => void;
+  private pointerDownClientX: number = 0;
+  private pointerDownClientY: number = 0;
 
   // Transform state (Pan & Zoom)
   private scale: number = 1.0;
@@ -97,6 +102,7 @@ export class SectorMapView {
     this.currentCoords = { ...options.currentCoords };
     this.player = options.player;
     this.onCloseCallback = options.onClose;
+    this.onWarpToSectorCallback = options.onWarpToSector;
 
     this.bindDOM();
     this.setupListeners();
@@ -411,6 +417,8 @@ export class SectorMapView {
   private handlePointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
     this.isDragging = true;
+    this.pointerDownClientX = e.clientX;
+    this.pointerDownClientY = e.clientY;
     this.dragStartX = e.clientX - this.panX;
     this.dragStartY = e.clientY - this.panY;
     this.canvas?.setPointerCapture(e.pointerId);
@@ -447,6 +455,18 @@ export class SectorMapView {
       }
       if (this.canvas) {
         this.canvas.style.cursor = this.hoveredSector ? 'pointer' : 'grab';
+      }
+
+      // Check for click (minimal drag distance)
+      const clickDist = Math.hypot(e.clientX - this.pointerDownClientX, e.clientY - this.pointerDownClientY);
+      if (clickDist < 6 && this.hoveredSector && this.onWarpToSectorCallback) {
+        const dev = DevManager.getInstance();
+        if (dev.enabled) {
+          const target = { x: this.hoveredSector.x, y: this.hoveredSector.y };
+          this.close();
+          this.onWarpToSectorCallback(target);
+          return;
+        }
       }
     }
   };
@@ -736,6 +756,14 @@ export class SectorMapView {
         <div class="tip-title" style="color: #ffaa00;">ENCRYPTED MANIFOLD</div>
         <div class="tip-sub">Topological distortion detected. Cross sector portal to synchronize coordinate matrix and decrypt local room layout.</div>
         ${gateNotice}
+      `;
+    }
+
+    if (DevManager.getInstance().enabled) {
+      this.tooltipEl.innerHTML += `
+        <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(0, 255, 255, 0.25); font-size: 10px; color: #00ffff; font-weight: bold; text-align: center; letter-spacing: 1px;">
+          ⚡ CLICK TO WARP [DEV]
+        </div>
       `;
     }
 

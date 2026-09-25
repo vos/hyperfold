@@ -6,21 +6,97 @@ class LevelMap {
     rooms = new Map();
     collectedItemIds = new Set();
     visitedCoordinates = new Set();
+    mapChangeListeners = [];
     static coordKey(x, y) {
         return `${x},${y}`;
     }
+    onMapChanged(listener) {
+        this.mapChangeListeners.push(listener);
+        return () => {
+            this.mapChangeListeners = this.mapChangeListeners.filter(l => l !== listener);
+        };
+    }
+    notifyMapChanged() {
+        for (const listener of this.mapChangeListeners) {
+            try {
+                listener();
+            } catch (e) {
+                console.error('Error in mapChangeListener:', e);
+            }
+        }
+    }
     addRoom(room) {
         const key = LevelMap.coordKey(room.coords.x, room.coords.y);
+        const wasPresent = this.rooms.has(key);
         this.rooms.set(key, room);
+        if (!wasPresent) {
+            this.notifyMapChanged();
+        }
     }
-    getRoom(x, y) {
+    getRoom(x, y, _forceGenerate) {
         return this.rooms.get(LevelMap.coordKey(x, y));
     }
     hasRoom(x, y) {
         return this.rooms.has(LevelMap.coordKey(x, y));
     }
     markVisited(x, y) {
-        this.visitedCoordinates.add(LevelMap.coordKey(x, y));
+        const key = LevelMap.coordKey(x, y);
+        const wasPresent = this.visitedCoordinates.has(key);
+        this.visitedCoordinates.add(key);
+        if (!wasPresent) {
+            this.notifyMapChanged();
+        }
+    }
+    markAllVisited() {
+        let changed = false;
+        for (const room of this.rooms.values()) {
+            const key = LevelMap.coordKey(room.coords.x, room.coords.y);
+            if (!this.visitedCoordinates.has(key)) {
+                this.visitedCoordinates.add(key);
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.notifyMapChanged();
+        }
+    }
+    resetRoomCollectibles(room) {
+        if (room.collectibles) {
+            for (const col of room.collectibles) {
+                this.collectedItemIds.delete(col.id);
+            }
+        }
+    }
+    collectAllInRoom(room) {
+        if (room.collectibles) {
+            for (const col of room.collectibles) {
+                this.collectItem(col.id);
+            }
+        }
+    }
+    collectAllKeys() {
+        for (const room of this.rooms.values()) {
+            for (const col of room.collectibles) {
+                if (col.type === 'key') {
+                    this.collectItem(col.id);
+                }
+            }
+            for (const dir of ['left', 'right', 'up', 'down']) {
+                const gate = (0, ScreenData_1.getExitGate)(room, dir);
+                if (gate) {
+                    this.collectItem(gate.id);
+                }
+            }
+        }
+    }
+    collectAllPrisms() {
+        for (const room of this.rooms.values()) {
+            for (const col of room.collectibles) {
+                if (col.type === 'prism' || col.type === 'core') {
+                    this.collectItem(col.id);
+                }
+            }
+        }
     }
     isVisited(x, y) {
         return this.visitedCoordinates.has(LevelMap.coordKey(x, y));

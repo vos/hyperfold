@@ -63,6 +63,28 @@ export class ProceduralLevelMap extends LevelMap {
   }
 
   /**
+   * Marks all currently generated rooms visited, and discovers/generates
+   * the adjacent frontier rooms connected via open exits.
+   */
+  public override markAllVisited(): void {
+    super.markAllVisited();
+
+    const visitedKeys = Array.from(this.getVisitedCoordinates());
+    for (const key of visitedKeys) {
+      const [x, y] = key.split(',').map(Number);
+      const room = this.getRoom(x, y);
+      if (!room || !room.exits) continue;
+
+      if (room.exits.left) this.getRoom(x - 1, y);
+      if (room.exits.right) this.getRoom(x + 1, y);
+      if (room.exits.up) this.getRoom(x, y + 1);
+      if (room.exits.down) this.getRoom(x, y - 1);
+    }
+
+    this.notifyMapChanged();
+  }
+
+  /**
    * Retrieves room at (x, y).
    * If already generated, returns the cached room.
    * If not generated, checks if any adjacent room connects to (x, y).

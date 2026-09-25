@@ -60,6 +60,24 @@ class ProceduralLevelMap extends LevelMap_1.LevelMap {
     }
   }
 
+  markAllVisited() {
+    super.markAllVisited();
+
+    const visitedKeys = Array.from(this.getVisitedCoordinates());
+    for (const key of visitedKeys) {
+      const [x, y] = key.split(',').map(Number);
+      const room = this.getRoom(x, y);
+      if (!room || !room.exits) continue;
+
+      if (room.exits.left) this.getRoom(x - 1, y);
+      if (room.exits.right) this.getRoom(x + 1, y);
+      if (room.exits.up) this.getRoom(x, y + 1);
+      if (room.exits.down) this.getRoom(x, y - 1);
+    }
+
+    this.notifyMapChanged();
+  }
+
   getRoom(x, y, forceGenerate = false) {
     const existing = super.getRoom(x, y);
     if (existing) {

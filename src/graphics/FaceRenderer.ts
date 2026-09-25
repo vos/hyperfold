@@ -17,6 +17,7 @@ import { LevelMap } from '../world/LevelMap';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { LaserBarrier } from '../entities/LaserBarrier';
 import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
+import { DevManager } from '../engine/DevManager';
 
 export class FaceRenderer {
   public canvas: HTMLCanvasElement;
@@ -218,6 +219,274 @@ export class FaceRenderer {
       player.primaryColor = primary;
       player.render(ctx, particles);
     }
+
+    // 7. Developer Debug Overlay (Hitboxes, Grid, Dev Status)
+    this.drawDebugOverlay(ctx, room, player, projectiles, turrets);
+  }
+
+  private drawDebugOverlay(
+    ctx: CanvasRenderingContext2D,
+    room: ScreenData,
+    player?: Player,
+    projectiles?: LaserProjectile[],
+    turrets?: LaserTurret[]
+  ): void {
+    const dev = DevManager.getInstance();
+    if (!dev.enabled) return;
+
+    ctx.save();
+
+    // 1. Tile Grid & Tile Type Badges
+    if (dev.showTileGrid) {
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      for (let r = 0; r < room.tiles.length; r++) {
+        for (let c = 0; c < room.tiles[r].length; c++) {
+          const x = c * TILE_SIZE;
+          const y = r * TILE_SIZE;
+          ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+
+          const tile = room.tiles[r][c];
+          if (tile !== TileType.EMPTY) {
+            let label = '';
+            let color = '#ffffff';
+            switch (tile) {
+              case TileType.SOLID: label = 'SOL'; color = '#00f0ff'; break;
+              case TileType.ONE_WAY: label = 'ONE'; color = '#ffe600'; break;
+              case TileType.SPIKE: label = 'SPK'; color = '#ff0055'; break;
+              case TileType.BOUNCE: label = 'BNC'; color = '#39ff14'; break;
+              case TileType.CRUMBLE: label = 'CRM'; color = '#ff8800'; break;
+              case TileType.GOAL: label = 'GOL'; color = '#ffff00'; break;
+            }
+            ctx.fillStyle = color;
+            ctx.fillText(label, x + 2, y + 2);
+          } else {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillText(`${c},${r}`, x + 2, y + 2);
+          }
+        }
+      }
+    }
+
+    // 2. Hitbox Visualizer
+    if (dev.showHitboxes) {
+      // 2a. Spikes forgiving hitboxes
+      for (let r = 0; r < room.tiles.length; r++) {
+        for (let c = 0; c < room.tiles[r].length; c++) {
+          if (room.tiles[r][c] === TileType.SPIKE) {
+            const dir = getSpikeDirection(room, r, c);
+            const tLeft = c * TILE_SIZE;
+            const tTop = r * TILE_SIZE;
+            let hLeft = tLeft;
+            let hRight = tLeft + TILE_SIZE;
+            let hTop = tTop;
+            let hBottom = tTop + TILE_SIZE;
+
+            if (dir === 'up') {
+              hLeft += 4; hRight -= 4; hTop += 10;
+            } else if (dir === 'down') {
+              hLeft += 4; hRight -= 4; hBottom -= 10;
+            } else if (dir === 'right') {
+              hTop += 4; hBottom -= 4; hRight -= 10;
+            } else if (dir === 'left') {
+              hTop += 4; hBottom -= 4; hLeft += 10;
+            }
+            ctx.strokeStyle = '#ff0055';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(hLeft, hTop, hRight - hLeft, hBottom - hTop);
+          }
+        }
+      }
+
+      // 2b. Moving Platforms hitboxes
+      if (room.movingPlatforms) {
+        for (const plat of room.movingPlatforms) {
+          ctx.strokeStyle = '#ffe600';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(plat.startX, plat.startY, plat.width, plat.height ?? 16);
+          // Destination ghost
+          ctx.strokeStyle = 'rgba(255, 230, 0, 0.35)';
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(plat.endX, plat.endY, plat.width, plat.height ?? 16);
+          ctx.setLineDash([]);
+        }
+      }
+
+      // 2c. Laser Barriers hitboxes
+      if (room.laserBarriers) {
+        for (const b of room.laserBarriers) {
+          ctx.strokeStyle = '#ff00aa';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(b.startX1, b.startY1);
+          ctx.lineTo(b.startX2, b.startY2);
+          ctx.stroke();
+        }
+      }
+
+      // 2d. Projectiles hitboxes
+      if (projectiles) {
+        for (const p of projectiles) {
+          ctx.strokeStyle = '#00ffff';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(p.x - p.width * 0.5, p.y - p.height * 0.5, p.width, p.height);
+        }
+      }
+
+      // 2e. Portals hitboxes
+      if (room.portals) {
+        for (const port of room.portals) {
+          ctx.strokeStyle = '#b026ff';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(port.x, port.y, port.width ?? 44, port.height ?? 68);
+        }
+      }
+
+      // 2f. Player Hitbox
+      if (player) {
+        ctx.strokeStyle = '#39ff14';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(player.x, player.y, player.width, player.height);
+
+        // Velocity vector
+        ctx.beginPath();
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        const centerX = player.x + player.width * 0.5;
+        const centerY = player.y + player.height * 0.5;
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + player.vx * 0.1, centerY + player.vy * 0.1);
+        ctx.stroke();
+
+        // Coordinates badge above player
+        ctx.fillStyle = '#39ff14';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          `(${Math.round(player.x)}, ${Math.round(player.y)})`,
+          centerX,
+          player.y - 8
+        );
+      }
+
+      // 2g. Turret Raycast Collision & Targeting Visualizer
+      if (room.laserTurrets && room.laserTurrets.length > 0) {
+        const platforms: MovingPlatform[] = [];
+        if (room.movingPlatforms) {
+          for (const cfg of room.movingPlatforms) {
+            platforms.push(new MovingPlatform(cfg, this.time));
+          }
+        }
+
+        const playerTarget = player ? { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 } : null;
+
+        for (const config of room.laserTurrets) {
+          const activeTurret = turrets?.find((t) => t.config.id === config.id);
+          const turret = activeTurret || this.getTurret(config);
+          const nozzle = turret.getNozzlePosition(playerTarget);
+          const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, room.tiles, platforms);
+          const intersectsPlayer = player
+            ? LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, player)
+            : false;
+
+          // Turret chassis mount bounding box (20x20)
+          ctx.save();
+          ctx.strokeStyle = '#ff9900';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+          ctx.strokeRect(config.x - 10, config.y - 10, 20, 20);
+
+          // Turret ID badge
+          ctx.fillStyle = '#ff9900';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(`TURRET [${config.id}]`, config.x, config.y - 12);
+
+          // Auto-target detection range circle
+          if (config.autoTarget && config.targetRange) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 153, 0, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(config.x, config.y, config.targetRange, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Raycast trajectory line from nozzle to obstacle hit point
+          ctx.strokeStyle = intersectsPlayer ? '#ff0055' : 'rgba(0, 240, 255, 0.85)';
+          ctx.lineWidth = intersectsPlayer ? 2.5 : 1.5;
+          ctx.setLineDash(intersectsPlayer ? [6, 3] : [4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(nozzle.x, nozzle.y);
+          ctx.lineTo(ray.hitX, ray.hitY);
+          ctx.stroke();
+
+          // Nozzle emission point
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(nozzle.x, nozzle.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Collision hit point crosshair indicator
+          ctx.strokeStyle = intersectsPlayer ? '#ff0055' : '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.arc(ray.hitX, ray.hitY, 4, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Collision surface normal vector (arrow)
+          if (ray.normalX !== 0 || ray.normalY !== 0) {
+            const arrowLen = 14;
+            const normEndX = ray.hitX + ray.normalX * arrowLen;
+            const normEndY = ray.hitY + ray.normalY * arrowLen;
+            ctx.strokeStyle = '#ffe600';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(ray.hitX, ray.hitY);
+            ctx.lineTo(normEndX, normEndY);
+            ctx.stroke();
+
+            // Arrowhead
+            const headAngle = Math.atan2(ray.normalY, ray.normalX);
+            ctx.fillStyle = '#ffe600';
+            ctx.beginPath();
+            ctx.moveTo(normEndX, normEndY);
+            ctx.lineTo(
+              normEndX - 5 * Math.cos(headAngle - Math.PI / 6),
+              normEndY - 5 * Math.sin(headAngle - Math.PI / 6)
+            );
+            ctx.lineTo(
+              normEndX - 5 * Math.cos(headAngle + Math.PI / 6),
+              normEndY - 5 * Math.sin(headAngle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Hit info badge
+          ctx.fillStyle = intersectsPlayer ? '#ff0055' : '#00f0ff';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          const hitLabel = intersectsPlayer
+            ? 'HIT: PLAYER ⚠'
+            : `${ray.hitType.toUpperCase()} (${Math.round(ray.distance)}px)`;
+          ctx.fillText(hitLabel, ray.hitX + 6, ray.hitY - 4);
+
+          ctx.restore();
+        }
+      }
+    }
+
+    ctx.restore();
   }
 
   private drawSolidTile(ctx: CanvasRenderingContext2D, x: number, y: number, primary: string, _accent: string): void {
@@ -998,8 +1267,22 @@ export class FaceRenderer {
   ): void {
     if (!room.laserBarriers || room.laserBarriers.length === 0) return;
 
+    const dev = DevManager.getInstance();
+    const isFrozen = dev.enabled && dev.hazardMode === 'frozen';
+
     for (const config of room.laserBarriers) {
-      const state = LaserBarrier.computeBarrierState(config, this.time);
+      // When frozen, lock position to start (frozen in place) and state to inactive
+      const state = isFrozen
+        ? {
+            x1: config.startX1,
+            y1: config.startY1,
+            x2: config.startX2,
+            y2: config.startY2,
+            state: 'INACTIVE' as const,
+            isActive: false,
+            chargeProgress: 0,
+          }
+        : LaserBarrier.computeBarrierState(config, this.time);
       const color = config.themeColor || '#ff0055';
       const width = config.width ?? 4;
 
@@ -1009,7 +1292,7 @@ export class FaceRenderer {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
         ctx.setLineDash([3, 5]);
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = isFrozen ? 0.08 : 0.22;
         ctx.beginPath();
         ctx.moveTo(config.startX1, config.startY1);
         ctx.lineTo(config.endX1 ?? config.startX1, config.endY1 ?? config.startY1);
@@ -1019,61 +1302,63 @@ export class FaceRenderer {
         ctx.restore();
       }
 
-      // 2. Render Beam (if warning or active)
-      if (state.state === 'WARNING') {
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 6]);
-        const pulse = 0.3 + 0.5 * Math.sin(this.time * 24);
-        ctx.globalAlpha = Math.max(0.1, pulse * state.chargeProgress);
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 8 * state.chargeProgress;
+      // 2. Render Beam (only when NOT frozen)
+      if (!isFrozen) {
+        if (state.state === 'WARNING') {
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 6]);
+          const pulse = 0.3 + 0.5 * Math.sin(this.time * 24);
+          ctx.globalAlpha = Math.max(0.1, pulse * state.chargeProgress);
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8 * state.chargeProgress;
 
-        ctx.beginPath();
-        ctx.moveTo(state.x1, state.y1);
-        ctx.lineTo(state.x2, state.y2);
-        ctx.stroke();
-        ctx.restore();
-      } else if (state.state === 'ACTIVE') {
-        ctx.save();
-        const jitter = Math.sin(this.time * 50 + state.x1) * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(state.x1, state.y1);
+          ctx.lineTo(state.x2, state.y2);
+          ctx.stroke();
+          ctx.restore();
+        } else if (state.state === 'ACTIVE') {
+          ctx.save();
+          const jitter = Math.sin(this.time * 50 + state.x1) * 0.6;
 
-        // Outer glow
-        ctx.strokeStyle = color;
-        ctx.lineWidth = width + 8 + Math.abs(jitter);
-        ctx.globalAlpha = 0.3;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 14;
-        ctx.beginPath();
-        ctx.moveTo(state.x1, state.y1);
-        ctx.lineTo(state.x2, state.y2);
-        ctx.stroke();
+          // Outer glow
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width + 8 + Math.abs(jitter);
+          ctx.globalAlpha = 0.3;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.moveTo(state.x1, state.y1);
+          ctx.lineTo(state.x2, state.y2);
+          ctx.stroke();
 
-        // Mid core beam
-        ctx.lineWidth = width + 2;
-        ctx.globalAlpha = 0.85;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.moveTo(state.x1, state.y1);
-        ctx.lineTo(state.x2, state.y2);
-        ctx.stroke();
+          // Mid core beam
+          ctx.lineWidth = width + 2;
+          ctx.globalAlpha = 0.85;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.moveTo(state.x1, state.y1);
+          ctx.lineTo(state.x2, state.y2);
+          ctx.stroke();
 
-        // Inner white-hot plasma filament
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = Math.max(1.5, width * 0.4);
-        ctx.globalAlpha = 0.95;
-        ctx.shadowBlur = 2;
-        ctx.beginPath();
-        ctx.moveTo(state.x1, state.y1);
-        ctx.lineTo(state.x2, state.y2);
-        ctx.stroke();
-        ctx.restore();
+          // Inner white-hot plasma filament
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = Math.max(1.5, width * 0.4);
+          ctx.globalAlpha = 0.95;
+          ctx.shadowBlur = 2;
+          ctx.beginPath();
+          ctx.moveTo(state.x1, state.y1);
+          ctx.lineTo(state.x2, state.y2);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       // 3. Render Emitter Pylons at both ends
-      this.drawPylon(ctx, state.x1, state.y1, color, state.state, state.chargeProgress);
-      this.drawPylon(ctx, state.x2, state.y2, color, state.state, state.chargeProgress);
+      this.drawPylon(ctx, state.x1, state.y1, color, state.state, state.chargeProgress, isFrozen);
+      this.drawPylon(ctx, state.x2, state.y2, color, state.state, state.chargeProgress, isFrozen);
     }
   }
 
@@ -1083,12 +1368,13 @@ export class FaceRenderer {
     y: number,
     color: string,
     state: 'INACTIVE' | 'WARNING' | 'ACTIVE',
-    chargeProgress: number
+    chargeProgress: number,
+    isFrozen: boolean = false
   ): void {
     ctx.save();
     // Pylon metallic base
-    ctx.fillStyle = '#080e1a';
-    ctx.strokeStyle = '#334155';
+    ctx.fillStyle = isFrozen ? '#050810' : '#080e1a';
+    ctx.strokeStyle = isFrozen ? '#1e293b' : '#334155';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(x, y, 7, 0, Math.PI * 2);
@@ -1096,7 +1382,7 @@ export class FaceRenderer {
     ctx.stroke();
 
     // Center emitter diode
-    if (state === 'ACTIVE') {
+    if (!isFrozen && state === 'ACTIVE') {
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = color;
       ctx.shadowBlur = 12;
@@ -1107,7 +1393,7 @@ export class FaceRenderer {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.stroke();
-    } else if (state === 'WARNING') {
+    } else if (!isFrozen && state === 'WARNING') {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 20);
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.4 + 0.6 * pulse * chargeProgress;
@@ -1117,7 +1403,7 @@ export class FaceRenderer {
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      ctx.fillStyle = '#1e293b';
+      ctx.fillStyle = isFrozen ? '#0f172a' : '#1e293b';
       ctx.beginPath();
       ctx.arc(x, y, 2.5, 0, Math.PI * 2);
       ctx.fill();
@@ -1133,6 +1419,9 @@ export class FaceRenderer {
     player?: Player,
     turrets?: LaserTurret[]
   ): void {
+    const dev = DevManager.getInstance();
+    const isFrozen = dev.enabled && dev.hazardMode === 'frozen';
+
     // 1. Render Turrets
     if (room.laserTurrets && room.laserTurrets.length > 0) {
       // Pre-compute moving platforms for raycast collision
@@ -1143,7 +1432,7 @@ export class FaceRenderer {
         }
       }
 
-      const playerTarget = (player && player.isAlive)
+      const playerTarget = (!isFrozen && player && player.isAlive)
         ? { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 }
         : null;
 
@@ -1153,13 +1442,15 @@ export class FaceRenderer {
         const { x, y } = config;
         const activeTurret = turrets?.find((t) => t.config.id === config.id);
         const turret = activeTurret || this.getTurret(config);
-        if (!activeTurret && mode === 'beam') {
+        if (!activeTurret && mode === 'beam' && !isFrozen) {
           turret.updateBeam(this.time, playerTarget);
         }
-        const nozzle = turret.getNozzlePosition(playerTarget);
+        const nozzle = isFrozen
+          ? turret.getNozzlePosition(null)
+          : turret.getNozzlePosition(playerTarget);
 
-        // A. If beam mode, render dynamic beam
-        if (mode === 'beam') {
+        // A. If beam mode, render dynamic beam ONLY when NOT frozen
+        if (mode === 'beam' && !isFrozen) {
           const beam = turret.getBeamState(this.time);
           const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, room.tiles, platforms);
 
@@ -1233,8 +1524,8 @@ export class FaceRenderer {
         ctx.translate(x, y);
         ctx.rotate(nozzle.angle);
 
-        ctx.fillStyle = '#0a101d';
-        ctx.strokeStyle = '#334155';
+        ctx.fillStyle = isFrozen ? '#060a12' : '#0a101d';
+        ctx.strokeStyle = isFrozen ? '#1e293b' : '#334155';
         ctx.lineWidth = 2;
 
         // Base chassis
@@ -1244,7 +1535,7 @@ export class FaceRenderer {
         ctx.stroke();
 
         // Cannon barrel nozzle along local +X
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = isFrozen ? '#334155' : color;
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(0, 0);
@@ -1252,30 +1543,37 @@ export class FaceRenderer {
         ctx.stroke();
 
         // Status lens / LED
-        const lensColor = mode === 'beam'
-          ? (turret.isBeamActive ? color : '#39ff14')
-          : (config.autoTarget ? '#39ff14' : color);
-        ctx.fillStyle = lensColor;
-        ctx.shadowColor = lensColor;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Optional targeting reticle ring for auto-targeting turrets
-        if (config.autoTarget) {
-          ctx.strokeStyle = '#39ff14';
-          ctx.lineWidth = 1;
+        if (isFrozen) {
+          ctx.fillStyle = '#1e293b';
           ctx.beginPath();
-          ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          const lensColor = mode === 'beam'
+            ? (turret.isBeamActive ? color : '#39ff14')
+            : (config.autoTarget ? '#39ff14' : color);
+          ctx.fillStyle = lensColor;
+          ctx.shadowColor = lensColor;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Optional targeting reticle ring for auto-targeting turrets
+          if (config.autoTarget) {
+            ctx.strokeStyle = '#39ff14';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
         }
         ctx.restore();
       }
     }
 
-    // 2. Render In-Flight Projectiles (Oriented to Flight Angle)
-    if (projectiles && projectiles.length > 0) {
+    // 2. Render In-Flight Projectiles (Oriented to Flight Angle) - Suppressed when frozen
+    if (!isFrozen && projectiles && projectiles.length > 0) {
       ctx.save();
       for (const p of projectiles) {
         ctx.save();

@@ -4,17 +4,39 @@ export class LevelMap {
   private rooms: Map<string, ScreenData> = new Map();
   private collectedItemIds: Set<string> = new Set();
   private visitedCoordinates: Set<string> = new Set();
+  private mapChangeListeners: Array<() => void> = [];
 
   public static coordKey(x: number, y: number): string {
     return `${x},${y}`;
   }
 
-  public addRoom(room: ScreenData): void {
-    const key = LevelMap.coordKey(room.coords.x, room.coords.y);
-    this.rooms.set(key, room);
+  public onMapChanged(listener: () => void): () => void {
+    this.mapChangeListeners.push(listener);
+    return () => {
+      this.mapChangeListeners = this.mapChangeListeners.filter(l => l !== listener);
+    };
   }
 
-  public getRoom(x: number, y: number): ScreenData | undefined {
+  public notifyMapChanged(): void {
+    for (const listener of this.mapChangeListeners) {
+      try {
+        listener();
+      } catch (e) {
+        console.error('Error in mapChangeListener:', e);
+      }
+    }
+  }
+
+  public addRoom(room: ScreenData): void {
+    const key = LevelMap.coordKey(room.coords.x, room.coords.y);
+    const wasPresent = this.rooms.has(key);
+    this.rooms.set(key, room);
+    if (!wasPresent) {
+      this.notifyMapChanged();
+    }
+  }
+
+  public getRoom(x: number, y: number, _forceGenerate?: boolean): ScreenData | undefined {
     return this.rooms.get(LevelMap.coordKey(x, y));
   }
 
@@ -23,7 +45,68 @@ export class LevelMap {
   }
 
   public markVisited(x: number, y: number): void {
-    this.visitedCoordinates.add(LevelMap.coordKey(x, y));
+    const key = LevelMap.coordKey(x, y);
+    const wasPresent = this.visitedCoordinates.has(key);
+    this.visitedCoordinates.add(key);
+    if (!wasPresent) {
+      this.notifyMapChanged();
+    }
+  }
+
+  public markAllVisited(): void {
+    let changed = false;
+    for (const room of this.rooms.values()) {
+      const key = LevelMap.coordKey(room.coords.x, room.coords.y);
+      if (!this.visitedCoordinates.has(key)) {
+        this.visitedCoordinates.add(key);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.notifyMapChanged();
+    }
+  }
+
+  public resetRoomCollectibles(room: ScreenData): void {
+    if (room.collectibles) {
+      for (const col of room.collectibles) {
+        this.collectedItemIds.delete(col.id);
+      }
+    }
+  }
+
+  public collectAllInRoom(room: ScreenData): void {
+    if (room.collectibles) {
+      for (const col of room.collectibles) {
+        this.collectItem(col.id);
+      }
+    }
+  }
+
+  public collectAllKeys(): void {
+    for (const room of this.rooms.values()) {
+      for (const col of room.collectibles) {
+        if (col.type === 'key') {
+          this.collectItem(col.id);
+        }
+      }
+      for (const dir of ['left', 'right', 'up', 'down'] as ExitDirection[]) {
+        const gate = getExitGate(room, dir);
+        if (gate) {
+          this.collectItem(gate.id);
+        }
+      }
+    }
+  }
+
+  public collectAllPrisms(): void {
+    for (const room of this.rooms.values()) {
+      for (const col of room.collectibles) {
+        if (col.type === 'prism' || col.type === 'core') {
+          this.collectItem(col.id);
+        }
+      }
+    }
   }
 
   public isVisited(x: number, y: number): boolean {
