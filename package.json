@@ -22,7 +22,8 @@
     "editor": "npm --prefix editor run dev",
     "editor:build": "npm --prefix editor run build",
     "editor:preview": "npm --prefix editor run preview",
-    "editor:start": "npm --prefix editor run start"
+    "editor:start": "npm --prefix editor run start",
+    "build:all": "npm run build && npm run editor:build && node scripts/copy-editor.mjs"
   },
   "dependencies": {
     "three": "^0.186.0"

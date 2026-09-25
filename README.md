@@ -2,6 +2,12 @@
 
 > Traverse infinite sectors folded across the faces of a rotating 3D hypercube.
 
+[![Play Game](https://img.shields.io/badge/🎮%20Play%20Game-GitHub%20Pages-00ffff?style=for-the-badge)](https://vos.github.io/hyperfold/)
+[![World Editor](https://img.shields.io/badge/🛠️%20World%20Editor-Online%20App-ff8800?style=for-the-badge)](https://vos.github.io/hyperfold/editor/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+**Play online:** [🎮 Launch Hyperfold Game](https://vos.github.io/hyperfold/) &bull; [🛠️ Launch World Editor](https://vos.github.io/hyperfold/editor/)
+
 The game combines classic 2D jump & run platforming mechanics with a pseudo-3D cube world that tumbles 90° whenever the player crosses any of the four screen edges. While physically appearing as a 3D cube tumbling in deep space, topologically the game world is an **infinite non-Euclidean manifold** featuring fixed, hand-crafted screens that never loop in circles (unless specifically designed) and always preserve round-trip navigation.
 
 ![Hyperfold Gameplay](./screenshot.jpg)
@@ -104,7 +110,7 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ## 🛠️ Hyperfold World Editor
 
-Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory.
+Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory. You can design levels directly in your browser using the online editor at **[vos.github.io/hyperfold/editor/](https://vos.github.io/hyperfold/editor/)** or run it locally.
 
 ### Key Editor Features
 * **Sector World Graph View**:
@@ -208,7 +214,21 @@ npm run editor:build
 # Preview the World Editor production build
 npm run editor:preview
 ```
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5174` in your browser.
+
+### Unified Build & Deployment
+
+To build both the game and the world editor together into `dist/` (placing the editor in the `dist/editor/` subfolder, exactly matching the GitHub Pages deployment structure):
+
+```bash
+# Build both game and editor into dist/
+npm run build:all
+
+# Preview the unified build locally (game at / and editor at /editor/)
+npm run preview
+```
+
+The repository includes a [GitHub Actions Workflow](.github/workflows/deploy.yml) that automatically builds and deploys both the game (`/`) and the editor (`/editor/`) to GitHub Pages upon pushing to `main` or triggering manually via `workflow_dispatch`.
 
 > **💡 Instant Playtesting:** You can directly export and test your custom levels in the game with zero manual setup by clicking **Export ➔ Test in Game** in the editor toolbar, or by downloading the `.json` world bundle and selecting **"+ Load Custom World (.json)..."** from the game's world selection dropdown.
 

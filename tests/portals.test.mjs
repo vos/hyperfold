@@ -140,8 +140,8 @@ test('Quantum Teleportation Portals Verification', async (t) => {
 
     const destIn2 = room2Data.portals.find((p) => p.id === 'portal_zenith_core');
     assert.ok(destIn2, 'Sector (2,2) must feature portal_zenith_core');
-    assert.equal(destIn2.targetPortalId, 'portal_genesis_to_zenith');
-    assert.equal(destIn2.label, 'Genesis Return');
+    assert.equal(destIn2.label, 'No Return');
+    assert.equal(destIn2.targetPortalId, undefined, 'portal_zenith_core is a destination-only portal');
 
     // Load both rooms into LevelMap
     const map = new LevelMap();
