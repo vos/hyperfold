@@ -92,6 +92,103 @@ export function cloneRoom(source: RoomData, newCoords: [number, number]): RoomDa
 }
 
 /**
+ * Moves a sector to new coordinates or swaps positions if target slot is occupied.
+ */
+export function moveSector(
+  world: WorldData,
+  sourceRoomId: string,
+  targetCoords: [number, number]
+): WorldData {
+  const sourceRoom = world.rooms.find((r) => r.id === sourceRoomId);
+  if (!sourceRoom) return world;
+
+  const [targetX, targetY] = targetCoords;
+  const [sourceX, sourceY] = sourceRoom.coords;
+
+  if (sourceX === targetX && sourceY === targetY) {
+    return world;
+  }
+
+  const targetRoom = world.rooms.find(
+    (r) => r.coords[0] === targetX && r.coords[1] === targetY
+  );
+
+  const sourceWasStart =
+    world.startingCoords[0] === sourceX && world.startingCoords[1] === sourceY;
+  const targetWasStart =
+    targetRoom &&
+    world.startingCoords[0] === targetX &&
+    world.startingCoords[1] === targetY;
+
+  let newStartingCoords = world.startingCoords;
+  if (sourceWasStart) {
+    newStartingCoords = [targetX, targetY];
+  } else if (targetWasStart) {
+    newStartingCoords = [sourceX, sourceY];
+  }
+
+  const updatedRooms = world.rooms.map((r) => {
+    if (r.id === sourceRoom.id) {
+      return {
+        ...r,
+        coords: [targetX, targetY] as [number, number],
+      };
+    }
+    if (targetRoom && r.id === targetRoom.id) {
+      return {
+        ...r,
+        coords: [sourceX, sourceY] as [number, number],
+      };
+    }
+    return r;
+  });
+
+  return {
+    ...world,
+    startingCoords: newStartingCoords,
+    rooms: updatedRooms,
+  };
+}
+
+/**
+ * Copies a sector to target coordinates.
+ * Returns null if the target slot is already occupied.
+ */
+export function copySector(
+  world: WorldData,
+  sourceRoomId: string,
+  targetCoords: [number, number]
+): { newWorld: WorldData; newRoom: RoomData } | null {
+  const sourceRoom = world.rooms.find((r) => r.id === sourceRoomId);
+  if (!sourceRoom) return null;
+
+  const [targetX, targetY] = targetCoords;
+  const occupied = world.rooms.some(
+    (r) => r.coords[0] === targetX && r.coords[1] === targetY
+  );
+  if (occupied) return null;
+
+  const newRoom = cloneRoom(sourceRoom, targetCoords);
+
+  // Ensure unique ID
+  let uniqueId = newRoom.id;
+  let counter = 1;
+  const existingIds = new Set(world.rooms.map((r) => r.id));
+  while (existingIds.has(uniqueId)) {
+    uniqueId = `${newRoom.id}_${counter++}`;
+  }
+  newRoom.id = uniqueId;
+
+  return {
+    newWorld: {
+      ...world,
+      rooms: [...world.rooms, newRoom],
+    },
+    newRoom,
+  };
+}
+
+/**
  * Normalizes a grid to ensure exactly 20 rows of 20 characters.
  */
 export function normalizeGrid(grid: string[]): string[] {

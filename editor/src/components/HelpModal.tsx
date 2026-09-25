@@ -127,6 +127,18 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
                   </div>
                 </div>
                 <div className="flex items-center justify-between py-1 border-b border-cyber-border/20">
+                  <span className="text-slate-300">World Graph: Move Sector</span>
+                  <span className="text-cyber-cyan font-bold text-[11px]">Drag Sector</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-cyber-border/20">
+                  <span className="text-slate-300">World Graph: Copy Sector</span>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 bg-cyber-bg border border-cyber-border text-white rounded font-bold">Alt</kbd>
+                    <span>+</span>
+                    <span className="text-emerald-400 font-bold text-[11px]">Drag</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-cyber-border/20">
                   <span className="text-slate-300">Toggle Grid Overlay</span>
                   <kbd className="px-2 py-0.5 bg-cyber-bg border border-cyber-border text-white rounded font-bold">G</kbd>
                 </div>

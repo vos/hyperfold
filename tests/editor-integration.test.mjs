@@ -9,7 +9,7 @@ const { WorldRegistry } = require('./dist-world/world/WorldRegistry.js');
 const { LevelLoader } = require('./dist-world/world/LevelLoader.js');
 
 // Import editor serialization functions (ESM)
-import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom, sanitizeLaserTurret } from '../editor/src/utils/serialization.ts';
+import { createEmptyWorld, parseWorldJson, exportWorldJson, cloneRoom, sanitizeLaserTurret, moveSector, copySector } from '../editor/src/utils/serialization.ts';
 import { validateWorld } from '../editor/src/utils/validator.ts';
 import { PRESET_WORLDS } from '../editor/src/utils/presets.ts';
 import { getAdjacentSectors, getAdjacentCoords, getOppositeDirection } from '../editor/src/utils/navigation.ts';
@@ -786,6 +786,105 @@ test('Editor & Game Engine Integration Verification', async (t) => {
 
     const statusGateOpen = getOppositeTileStatus(roomA, 'up', 8);
     assert.equal(statusGateOpen.isBlocked, false);
+  });
+
+  await t.test('moveSector moves a sector to empty coordinates and updates startingCoords if it was starting room', () => {
+    const world = createEmptyWorld();
+    assert.deepEqual(world.startingCoords, [0, 0]);
+    assert.equal(world.rooms[0].coords[0], 0);
+    assert.equal(world.rooms[0].coords[1], 0);
+
+    const moved = moveSector(world, world.rooms[0].id, [3, 4]);
+    assert.equal(moved.rooms.length, 1);
+    assert.deepEqual(moved.rooms[0].coords, [3, 4]);
+    assert.deepEqual(moved.startingCoords, [3, 4], 'startingCoords must follow starting room to [3, 4]');
+    // Original world remains unmutated
+    assert.deepEqual(world.rooms[0].coords, [0, 0]);
+  });
+
+  await t.test('moveSector swaps positions of two sectors when one is dropped onto another', () => {
+    const world = createEmptyWorld();
+    const roomA = world.rooms[0]; // [0, 0] (starting room)
+    const roomB = cloneRoom(roomA, [2, 1]);
+    roomB.title = 'Sector Beta';
+    world.rooms.push(roomB);
+
+    assert.deepEqual(world.startingCoords, [0, 0]);
+
+    // Drag roomA onto roomB's coordinates [2, 1]
+    const swapped = moveSector(world, roomA.id, [2, 1]);
+    assert.equal(swapped.rooms.length, 2);
+
+    const swappedA = swapped.rooms.find((r) => r.id === roomA.id);
+    const swappedB = swapped.rooms.find((r) => r.id === roomB.id);
+
+    assert.ok(swappedA && swappedB);
+    assert.deepEqual(swappedA.coords, [2, 1], 'Room A should have taken Room B coords');
+    assert.deepEqual(swappedB.coords, [0, 0], 'Room B should have taken Room A coords');
+    assert.deepEqual(swapped.startingCoords, [2, 1], 'startingCoords should follow Room A to [2, 1]');
+  });
+
+  await t.test('moveSector returns identical world when dropped on identical coordinates (no-op)', () => {
+    const world = createEmptyWorld();
+    const unchanged = moveSector(world, world.rooms[0].id, [0, 0]);
+    assert.equal(unchanged, world);
+  });
+
+  await t.test('copySector clones sector to new coordinates with distinct ID and preserves original sector', () => {
+    const world = createEmptyWorld();
+    const sourceRoom = world.rooms[0];
+    sourceRoom.title = 'Genesis Sector';
+
+    const result = copySector(world, sourceRoom.id, [1, 2]);
+    assert.ok(result);
+    const { newWorld, newRoom } = result;
+
+    assert.equal(newWorld.rooms.length, 2);
+    assert.equal(newRoom.coords[0], 1);
+    assert.equal(newRoom.coords[1], 2);
+    assert.notEqual(newRoom.id, sourceRoom.id);
+    assert.equal(newRoom.title, 'Genesis Sector (Copy)');
+
+    // Ensure source room in newWorld still exists at [0, 0]
+    const originalInNewWorld = newWorld.rooms.find((r) => r.id === sourceRoom.id);
+    assert.ok(originalInNewWorld);
+    assert.deepEqual(originalInNewWorld.coords, [0, 0]);
+  });
+
+  await t.test('copySector returns null when attempting to copy onto an already occupied slot', () => {
+    const world = createEmptyWorld();
+    const roomA = world.rooms[0]; // [0, 0]
+    const roomB = cloneRoom(roomA, [1, 0]);
+    world.rooms.push(roomB);
+
+    // Attempt to copy roomA onto roomB's coordinate [1, 0]
+    const result = copySector(world, roomA.id, [1, 0]);
+    assert.equal(result, null, 'copySector should reject copying onto occupied slot');
+  });
+
+  await t.test('World validator and LevelLoader cleanly parse and validate worlds modified by moveSector and copySector', () => {
+    let world = createEmptyWorld();
+    // Copy sector 0 to [1, 0]
+    const copyResult = copySector(world, world.rooms[0].id, [1, 0]);
+    assert.ok(copyResult);
+    world = copyResult.newWorld;
+
+    // Move sector [1, 0] to [2, 0]
+    world = moveSector(world, copyResult.newRoom.id, [2, 0]);
+
+    // Validate with editor validator
+    const issues = validateWorld(world);
+    const errors = issues.filter((i) => i.severity === 'error');
+    assert.equal(errors.length, 0, `Expected 0 validation errors, got: ${JSON.stringify(errors)}`);
+
+    // Export to JSON string and load with game engine LevelLoader
+    const exportedJson = exportWorldJson(world);
+    const { map, startingCoords } = WorldRegistry.loadWorldFromJsonString(exportedJson);
+    assert.equal(map.getAllRooms().length, 2);
+    assert.ok(map.getRoom(0, 0));
+    assert.ok(map.getRoom(2, 0));
+    assert.equal(map.getRoom(1, 0), undefined);
+    assert.deepEqual(startingCoords, { x: 0, y: 0 });
   });
 });
 
