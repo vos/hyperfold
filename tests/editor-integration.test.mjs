@@ -679,5 +679,113 @@ test('Editor & Game Engine Integration Verification', async (t) => {
     assert.equal(engineRoom.laserBarriers[0].alwaysActive, true);
     assert.equal(engineRoom.laserBarriers[0].inactiveDuration, 0);
   });
+
+  await t.test('Opposite-side doorway blocked status correctly detects void, closed exits, and solid walls', () => {
+    const world = createEmptyWorld();
+    const roomA = world.rooms[0]; // [0, 0]
+    roomA.exits = { right: true, up: false, down: false, left: false };
+
+    // Helper implementing the same logic as GridCanvas getOppositeTileStatus
+    const getOppositeTileStatus = (currentRoom, dir, index) => {
+      const [rx, ry] = currentRoom.coords;
+      let targetCoords;
+      let oppDir;
+      let oppR;
+      let oppC;
+
+      if (dir === 'left') {
+        targetCoords = [rx - 1, ry];
+        oppDir = 'right';
+        oppR = index;
+        oppC = 19;
+      } else if (dir === 'right') {
+        targetCoords = [rx + 1, ry];
+        oppDir = 'left';
+        oppR = index;
+        oppC = 0;
+      } else if (dir === 'up') {
+        targetCoords = [rx, ry + 1];
+        oppDir = 'down';
+        oppR = 19;
+        oppC = index;
+      } else {
+        targetCoords = [rx, ry - 1];
+        oppDir = 'up';
+        oppR = 0;
+        oppC = index;
+      }
+
+      const neighbor = world.rooms.find(
+        (r) => r.coords[0] === targetCoords[0] && r.coords[1] === targetCoords[1]
+      );
+
+      if (!neighbor) {
+        return { isBlocked: true, reason: 'no_room' };
+      }
+      if (!neighbor.exits?.[oppDir]) {
+        return { isBlocked: true, reason: 'no_exit' };
+      }
+      const neighborGlyph = neighbor.grid[oppR]?.[oppC] || ' ';
+      if (neighborGlyph !== ' ') {
+        return { isBlocked: true, reason: 'wall' };
+      }
+      return { isBlocked: false };
+    };
+
+    // 1. Target room [1, 0] does not exist yet -> reason: 'no_room'
+    const statusNoRoom = getOppositeTileStatus(roomA, 'right', 10);
+    assert.equal(statusNoRoom.isBlocked, true);
+    assert.equal(statusNoRoom.reason, 'no_room');
+
+    // 2. Create room B at [1, 0], but leave left exit closed -> reason: 'no_exit'
+    const roomB = {
+      ...JSON.parse(JSON.stringify(roomA)),
+      id: 'room_1_0',
+      coords: [1, 0],
+      title: 'Sector East',
+      exits: { left: false, right: false, up: false, down: false },
+    };
+    world.rooms.push(roomB);
+
+    const statusNoExit = getOppositeTileStatus(roomA, 'right', 10);
+    assert.equal(statusNoExit.isBlocked, true);
+    assert.equal(statusNoExit.reason, 'no_exit');
+
+    // 3. Open left exit in Room B, with row 5 open (' ') and row 10 blocked ('#')
+    roomB.exits.left = true;
+    const row5Chars = roomB.grid[5].split('');
+    row5Chars[0] = ' ';
+    roomB.grid[5] = row5Chars.join('');
+
+    const row10Chars = roomB.grid[10].split('');
+    row10Chars[0] = '#';
+    roomB.grid[10] = row10Chars.join('');
+
+    const statusWall = getOppositeTileStatus(roomA, 'right', 10);
+    assert.equal(statusWall.isBlocked, true);
+    assert.equal(statusWall.reason, 'wall');
+
+    // Row 5 in room B is empty space (' ') -> should be passable (isBlocked: false)
+    const statusOpen = getOppositeTileStatus(roomA, 'right', 5);
+    assert.equal(statusOpen.isBlocked, false);
+
+    // 4. Locked gate on both sides with open air -> passable (isBlocked: false)
+    roomA.exits.up = { id: 'key_gate_1', label: 'Security Gate', color: '#ff00aa' };
+    const roomC = {
+      ...JSON.parse(JSON.stringify(roomA)),
+      id: 'room_0_1',
+      coords: [0, 1],
+      title: 'Sector North',
+      exits: { down: { id: 'key_gate_1', label: 'Security Gate', color: '#ff00aa' } },
+    };
+    // Ensure doorway threshold at row 19 in roomC is open space (' ')
+    const row19Chars = roomC.grid[19].split('');
+    row19Chars[8] = ' ';
+    roomC.grid[19] = row19Chars.join('');
+    world.rooms.push(roomC);
+
+    const statusGateOpen = getOppositeTileStatus(roomA, 'up', 8);
+    assert.equal(statusGateOpen.isBlocked, false);
+  });
 });
 

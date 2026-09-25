@@ -1031,44 +1031,44 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => handleAddCollectible('core')}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-cyber-cyan" />
+                  <Sparkles className="w-3.5 h-3.5 text-cyber-cyan shrink-0" />
                   <span>+ Core</span>
                 </button>
                 <button
                   onClick={() => handleAddCollectible('prism')}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-cyber-neonPurple" />
+                  <Sparkles className="w-3.5 h-3.5 text-cyber-neonPurple shrink-0" />
                   <span>+ Prism</span>
                 </button>
                 <button
                   onClick={() => handleAddCollectible('key')}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Key className="w-3.5 h-3.5 text-cyber-neonPink" />
+                  <Key className="w-3.5 h-3.5 text-cyber-neonPink shrink-0" />
                   <span>+ Gate Key</span>
                 </button>
                 <button
                   onClick={handleAddMovingPlatform}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Sliders className="w-3.5 h-3.5 text-cyber-neonBlue" />
+                  <Sliders className="w-3.5 h-3.5 text-cyber-neonBlue shrink-0" />
                   <span>+ Platform</span>
                 </button>
                 <button
                   onClick={handleAddLaserBarrier}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Zap className="w-3.5 h-3.5 text-cyber-neonPink" />
+                  <Zap className="w-3.5 h-3.5 text-cyber-neonPink shrink-0" />
                   <span>+ Laser Barrier</span>
                 </button>
                 <button
                   onClick={handleAddLaserTurret}
-                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left col-span-2"
+                  className="flex items-center space-x-1.5 p-2 bg-cyber-card hover:bg-cyber-hover border border-cyber-border rounded text-left transition-colors text-xs"
                 >
-                  <Radio className="w-3.5 h-3.5 text-cyber-neonGreen" />
+                  <Radio className="w-3.5 h-3.5 text-cyber-neonGreen shrink-0" />
                   <span>+ Laser Turret</span>
                 </button>
               </div>

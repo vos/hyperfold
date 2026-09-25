@@ -26,6 +26,12 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
+// Lucide Key icon teeth SVG path (24x24 viewBox)
+const LUCIDE_KEY_TEETH_PATH =
+  typeof Path2D !== 'undefined'
+    ? new Path2D('m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19')
+    : null;
+
 interface GridCanvasProps {
   room: RoomData;
   world: WorldData;
@@ -607,96 +613,547 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       return ex.label || ex.id;
     };
 
+    // Helper to determine if a tile position on the perimeter is blocked by tiles
+    const isTileBlocked = (r: number, c: number): boolean => {
+      const glyph = room.grid[r]?.[c] || ' ';
+      return glyph !== ' ';
+    };
+
+    // Helper to find contiguous unblocked tile segments [start, end] along an edge (indices 0..19)
+    const getOpenExitRanges = (dir: 'left' | 'right' | 'up' | 'down'): [number, number][] => {
+      const ranges: [number, number][] = [];
+      let start: number | null = null;
+      const count = dir === 'left' || dir === 'right' ? GRID_ROWS : GRID_COLS;
+
+      for (let i = 0; i < count; i++) {
+        const blocked =
+          dir === 'left'
+            ? isTileBlocked(i, 0)
+            : dir === 'right'
+            ? isTileBlocked(i, GRID_COLS - 1)
+            : dir === 'up'
+            ? isTileBlocked(0, i)
+            : isTileBlocked(GRID_ROWS - 1, i);
+
+        if (!blocked) {
+          if (start === null) start = i;
+        } else {
+          if (start !== null) {
+            ranges.push([start, i - 1]);
+            start = null;
+          }
+        }
+      }
+      if (start !== null) {
+        ranges.push([start, count - 1]);
+      }
+      return ranges;
+    };
+
+    // Helper to check whether the opposite side of a doorway at edge index i is blocked
+    const getOppositeTileStatus = (
+      dir: 'left' | 'right' | 'up' | 'down',
+      index: number
+    ): { isBlocked: boolean; reason?: 'no_room' | 'no_exit' | 'wall' } => {
+      const [rx, ry] = room.coords;
+      let targetCoords: [number, number];
+      let oppDir: 'left' | 'right' | 'up' | 'down';
+      let oppR: number;
+      let oppC: number;
+
+      if (dir === 'left') {
+        targetCoords = [rx - 1, ry];
+        oppDir = 'right';
+        oppR = index;
+        oppC = GRID_COLS - 1;
+      } else if (dir === 'right') {
+        targetCoords = [rx + 1, ry];
+        oppDir = 'left';
+        oppR = index;
+        oppC = 0;
+      } else if (dir === 'up') {
+        targetCoords = [rx, ry + 1];
+        oppDir = 'down';
+        oppR = GRID_ROWS - 1;
+        oppC = index;
+      } else {
+        // down
+        targetCoords = [rx, ry - 1];
+        oppDir = 'up';
+        oppR = 0;
+        oppC = index;
+      }
+
+      const neighbor = world.rooms.find(
+        (r) => r.coords[0] === targetCoords[0] && r.coords[1] === targetCoords[1]
+      );
+
+      if (!neighbor) {
+        return { isBlocked: true, reason: 'no_room' };
+      }
+
+      if (!neighbor.exits?.[oppDir]) {
+        return { isBlocked: true, reason: 'no_exit' };
+      }
+
+      const neighborGlyph = neighbor.grid[oppR]?.[oppC] || ' ';
+      if (neighborGlyph !== ' ') {
+        return { isBlocked: true, reason: 'wall' };
+      }
+
+      return { isBlocked: false };
+    };
+
+    interface ExitSegment {
+      start: number;
+      end: number;
+      isBlocked: boolean;
+      reason?: 'no_room' | 'no_exit' | 'wall';
+    }
+
+    // Splits an unblocked exit range into subsegments based on opposite-side passable status
+    const getExitSegments = (
+      dir: 'left' | 'right' | 'up' | 'down',
+      rangeStart: number,
+      rangeEnd: number
+    ): ExitSegment[] => {
+      const segments: ExitSegment[] = [];
+      let currentStart = rangeStart;
+      let currentStatus = getOppositeTileStatus(dir, rangeStart);
+
+      for (let i = rangeStart + 1; i <= rangeEnd; i++) {
+        const status = getOppositeTileStatus(dir, i);
+        if (
+          status.isBlocked !== currentStatus.isBlocked ||
+          status.reason !== currentStatus.reason
+        ) {
+          segments.push({
+            start: currentStart,
+            end: i - 1,
+            isBlocked: currentStatus.isBlocked,
+            reason: currentStatus.reason,
+          });
+          currentStart = i;
+          currentStatus = status;
+        }
+      }
+      segments.push({
+        start: currentStart,
+        end: rangeEnd,
+        isBlocked: currentStatus.isBlocked,
+        reason: currentStatus.reason,
+      });
+
+      return segments;
+    };
+
+    const drawExitArrow = (x: number, y: number, angle: number, col: string) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(-6, -5);
+      ctx.lineTo(4, 0);
+      ctx.lineTo(-6, 5);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawHazardStrip = (
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      dir: 'left' | 'right' | 'up' | 'down'
+    ) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+
+      // Dark crimson base
+      ctx.fillStyle = '#1c0505';
+      ctx.fillRect(x, y, w, h);
+
+      // Diagonal hazard stripes
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 4;
+
+      const stripeSpacing = 8;
+      const diagonal = w + h + 20;
+
+      ctx.beginPath();
+      for (let offset = -diagonal; offset <= diagonal; offset += stripeSpacing) {
+        ctx.moveTo(x + offset, y - 10);
+        ctx.lineTo(x + offset + diagonal, y + diagonal + 10);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Outer solid barrier edge line on room boundary
+      ctx.save();
+      ctx.strokeStyle = '#ff4d4d';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      if (dir === 'left') {
+        ctx.moveTo(0, y);
+        ctx.lineTo(0, y + h);
+      } else if (dir === 'right') {
+        ctx.moveTo(ROOM_PIXEL_SIZE, y);
+        ctx.lineTo(ROOM_PIXEL_SIZE, y + h);
+      } else if (dir === 'up') {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + w, 0);
+      } else {
+        // down
+        ctx.moveTo(x, ROOM_PIXEL_SIZE);
+        ctx.lineTo(x + w, ROOM_PIXEL_SIZE);
+      }
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawBlockedMarker = (
+      dir: 'left' | 'right' | 'up' | 'down',
+      centerPos: number,
+      reason?: 'no_room' | 'no_exit' | 'wall'
+    ) => {
+      ctx.save();
+
+      let label = '⛔ BLOCKED';
+      if (reason === 'no_room') label = '⛔ NO SECTOR';
+      else if (reason === 'no_exit') label = '⛔ CLOSED EXIT';
+      else if (reason === 'wall') label = '⛔ WALL BLOCKED';
+
+      ctx.font = 'bold 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const textWidth = ctx.measureText(label).width;
+      const padX = 8;
+      const badgeW = Math.round(textWidth + padX * 2);
+      const badgeH = 22;
+
+      let badgeX = 0;
+      let badgeY = 0;
+
+      if (dir === 'left') {
+        badgeX = Math.round(borderThickness + 8);
+        badgeY = Math.round(centerPos - badgeH / 2);
+      } else if (dir === 'right') {
+        badgeX = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeW - 8);
+        badgeY = Math.round(centerPos - badgeH / 2);
+      } else if (dir === 'up') {
+        badgeX = Math.round(centerPos - badgeW / 2);
+        badgeY = Math.round(borderThickness + 8);
+      } else {
+        // down
+        badgeX = Math.round(centerPos - badgeW / 2);
+        badgeY = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeH - 8);
+      }
+
+      // Clamp within canvas boundaries with margin
+      badgeX = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeW - 4, badgeX));
+      badgeY = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeH - 4, badgeY));
+
+      // 1. Drop shadow behind badge
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+
+      // 2. Solid dark cyber card background (fully opaque to cleanly cover grid lines and entities)
+      ctx.fillStyle = '#1c0505';
+      if (typeof (ctx as any).roundRect === 'function') {
+        ctx.beginPath();
+        (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+        ctx.fill();
+      } else {
+        ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+      }
+
+      // 3. Warning red neon border
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      if (typeof (ctx as any).roundRect === 'function') {
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+      }
+
+      // 4. Clear shadows for razor-sharp text
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      // 5. Crisp high-contrast label in pure white
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, badgeX + padX, Math.round(badgeY + badgeH / 2));
+
+      ctx.restore();
+    };
+
+    const drawLockedGateBadge = (
+      dir: 'left' | 'right' | 'up' | 'down',
+      keyLabel: string,
+      col: string,
+      centerPos: number,
+      blockedStatus: 'none' | 'partial' | 'all' = 'none'
+    ) => {
+      ctx.save();
+
+      // Clean, crisp font with key emoji
+      ctx.font = 'bold 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      let text = `🔑 ${keyLabel}`;
+      if (blockedStatus === 'all') {
+        text = `🔑 ${keyLabel} • ⛔ BLOCKED`;
+      } else if (blockedStatus === 'partial') {
+        text = `🔑 ${keyLabel} • ⚠️ PARTIAL`;
+      }
+      const textWidth = ctx.measureText(text).width;
+
+      const padX = 8;
+      const badgeW = Math.round(textWidth + padX * 2);
+      const badgeH = 22;
+
+      let badgeX = 0;
+      let badgeY = 0;
+
+      if (dir === 'left') {
+        badgeX = Math.round(borderThickness + 8);
+        badgeY = Math.round(centerPos - badgeH / 2);
+      } else if (dir === 'right') {
+        badgeX = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeW - 8);
+        badgeY = Math.round(centerPos - badgeH / 2);
+      } else if (dir === 'up') {
+        badgeX = Math.round(centerPos - badgeW / 2);
+        badgeY = Math.round(borderThickness + 8);
+      } else {
+        // down
+        badgeX = Math.round(centerPos - badgeW / 2);
+        badgeY = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeH - 8);
+      }
+
+      // Clamp within canvas boundaries with margin
+      badgeX = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeW - 4, badgeX));
+      badgeY = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeH - 4, badgeY));
+
+      // 1. Drop shadow behind badge
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+
+      // 2. Solid dark cyber card background
+      ctx.fillStyle = blockedStatus === 'all' ? '#1c0505' : '#080d1a';
+      if (typeof (ctx as any).roundRect === 'function') {
+        ctx.beginPath();
+        (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+        ctx.fill();
+      } else {
+        ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+      }
+
+      // 3. Neon border in gate color or warning red
+      const strokeCol = blockedStatus === 'all' ? '#ef4444' : blockedStatus === 'partial' ? '#f59e0b' : col;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = strokeCol;
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      if (typeof (ctx as any).roundRect === 'function') {
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+      }
+
+      // 4. CRITICAL: Completely clear all shadows so text is razor-sharp with no blur or chromatic ghosting
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      // 5. Crisp high-contrast label in white or red
+      ctx.fillStyle = blockedStatus === 'all' ? '#fca5a5' : '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, badgeX + padX, Math.round(badgeY + badgeH / 2));
+
+      ctx.restore();
+    };
+
     if (room.exits.left) {
       const ex = room.exits.left;
-      if (isGatedExit(ex)) {
-        const col = ex.color || getGateColor(ex.id);
-        ctx.fillStyle = col;
-        ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
-        const keyLabel = getGateKeyLabel(ex);
-        const text = `🔒 ${keyLabel}`;
-        ctx.font = 'bold 10px monospace';
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
-        ctx.fillRect(borderThickness + 4, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(borderThickness + 4, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
-        ctx.fillStyle = col;
-        ctx.textAlign = 'left';
-        ctx.fillText(text, borderThickness + 8, 13 * TILE_PIXEL_SIZE + 4);
-      } else {
-        ctx.fillStyle = room.themeColor;
-        ctx.fillRect(0, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      const isGated = isGatedExit(ex);
+      const col = isGated ? (ex.color || getGateColor(ex.id)) : room.themeColor;
+      const ranges = getOpenExitRanges('left');
+
+      for (const [start, end] of ranges) {
+        const segments = getExitSegments('left', start, end);
+        for (const seg of segments) {
+          const y = seg.start * TILE_PIXEL_SIZE;
+          const h = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+
+          if (seg.isBlocked) {
+            // Blocked: red hazard inward aura
+            const grad = ctx.createLinearGradient(0, 0, 16, 0);
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, y, 16, h);
+
+            // Red hazard diagonal stripe border
+            drawHazardStrip(0, y, borderThickness, h, 'left');
+          } else {
+            // Open: Portal aura gradient extending into room
+            const grad = ctx.createLinearGradient(0, 0, 16, 0);
+            grad.addColorStop(0, `${col}33`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, y, 16, h);
+
+            // Glowing border indicator along edge
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(0, y, borderThickness, h);
+            ctx.shadowBlur = 0;
+          }
+        }
       }
     }
     if (room.exits.right) {
       const ex = room.exits.right;
-      if (isGatedExit(ex)) {
-        const col = ex.color || getGateColor(ex.id);
-        ctx.fillStyle = col;
-        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
-        const keyLabel = getGateKeyLabel(ex);
-        const text = `🔒 ${keyLabel}`;
-        ctx.font = 'bold 10px monospace';
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
-        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness - tw - 12, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(ROOM_PIXEL_SIZE - borderThickness - tw - 12, 13 * TILE_PIXEL_SIZE - 10, tw + 8, 20);
-        ctx.fillStyle = col;
-        ctx.textAlign = 'left';
-        ctx.fillText(text, ROOM_PIXEL_SIZE - borderThickness - tw - 8, 13 * TILE_PIXEL_SIZE + 4);
-      } else {
-        ctx.fillStyle = room.themeColor;
-        ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, 10 * TILE_PIXEL_SIZE, borderThickness, 6 * TILE_PIXEL_SIZE);
+      const isGated = isGatedExit(ex);
+      const col = isGated ? (ex.color || getGateColor(ex.id)) : room.themeColor;
+      const ranges = getOpenExitRanges('right');
+
+      for (const [start, end] of ranges) {
+        const segments = getExitSegments('right', start, end);
+        for (const seg of segments) {
+          const y = seg.start * TILE_PIXEL_SIZE;
+          const h = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+
+          if (seg.isBlocked) {
+            // Blocked: red hazard inward aura
+            const grad = ctx.createLinearGradient(ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16, 0);
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(ROOM_PIXEL_SIZE - 16, y, 16, h);
+
+            // Red hazard diagonal stripe border
+            drawHazardStrip(ROOM_PIXEL_SIZE - borderThickness, y, borderThickness, h, 'right');
+          } else {
+            // Open: Portal aura gradient extending into room
+            const grad = ctx.createLinearGradient(ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16, 0);
+            grad.addColorStop(0, `${col}33`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(ROOM_PIXEL_SIZE - 16, y, 16, h);
+
+            // Glowing border indicator along edge
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, y, borderThickness, h);
+            ctx.shadowBlur = 0;
+          }
+        }
       }
     }
     if (room.exits.up) {
       const ex = room.exits.up;
-      if (isGatedExit(ex)) {
-        const col = ex.color || getGateColor(ex.id);
-        ctx.fillStyle = col;
-        ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
-        const keyLabel = getGateKeyLabel(ex);
-        const text = `🔒 ${keyLabel}`;
-        ctx.font = 'bold 10px monospace';
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
-        ctx.fillRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, borderThickness + 4, tw + 8, 20);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, borderThickness + 4, tw + 8, 20);
-        ctx.fillStyle = col;
-        ctx.textAlign = 'center';
-        ctx.fillText(text, 10 * TILE_PIXEL_SIZE, borderThickness + 18);
-      } else {
-        ctx.fillStyle = room.themeColor;
-        ctx.fillRect(7 * TILE_PIXEL_SIZE, 0, 6 * TILE_PIXEL_SIZE, borderThickness);
+      const isGated = isGatedExit(ex);
+      const col = isGated ? (ex.color || getGateColor(ex.id)) : room.themeColor;
+      const ranges = getOpenExitRanges('up');
+
+      for (const [start, end] of ranges) {
+        const segments = getExitSegments('up', start, end);
+        for (const seg of segments) {
+          const x = seg.start * TILE_PIXEL_SIZE;
+          const w = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+
+          if (seg.isBlocked) {
+            // Blocked: red hazard inward aura
+            const grad = ctx.createLinearGradient(0, 0, 0, 16);
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, 0, w, 16);
+
+            // Red hazard diagonal stripe border
+            drawHazardStrip(x, 0, w, borderThickness, 'up');
+          } else {
+            // Open: Portal aura gradient extending into room
+            const grad = ctx.createLinearGradient(0, 0, 0, 16);
+            grad.addColorStop(0, `${col}33`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, 0, w, 16);
+
+            // Glowing border indicator along edge
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(x, 0, w, borderThickness);
+            ctx.shadowBlur = 0;
+          }
+        }
       }
     }
     if (room.exits.down) {
       const ex = room.exits.down;
-      if (isGatedExit(ex)) {
-        const col = ex.color || getGateColor(ex.id);
-        ctx.fillStyle = col;
-        ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
-        const keyLabel = getGateKeyLabel(ex);
-        const text = `🔒 ${keyLabel}`;
-        ctx.font = 'bold 10px monospace';
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = 'rgba(6, 10, 20, 0.9)';
-        ctx.fillRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, ROOM_PIXEL_SIZE - borderThickness - 24, tw + 8, 20);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(10 * TILE_PIXEL_SIZE - tw * 0.5 - 4, ROOM_PIXEL_SIZE - borderThickness - 24, tw + 8, 20);
-        ctx.fillStyle = col;
-        ctx.textAlign = 'center';
-        ctx.fillText(text, 10 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness - 10);
-      } else {
-        ctx.fillStyle = room.themeColor;
-        ctx.fillRect(7 * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE - borderThickness, 6 * TILE_PIXEL_SIZE, borderThickness);
+      const isGated = isGatedExit(ex);
+      const col = isGated ? (ex.color || getGateColor(ex.id)) : room.themeColor;
+      const ranges = getOpenExitRanges('down');
+
+      for (const [start, end] of ranges) {
+        const segments = getExitSegments('down', start, end);
+        for (const seg of segments) {
+          const x = seg.start * TILE_PIXEL_SIZE;
+          const w = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+
+          if (seg.isBlocked) {
+            // Blocked: red hazard inward aura
+            const grad = ctx.createLinearGradient(0, ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16);
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, ROOM_PIXEL_SIZE - 16, w, 16);
+
+            // Red hazard diagonal stripe border
+            drawHazardStrip(x, ROOM_PIXEL_SIZE - borderThickness, w, borderThickness, 'down');
+          } else {
+            // Open: Portal aura gradient extending into room
+            const grad = ctx.createLinearGradient(0, ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16);
+            grad.addColorStop(0, `${col}33`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, ROOM_PIXEL_SIZE - 16, w, 16);
+
+            // Glowing border indicator along edge
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(x, ROOM_PIXEL_SIZE - borderThickness, w, borderThickness);
+            ctx.shadowBlur = 0;
+          }
+        }
       }
     }
 
@@ -1091,29 +1548,97 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             ctx.fill();
             ctx.stroke();
           } else {
-            // key
+            // Gate Key Collectible (rendered using Lucide Key vector geometry)
             const keyColor = col.color || getGateColor(col.id);
-            ctx.fillStyle = keyColor;
-            ctx.strokeStyle = isSelected ? '#ffffff' : keyColor;
-            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            const keySize = 22;
+
+            ctx.save();
+            ctx.translate(col.x, col.y);
+
+            const scale = keySize / 24;
+            ctx.scale(scale, scale);
+            ctx.translate(-12, -12); // Center 24x24 Lucide viewBox at (col.x, col.y)
+
+            const strokeCol = isSelected ? '#ffffff' : keyColor;
+            ctx.strokeStyle = strokeCol;
+            ctx.lineWidth = isSelected ? 2.5 : 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = strokeCol;
+            ctx.shadowBlur = isSelected ? 10 : 6;
+
+            // 1. Head (circle at cx=15.5, cy=7.5, r=5.5)
             ctx.beginPath();
-            ctx.arc(col.x - 4, col.y - 4, 6, 0, Math.PI * 2);
+            ctx.arc(15.5, 7.5, 5.5, 0, Math.PI * 2);
+            ctx.fillStyle = isSelected ? '#ffffff33' : `${keyColor}33`;
             ctx.fill();
             ctx.stroke();
-            ctx.fillRect(col.x, col.y - 2, 10, 4);
 
-            // Floating badge above key
+            // 2. Shaft (line from (2, 21) to (11.6, 11.4))
+            ctx.beginPath();
+            ctx.moveTo(2, 21);
+            ctx.lineTo(11.6, 11.4);
+            ctx.stroke();
+
+            // 3. Teeth (Lucide SVG path: m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19)
+            if (LUCIDE_KEY_TEETH_PATH) {
+              ctx.stroke(LUCIDE_KEY_TEETH_PATH);
+            } else {
+              ctx.beginPath();
+              ctx.moveTo(7.5, 15.5);
+              ctx.lineTo(9.8, 17.8);
+              ctx.lineTo(9.8, 19.2);
+              ctx.lineTo(7.7, 21.3);
+              ctx.lineTo(6.3, 21.3);
+              ctx.lineTo(4, 19);
+              ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // Floating badge above key (clean, non-overlapping)
             const labelText = `🔑 ${col.label || col.id}`;
-            ctx.font = 'bold 9px monospace';
+            ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
             const tw = ctx.measureText(labelText).width;
-            ctx.fillStyle = 'rgba(6, 10, 20, 0.88)';
-            ctx.fillRect(col.x - tw * 0.5 - 4, col.y - 24, tw + 8, 16);
+            const badgeW = Math.round(tw + 12);
+            const badgeH = 18;
+            const badgeX = Math.round(col.x - badgeW * 0.5);
+            const badgeY = Math.round(col.y - 28);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 1;
+
+            ctx.fillStyle = '#080d1a';
+            if (typeof (ctx as any).roundRect === 'function') {
+              ctx.beginPath();
+              (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+              ctx.fill();
+            } else {
+              ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+            }
+
             ctx.strokeStyle = isSelected ? '#ffffff' : keyColor;
             ctx.lineWidth = isSelected ? 1.5 : 1;
-            ctx.strokeRect(col.x - tw * 0.5 - 4, col.y - 24, tw + 8, 16);
+            ctx.shadowColor = isSelected ? '#ffffff' : keyColor;
+            ctx.shadowBlur = 4;
+            if (typeof (ctx as any).roundRect === 'function') {
+              ctx.stroke();
+            } else {
+              ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+            }
+
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
             ctx.fillStyle = isSelected ? '#ffffff' : keyColor;
             ctx.textAlign = 'center';
-            ctx.fillText(labelText, col.x, col.y - 12);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labelText, col.x, Math.round(badgeY + badgeH / 2));
+            ctx.restore();
           }
         }
       }
@@ -1143,6 +1668,47 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         ctx.font = 'bold 9px monospace';
         ctx.fillStyle = '#00ff88';
         ctx.fillText('SPAWN', sx - 16, sy - 42);
+      }
+    }
+
+    // 6.5. Exit Badges & Indicators Overlay (rendered on top of grid lines and entities for crisp visibility)
+    const exitDirections: ('left' | 'right' | 'up' | 'down')[] = ['left', 'right', 'up', 'down'];
+    for (const dir of exitDirections) {
+      const ex = room.exits[dir];
+      if (!ex) continue;
+      const isGated = isGatedExit(ex);
+      const col = isGated ? (ex.color || getGateColor(ex.id)) : room.themeColor;
+      const ranges = getOpenExitRanges(dir);
+
+      if (isGated) {
+        const keyLabel = getGateKeyLabel(ex);
+        const mainRange = ranges.length > 0
+          ? ranges.reduce((prev, curr) => (curr[1] - curr[0] > prev[1] - prev[0] ? curr : prev), ranges[0])
+          : [7, 12] as [number, number];
+        const centerPos = (mainRange[0] + mainRange[1] + 1) * 0.5 * TILE_PIXEL_SIZE;
+
+        const segments = getExitSegments(dir, mainRange[0], mainRange[1]);
+        const allBlocked = segments.length > 0 && segments.every((s) => s.isBlocked);
+        const someBlocked = segments.some((s) => s.isBlocked);
+        const blockedStatus = allBlocked ? 'all' : someBlocked ? 'partial' : 'none';
+
+        drawLockedGateBadge(dir, keyLabel, col, centerPos, blockedStatus);
+      } else {
+        // Regular exits: render blocked badges and exit arrows on top of grid lines
+        for (const [start, end] of ranges) {
+          const segments = getExitSegments(dir, start, end);
+          for (const seg of segments) {
+            const midPos = (seg.start + seg.end + 1) * 0.5 * TILE_PIXEL_SIZE;
+            if (seg.isBlocked) {
+              drawBlockedMarker(dir, midPos, seg.reason);
+            } else {
+              if (dir === 'left') drawExitArrow(14, midPos, Math.PI, col);
+              else if (dir === 'right') drawExitArrow(ROOM_PIXEL_SIZE - 14, midPos, 0, col);
+              else if (dir === 'up') drawExitArrow(midPos, 14, -Math.PI / 2, col);
+              else if (dir === 'down') drawExitArrow(midPos, ROOM_PIXEL_SIZE - 14, Math.PI / 2, col);
+            }
+          }
+        }
       }
     }
 
@@ -1181,6 +1747,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     }
   }, [
     room,
+    world,
     showGrid,
     showEntities,
     showCoordinates,
