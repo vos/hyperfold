@@ -2,11 +2,19 @@
 
 > Traverse infinite sectors folded across the faces of a rotating 3D hypercube.
 
-[![Play Game](https://img.shields.io/badge/🎮%20Play%20Game-GitHub%20Pages-00ffff?style=for-the-badge)](https://vos.github.io/hyperfold/)
-[![World Editor](https://img.shields.io/badge/🛠️%20World%20Editor-Online%20App-ff8800?style=for-the-badge)](https://vos.github.io/hyperfold/editor/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+<p align="left">
+  <a href="https://vos.github.io/hyperfold/" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/🎮%20Play%20Game-GitHub%20Pages-00ffff?style=for-the-badge" alt="Play Game" />
+  </a>
+  <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/🛠️%20World%20Editor-Online%20App-ff8800?style=for-the-badge" alt="World Editor" />
+  </a>
+  <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT" />
+  </a>
+</p>
 
-**Play online:** [🎮 Launch Hyperfold Game](https://vos.github.io/hyperfold/) &bull; [🛠️ Launch World Editor](https://vos.github.io/hyperfold/editor/)
+**Play online:** <a href="https://vos.github.io/hyperfold/" target="_blank" rel="noopener noreferrer">🎮 Launch Hyperfold Game ↗</a> &bull; <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer">🛠️ Launch World Editor ↗</a>
 
 The game combines classic 2D jump & run platforming mechanics with a pseudo-3D cube world that tumbles 90° whenever the player crosses any of the four screen edges. While physically appearing as a 3D cube tumbling in deep space, topologically the game world is an **infinite non-Euclidean manifold** featuring fixed, hand-crafted screens that never loop in circles (unless specifically designed) and always preserve round-trip navigation.
 
@@ -110,9 +118,17 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ## 🛠️ Hyperfold World Editor
 
-Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory. You can design levels directly in your browser using the online editor at **[vos.github.io/hyperfold/editor/](https://vos.github.io/hyperfold/editor/)** or run it locally.
+Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory. You can design levels directly in your browser using the online editor at <a href="https://vos.github.io/hyperfold/editor/" target="_blank" rel="noopener noreferrer"><strong>vos.github.io/hyperfold/editor/ ↗</strong></a> or run it locally.
 
 ### Key Editor Features
+* **Streamlined Application `File ▾` Menu**:
+  * Consolidated top-level navigation dropdown for creating new blank worlds, importing and exporting JSON bundles, loading built-in presets (*Mini Hypercube*, *Hyperfold Genesis*), inspecting live diagnostics, and viewing shortcuts.
+* **Responsive Non-Wrapping Header**:
+  * Single-row, height-stable header bar designed for split-screen and laptop displays with adaptive sector name truncation, responsive text scaling, and conditional issue badges (`[⚠ X]`) that appear only when diagnostics errors or warnings are detected.
+* **Instant `F5` Playtesting & Browser Tab Reuse**:
+  * **Dedicated Quick-Access Shortcut**: Hit **`F5`** anywhere in the editor (or click the prominent **Test in Game [F5]** button in the header) to instantly playtest your level.
+  * **Accidental Reload Protection**: Intercepts `F5` with `e.preventDefault()`, safeguarding against browser page reloads and lost level edits.
+  * **Smart Tab Reuse**: Binds to a dedicated target window (`hyperfold_playtest_window`) and uses `postMessage` (`HYPERFOLD_LOAD_WORLD`) to hot-reload levels inside the already open game instance without spawning redundant browser tabs.
 * **Sector World Graph View**:
   * Visual 2D coordinate grid showing all sectors in the manifold with coordinate badges, room titles, theme colors, and doorway links.
   * **Drag & Drop Sector Repositioning**: Click and drag any sector to move it to a vacant coordinate.
@@ -130,8 +146,8 @@ Hyperfold includes a visual web-based world editor built with **React**, **TypeS
   * **Keys & Locked Gates**: Assign key colors, labels, and bind keys to sector exit doorways.
 * **Diagnostics & Linting Validator**:
   * Real-time validation flagging duplicate IDs, broken portal targets, self-targeting portals, missing keys, and solid obstructions.
-* **Direct Export to Game & Instant Playtesting**:
-  * **One-Click "Test in Game"**: Click **Export ➔ Test in Game** in the editor toolbar to immediately launch or focus the running game instance with your custom world loaded and ready to play via a real-time cross-window `postMessage` / `localStorage` bridge.
+* **Direct Export to Game & Custom World Loading**:
+  * **One-Click / Hotkey Testing**: Send levels directly to the game over the real-time cross-window `postMessage` / `localStorage` bridge.
   * **Custom World File Loading**: Download complete world bundles (`.json`) or single room files from the editor, and load them directly into the game at any time using the in-game **"+ Load Custom World (.json)..."** menu dropdown.
 * **Import & Export**:
   * Direct export and import of complete world bundles or individual room JSON files conforming to [`room.schema.json`](./worlds/schemas/room.schema.json), with clipboard copying and local file downloads.
@@ -174,7 +190,7 @@ The included demo campaign demonstrates the infinite hypercube topology and adva
 ## 🚀 Getting Started
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (version 18.0 or higher recommended)
+* [Node.js](https://nodejs.org/) (version 22.0 or 24.0 recommended)
 * `npm` (bundled with Node.js)
 
 ### Installation
@@ -228,9 +244,9 @@ npm run build:all
 npm run preview
 ```
 
-The repository includes a [GitHub Actions Workflow](.github/workflows/deploy.yml) that automatically builds and deploys both the game (`/`) and the editor (`/editor/`) to GitHub Pages upon pushing to `main` or triggering manually via `workflow_dispatch`.
+The repository includes a [GitHub Actions Workflow](.github/workflows/deploy.yml) running on **Node.js 24** that automatically builds and deploys both the game (`/`) and the editor (`/editor/`) to GitHub Pages upon pushing to `main` or triggering manually via `workflow_dispatch`.
 
-> **💡 Instant Playtesting:** You can directly export and test your custom levels in the game with zero manual setup by clicking **Export ➔ Test in Game** in the editor toolbar, or by downloading the `.json` world bundle and selecting **"+ Load Custom World (.json)..."** from the game's world selection dropdown.
+> **💡 Instant Playtesting:** You can directly export and test your custom levels in the game with zero manual setup by pressing **`F5`** or clicking **Test in Game [F5]** in the editor header, or by downloading the `.json` world bundle and selecting **"+ Load Custom World (.json)..."** from the game's world selection dropdown. The editor automatically reuses your open game tab and hot-reloads the world instantaneously.
 
 ---
 
@@ -242,7 +258,7 @@ Run the comprehensive unit and integration test suite powered by Node.js's nativ
 npm test
 ```
 
-**152 automated tests passing across 16 test suites**:
+**154 automated tests passing across 16 test suites**:
 * `tests/portals.test.mjs` — Quantum portal routing, $N \to 1$ topology, collision exit debouncing, intra/inter-sector kinematics, and reversed velocity vector inversion.
 * `tests/gate-keys.test.mjs` — Key pickups, locked exit forcefields, collision rejection, and sector map key markers.
 * `tests/danger-spikes.test.mjs` — Directional spikes (walls, roof, platform) collision & geometric orientation detection.
@@ -252,7 +268,7 @@ npm test
 * `tests/procedural.test.mjs` — Seed determinism, exit symmetry, safe spawn guarantees, difficulty curves, and Power Sanctuary archetypes.
 * `tests/renderer-optimization.test.mjs` — Dynamic entity detection, chassis geometry merging, and round-robin texture upload throttling.
 * `tests/sector-map.test.mjs` — 2D Sector Map discovery, bounding box calculation, key markers, and locked gate symbols.
-* `tests/editor-integration.test.mjs` — World editor serialization, import/export, and schema validation diagnostics.
+* `tests/editor-integration.test.mjs` — World editor serialization, import/export, schema validation diagnostics, F5 playtest shortcut validation, and test in game window reuse.
 * `tests/floor.test.mjs` — Floor integrity and safe spawn points across all campaign sectors.
 * `tests/player-explosion.test.mjs` — 360° death explosion, synth sound, & R tap/hold reset logic.
 * `tests/navigation.test.mjs` — Infinite non-Euclidean topology invariants.
