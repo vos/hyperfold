@@ -12,19 +12,60 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ### 🎲 Infinite Non-Euclidean Cube Rebinding Engine
 * **Higher-Dimensional Topology**: Rooms exist on an open $(X, Y)$ coordinate manifold. Traversing 6 consecutive screens yields unique sectors without looping back to old screens, while traveling backward deterministically returns to your exact origin.
-* **Seamless 3D Tumble Transitions**: When crossing an edge boundary, the cube executes a smooth 90° slerp rotation (`easeInOutCubic`, ~420ms).
+* **Seamless 3D Tumble Transitions**: When crossing an edge boundary or jumping through an inter-sector portal, the cube executes a smooth 90° slerp rotation (`easeInOutCubic`, ~420ms).
 * **Zero Pop-In Predictive Pre-Rendering**: The destination face, the incoming trailing face (Face 5: $-Z$), and all perpendicular adjacent faces are dynamically pre-rendered *before* the tumble begins, eliminating texture pop-in or mid-turn replacements.
 * **Canvas-to-WebGL Pipeline**: Crisp 2D Canvas tilemaps and dynamic sprites rendered directly onto Three.js `CanvasTexture` materials with dynamic player point lighting.
 
+---
+
+### 🌀 Quantum Teleportation Portals
+* **Intra-Sector & Inter-Sector Travel**: Wormholes linking points within the same chamber or bridging distant sectors across the non-Euclidean manifold.
+* **Topological $N \to 1$ Routing**: Multiple source portals can target the same destination portal; each source portal binds to a single destination via globally unique IDs.
+* **Cyberpunk Visuals**: Multi-layer cyber glow with customizable neon palette, high-frequency vibrating outer containment borders with oscillating corner pylons, and a swirling vortex aperture **reflecting the primary theme color of the destination sector**.
+* **Fluid Chained Portal Jumping**: Collision-box exit debouncing tracks arrival state until the player physically leaves the portal's bounding box—eliminating artificial cooldown timers and enabling fluid, rapid portal chaining.
+* **Reversed Outbound Velocity (`reverseVelocity`)**: Optional kinematic inversion on destination portals that negates the player's velocity vector ($\vec{v}_{\text{out}} = -\vec{v}_{\text{in}}$, inverting both $v_x$ and $v_y$). Dropping into a portal from above launches the player upward toward the ceiling with automatic upward momentum preservation (`isBouncePropelled`).
+* **Procedural Warp Audio**: Custom zero-asset Web Audio synthesis featuring an FM phase-shift warp chirp, sub-bass dimensional drop, and crystalline rematerialization shimmer.
+
+---
+
 ### 🏃 Precision 2D Platforming Kinematics
-* **Fluid Movement**: Smooth acceleration, deceleration, and variable jump height (cutting vertical velocity on early jump release).
-* **Coyote Time (100ms)**: Jump gracefully even after walking off a platform edge.
+* **Fluid Movement**: Snappy ground acceleration, crisp deceleration, and variable jump height (cutting vertical velocity on early jump release).
+* **Coyote Time (100ms)**: Jump gracefully even after walking off a platform ledge.
 * **Jump Buffering (120ms)**: Queue jumps immediately before touching down on solid ground.
-* **Moving Platforms & Passenger Physics**: Floating hover cruisers and vertical elevators that accurately carry players with horizontal momentum inheritance.
+* **Ducking & Crawling (`Down` / `S`)**: Crouch to reduce player hitbox height from 36px to 22px, allowing players to duck under high laser beams and crawl through 1-tile crawlspaces with ceiling clearance raycasting.
+* **Moving Platforms & Passenger Physics**: Floating hover cruisers and vertical elevators that carry players with horizontal momentum inheritance.
 * **Down + Jump Drop-Through**: Press `Down + Jump` while standing on one-way or moving platforms to drop through, mirroring classic platformer conventions.
-* **Dynamic Laser Barriers & Angled Turrets**: Mobile laser barriers that patrol on harmonic tracks and cycle between idle, telegraph warning, and lethal states; wall/ceiling/floor/pedestal turrets shooting at cardinal or diagonal angles with high-velocity laser bolts and continuous raycast beams that dynamically clip against moving platforms (allowing moving platforms to serve as dynamic shields!).
+* **Dynamic Laser Barriers & Angled Turrets**: Mobile laser barriers that patrol harmonic tracks cycling between idle, telegraph warning, and lethal states; stationary and auto-targeting turrets shooting high-velocity laser bolts or continuous raycast beams that dynamically clip against moving platforms (enabling platforms to act as moving shields).
 * **Multi-Directional Spikes**: Hazard spikes mounted on floors, walls, ceilings/roofs, and solid floating platforms with forgiving apex-matched hitboxes and automatic geometric orientation detection.
-* **Interactive Elements**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and collectible Energy Prisms / Data Chips.
+* **Interactive Elements**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and collectible Energy Prisms.
+
+---
+
+### 🔑 Gate Keys & Key-Gated Exits
+* **Collectible Sector Keys**: Themed keys placed throughout the world requiring exploration and puzzle-solving to acquire.
+* **Locked Boundary Forcefields**: Sector exits gated by key requirements (`gateKeys`), projecting impenetrable energy forcefields until the player collects the matching key.
+* **Tactile Feedback**: Audible lockout buzz and floating key requirement glyphs when touching a locked gate, accompanied by unlocked chime sound effects upon unlocking.
+* **HUD Key Inventory**: Real-time inventory bar displaying all currently held keys with color-coded theme accents.
+* **Sector Map Markers**: Discovered locked gates and key locations are plotted directly onto the 2D Sector Map with `🔑` indicators.
+
+---
+
+### 🗺️ Interactive 2D Sector Map Overlay (`M` key)
+* **Panoramic Manifold Minimap**: Press `M` anytime to open the full-screen interactive 2D coordinate grid overlay.
+* **Fog-of-War Exploration**: Tracks visited sectors, dynamically highlights undiscovered adjacent sectors, and marks current player coordinates.
+* **Live Sector Thumbnails**: Renders accurate tilemap miniatures reflecting each room's custom theme colors, keys, locked gates, and portal connections.
+* **Pan, Zoom & Auto-Fit**: Smooth drag panning, scroll zooming, and automatic fit-to-screen scaling accommodating sprawling custom worlds.
+
+---
+
+### 🌌 Procedural Infinite World Generator
+* **Deterministic Infinite Manifold**: Procedural world generator creating endless non-Euclidean sectors on demand based on a numeric seed.
+* **Difficulty Scaling**: Mathematical threat curve that progressively ramps hazard density, laser speeds, and moving platform timing as the player traverses deeper into the manifold.
+* **Guaranteed Reachability & Safety**: Rigorous doorway alignment, safe spawn threshold checks, and vertical chute reachability guarantees.
+* **Power Sanctuaries**: Unique peaceful rest-stop chambers generated every 8 sectors with zero lethal hazards and bonus Energy Prisms.
+* **Difficulty Modes**: Select from Easy, Normal, Hard, and Void Abyss modes directly from the in-game menu.
+
+---
 
 ### 💥 Explosive Death & Dual-Action Reset System
 * **360° Particle Burst**: On death, the player detonates with 72 high-velocity particles flying in all directions—concentric expanding shockwave rings, tumbling debris shards with aerodynamic drag physics ($0.94^{\Delta t \cdot 60}$), and billowing plasma motes.
@@ -32,19 +73,59 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 * **Tap R to Die & Respawn**: Pressing `R` (or clicking `Reset [R]`) triggers an immediate player death sequence and sector respawn.
 * **Hold R to Restart Entire Level**: Long-pressing `R` ($\ge 0.8\text{s}$) renders an in-world holographic radial charging ring around the player avatar, converging particle motes, and a live HUD hold percentage banner. Holding to completion resets the entire level back to Genesis Core `[0, 0]`, restores all collected Energy Prisms, resets discovered rooms, snaps 3D cube rotation back to identity, and detonates a dimensional reboot warp effect.
 
+---
+
+### ⚡ 3D Engine & Geometry Optimizations
+* **Dynamic Entity Detection**: Automatically categorizes rooms as static or dynamic; static chambers are rendered once and cached, bypassing redundant canvas re-renders.
+* **Merged Chassis Geometry**: Merged internal Three.js player chassis meshes into unified geometries, reducing draw calls from 21 down to 3.
+* **Round-Robin Texture Throttling**: Side-face texture uploading is throttled to at most 1 upload per tick, ensuring smooth 60 FPS transitions without frame spikes.
+
+---
+
 ### 🌌 Synthwave Atmosphere & Procedural Audio
 * **Cosmic Starfield**: Independent deep-space starfield and drifting wireframe octahedra that remain stationary relative to the camera to accentuate the cube's 3D rotation.
 * **Dynamic Particle Systems**: Landing dust, jump bursts, collectible pickup sparks, motion trails, laser impact sparks, charging motes, muzzle flashes, 360° death explosions, expanding shockwaves, and screen-edge boundary luminescence.
-* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, blaster zaps, impact sizzles, warning telegraph chirps, a 3-layer cyberpunk synth explosion (sub-bass drop + detuned dual sawtooth/square filter sweep + filtered noise burst), an ascending 6-note level reboot fanfare, and a low-pass ambient drone. No external audio files required.
+* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, blaster zaps, impact sizzles, warning telegraph chirps, portal warp chirps, locked gate buzzes, a 3-layer cyberpunk synth explosion (sub-bass drop + detuned dual sawtooth/square filter sweep + filtered noise burst), an ascending 6-note level reboot fanfare, and a low-pass ambient drone. No external audio files required.
+
+---
 
 ### 🎥 Interactive 3D Camera Controls
 * **Free Orbit**: Click and drag with the left mouse button to orbit around the cube from any angle.
 * **Zoom**: Scroll the mouse wheel to inspect details up close or view the cosmic void.
 * **Camera Reset & Flat Mode**: Hit `V` to reset the camera to the default dramatic angle, or `C` to toggle between 3D Depth View and Orthographic 2D Flat Face View.
 
+---
+
 ### 📊 Real-Time Performance & Telemetry HUD
 * **Built-In Profiler**: Real-time FPS graph, average/min/max frame-time tracking, sample ring buffers, and memory telemetry.
 * **Toggle Shortcut**: Press `P`, `F3`, or `` ` `` anytime during gameplay to view diagnostic stats.
+
+---
+
+## 🛠️ Hyperfold World Editor
+
+Hyperfold includes a visual web-based world editor built with **React**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons** located in the [`editor/`](./editor) directory.
+
+### Key Editor Features
+* **Sector World Graph View**:
+  * Visual 2D coordinate grid showing all sectors in the manifold with coordinate badges, room titles, theme colors, and doorway links.
+  * **Drag & Drop Sector Repositioning**: Click and drag any sector to move it to a vacant coordinate.
+  * **Modifier-Key Sector Duplication**: Hold `Alt` / `Option` while dragging a sector to clone it to a vacant coordinate slot.
+  * Start sector indicator (`START [0,0]`) and locked gate indicators.
+* **Interactive Grid Canvas**:
+  * Visual tile painter for solid blocks, one-way ledges, hazard spikes, crumble blocks, and bounce pads.
+  * Entity drag-and-drop handles for moving platforms, laser barriers, turrets, portals, collectibles, keys, and spawn points.
+  * **Ground-Aligned Snapping**: Portals, bounce pads, and platforms automatically snap flush with ground tiles ($y + 6$ portal alignment).
+  * **Doorway Obstruction Guides**: Visual red warning indicators if solid blocks obstruct sector doorways.
+* **Entity Inspector**:
+  * **Quantum Portals**: Configure unique IDs, destination portal dropdowns with cross-sector lookup, neon glow color pickers with palette presets, and **Reversed Velocity** toggles.
+  * **Laser Barriers & Turrets**: Edit harmonic movement paths, cycle timings (idle/warning/active), projectile speeds, auto-targeting radius, and continuous beam mode.
+  * **Moving Platforms**: Configure start/end points, speeds, pause durations, and one-way platform toggles.
+  * **Keys & Locked Gates**: Assign key colors, labels, and bind keys to sector exit doorways.
+* **Diagnostics & Linting Validator**:
+  * Real-time validation flagging duplicate IDs, broken portal targets, self-targeting portals, missing keys, and solid obstructions.
+* **Import & Export**:
+  * Direct export and import of complete world bundles or individual room JSON files conforming to [`room.schema.json`](./worlds/schemas/room.schema.json).
 
 ---
 
@@ -54,14 +135,15 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 | :--- | :--- | :--- | :--- |
 | **Move Left / Right** | `A` / `D` or `←` / `→` | D-Pad / Left Stick | — |
 | **Jump** | `Space` / `W` / `↑` | Button `A` / Cross | — |
+| **Duck / Crouch / Crawl** | `S` or `↓` | `Down` on D-Pad / Stick | — |
 | **Drop Through Platform** | `S + Space` or `↓ + Jump` | `Down + Button A` | — |
+| **Sector Map (2D Overlay)** | `M` | Button `Y` / Triangle | HUD Map Button |
 | **Reset Sector / Die (Tap)** | `R` (Tap) | Button `Select` / `Back` (Tap) | `Reset [R]` Button (Tap) |
 | **Restart Whole Level (Hold 0.8s)** | `Hold R` | `Hold Select` / `Back` | `Reset [R]` Button (Hold) |
-| **Toggle Sound** | `U` | — | HUD Button |
-| **Sector Map (2D Overlay)** | `M` | — | HUD Button |
-| **Toggle 3D / Flat View** | `C` | — | HUD Button |
-| **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Button |
-| **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Button |
+| **Toggle Sound** | `U` | — | HUD Sound Button |
+| **Toggle 3D / Flat View** | `C` | — | HUD View Button |
+| **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Camera Button |
+| **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Profiler Button |
 | **Orbit 3D Camera** | `I` / `J` / `K` / `L` | Right Thumbstick | Left Click + Drag |
 | **Zoom In / Out** | — | — | Mouse Wheel |
 
@@ -69,11 +151,13 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ## 🗺️ Demo Level: 10 Non-Euclidean Sectors
 
-The included demo campaign illustrates the infinite hypercube topology:
+The included demo campaign demonstrates the infinite hypercube topology and advanced mechanics:
 
 * **Sectors $(0,0) \rightarrow (6,0)$**: A continuous 7-screen horizontal voyage exceeding the 6 physical faces of a 3D cube.
-* **Sector $(2,1)$ The Spire & $(2,2)$ Starlight Zenith**: Vertical climb chambers testing Up/Down 90° tumble rotations.
+* **Sector $(0,0)$ Genesis Core $\leftrightarrow$ $(2,2)$ Starlight Zenith**: Features interconnected **Quantum Portals** bridging the starting room directly with the high-altitude zenith.
+* **Sector $(2,1)$ The Spire & $(2,2)$ Starlight Zenith**: Vertical climb chambers testing Up/Down 90° tumble rotations, laser barriers, and moving elevator lifts.
 * **Sector $(4,-1)$ Sub-Zero Crypt**: Secret subterranean vault accessed by falling through a chasm, containing hidden Energy Prisms and high-power launch pads.
+* **Key-Gated Passages**: The Warp Core Key chamber guarding the final sector doorway.
 * **Sector $(6,0)$ Prism Horizon**: The Warp Core Goal Portal completing the stage.
 
 ---
@@ -91,34 +175,65 @@ The included demo campaign illustrates the infinite hypercube topology:
 git clone https://github.com/vos/hyperfold.git
 cd hyperfold
 
-# Install dependencies
+# Install game dependencies
 npm install
+
+# Install editor dependencies
+npm --prefix editor install
 ```
 
-### Development Server
-Run Vite's local dev server with Hot Module Replacement (HMR):
+### Running the Game
+
 ```bash
+# Start local game development server (HMR enabled)
 npm run dev
+
+# Or build and preview the optimized production game bundle
+npm start
 ```
 Open `http://localhost:3000` in your browser.
 
-### Production Build & Preview
-Build the TypeScript source and preview the optimized production bundle:
+### Running the World Editor
+
 ```bash
-# Build & preview with one command
-npm start
+# Start the visual World Editor
+npm run editor
 
-# Or run separately
-npm run build
-npm run preview
+# Build the World Editor for production
+npm run editor:build
+
+# Preview the World Editor production build
+npm run editor:preview
 ```
+Open `http://localhost:5173` in your browser.
 
-### Running Automated Tests
-Run the unit test suite powered by Node.js's native test runner:
+---
+
+## 🧪 Running Automated Tests
+
+Run the comprehensive unit and integration test suite powered by Node.js's native test runner:
+
 ```bash
 npm test
 ```
-Validates floor consistency across all 10 rooms, spawn safety, passenger physics, Down+Jump mechanics, dynamic laser barriers, shooting laser collisions and platform shielding, directional spikes on walls/roofs/platforms, 360° player death explosion with drag physics, tap-to-die & hold-to-restart level mechanics, non-Euclidean navigation invariants, and 3D transition face mappings (52 tests passing across 7 test suites).
+
+**152 automated tests passing across 16 test suites**:
+* `tests/portals.test.mjs` — Quantum portal routing, $N \to 1$ topology, collision exit debouncing, intra/inter-sector kinematics, and reversed velocity vector inversion.
+* `tests/gate-keys.test.mjs` — Key pickups, locked exit forcefields, collision rejection, and sector map key markers.
+* `tests/danger-spikes.test.mjs` — Directional spikes (walls, roof, platform) collision & geometric orientation detection.
+* `tests/ducking.test.mjs` — Crouch kinematics, hitbox reduction, 1-tile crawlspaces, and laser avoidance.
+* `tests/laser-hazards.test.mjs` — Laser barrier timing cycles, harmonic motion, raycast beams, projectiles, and dynamic moving platform shielding.
+* `tests/moving-platforms.test.mjs` — Moving platform kinematics, passenger physics, momentum inheritance, and 3D pre-render face mapping.
+* `tests/procedural.test.mjs` — Seed determinism, exit symmetry, safe spawn guarantees, difficulty curves, and Power Sanctuary archetypes.
+* `tests/renderer-optimization.test.mjs` — Dynamic entity detection, chassis geometry merging, and round-robin texture upload throttling.
+* `tests/sector-map.test.mjs` — 2D Sector Map discovery, bounding box calculation, key markers, and locked gate symbols.
+* `tests/editor-integration.test.mjs` — World editor serialization, import/export, and schema validation diagnostics.
+* `tests/floor.test.mjs` — Floor integrity and safe spawn points across all campaign sectors.
+* `tests/player-explosion.test.mjs` — 360° death explosion, synth sound, & R tap/hold reset logic.
+* `tests/navigation.test.mjs` — Infinite non-Euclidean topology invariants.
+* `tests/perf-tracker.test.mjs` — Telemetry statistics, FPS tracking, and sample ring buffers.
+* `tests/world-registry.test.mjs` — Dynamic world bundle loading and memory isolation.
+* `tests/declarative-level.test.mjs` — JSON level loading and schema compliance.
 
 ---
 
@@ -131,39 +246,52 @@ hyperfold/
 ├── tsconfig.json                  # Strict TypeScript configuration
 ├── vite.config.ts                 # Vite bundler configuration
 ├── screenshot.jpg                 # Gameplay showcase image
+├── editor/                        # Hyperfold World Editor (React + Vite + Tailwind)
+│   ├── index.html                 # Editor mount point
+│   ├── package.json               # Editor dependencies
+│   ├── src/
+│   │   ├── App.tsx                # Main editor shell and view coordinator
+│   │   ├── components/
+│   │   │   ├── GridCanvas.tsx     # Interactive 2D room canvas with entity handles
+│   │   │   ├── InspectorPanel.tsx # Entity and sector property editor
+│   │   │   ├── WorldGraphView.tsx # 2D topological sector map with drag & drop
+│   │   │   └── Toolbar.tsx        # Tool selection, world/room actions
+│   │   ├── types/world.ts         # Shared editor data contracts
+│   │   └── utils/
+│   │       ├── serialization.ts   # World/room import, export, and cloning
+│   │       └── validator.ts       # Diagnostics linting engine
+│   └── vite.config.ts             # Editor bundler configuration
 ├── src/
 │   ├── main.ts                    # Game loop, state coordinator, and transition manager
 │   ├── engine/
 │   │   ├── AudioManager.ts        # Procedural Web Audio API sound synthesizer
 │   │   ├── InputManager.ts        # Keyboard, mouse, and Gamepad API handlers
 │   │   ├── ParticleSystem.ts      # 2D canvas particle emitter and trail effects
-│   │   └── PhysicsEngine.ts       # AABB collision, moving platforms, lasers, and seam crossing
+│   │   ├── PerformanceTracker.ts  # Frame time profiler and ring buffer
+│   │   └── PhysicsEngine.ts       # Kinematics, AABB collision, moving platforms, lasers, portals
 │   ├── entities/
 │   │   ├── LaserBarrier.ts        # Mobile and timed laser barriers with warning telegraphs
 │   │   ├── LaserTurret.ts         # Wall/ceiling turrets with projectile and raycast beam collision
 │   │   ├── MovingPlatform.ts      # Harmonic moving platforms with displacement tracking
-│   │   └── Player.ts              # Player state, kinematics, and rendering
+│   │   └── Player.ts              # Player state, kinematics, ducking, and rendering
 │   ├── graphics/
 │   │   ├── CubeRenderer.ts        # Three.js 3D beveled cube, orbit camera, and tumble slerp
-│   │   ├── FaceRenderer.ts        # 2D Canvas tilemap and HUD compositor for cube faces
+│   │   ├── FaceRenderer.ts        # 2D Canvas tilemap, portals, and HUD compositor for cube faces
 │   │   └── VoidBackground.ts      # Deep space starfield and floating polyhedra
 │   ├── ui/
-│   │   └── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
+│   │   ├── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
+│   │   └── SectorMapView.ts       # 2D panoramic sector map overlay
 │   └── world/
-│       ├── data/                  # Declarative JSON worlds & rooms (modular & bundles)
-│       ├── schemas/               # JSON schemas for room and world validation
 │       ├── LevelLoader.ts         # ASCII grid parser and JSON loader
-│       ├── LevelMap.ts            # Dynamic coordinate-based room map and visited states
-│       ├── ScreenData.ts          # Tile definitions, room schemas, and exits
+│       ├── LevelMap.ts            # Dynamic coordinate-based room map and portal indexing
+│       ├── ProceduralLevelMap.ts  # On-demand infinite procedural sector generator
+│       ├── ProceduralWorldGenerator.ts # Seeded room generator with difficulty curve
+│       ├── ScreenData.ts          # Tile definitions, room schemas, portals, and exits
 │       └── WorldRegistry.ts       # Auto-discovery and registration of worlds
-└── tests/
-    ├── danger-spikes.test.mjs     # Directional spikes (walls, roof, platform) collision & detection
-    ├── floor.test.mjs             # Floor integrity and safe spawn points
-    ├── laser-hazards.test.mjs     # Laser barrier cycles, movement, raycasts, & projectiles
-    ├── moving-platforms.test.mjs  # Moving platform kinematics & 3D pre-render face mapping
-    ├── navigation.test.mjs        # Infinite non-Euclidean topology invariants
-    ├── perf-tracker.test.mjs      # Telemetry statistics and ring buffer behavior
-    └── player-explosion.test.mjs # 360° death explosion, synth sound, & R tap/hold reset logic
+├── worlds/
+│   ├── demo/                      # Built-in campaign sectors (Genesis Core, Spire, Zenith, etc.)
+│   └── schemas/                   # JSON schemas for room and world validation
+└── tests/                         # Node.js automated test suites (152 tests)
 ```
 
 ---
@@ -175,7 +303,7 @@ In Euclidean space, a cube has exactly 6 faces. If you walk across 4 faces in on
 **Hyperfold** decouples the physical 3D representation from the logical room topology:
 1. The player always plays on the **Front Face ($+Z$)** of a 3D cube.
 2. The world is an open coordinate plane $\mathbb{Z}^2$.
-3. When crossing an exit seam in direction $\vec{d}$, the target room $(x + d_x, y + d_y)$ is rendered onto the corresponding adjacent face.
+3. When crossing an exit seam in direction $\vec{d}$ (or stepping into a cross-sector portal), the target room is rendered onto the corresponding adjacent face.
 4. The cube rotates 90° toward $\vec{d}$.
 5. Once rotation completes, the coordinate state updates, the cube's rotation quaternion is instantaneously reset to identity $(0, 0, 0, 1)$, and all surrounding faces are immediately rebound to the new room's logical neighbors.
 
