@@ -18,16 +18,6 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ---
 
-### 🌀 Quantum Teleportation Portals
-* **Intra-Sector & Inter-Sector Travel**: Wormholes linking points within the same chamber or bridging distant sectors across the non-Euclidean manifold.
-* **Topological $N \to 1$ Routing**: Multiple source portals can target the same destination portal; each source portal binds to a single destination via globally unique IDs.
-* **Cyberpunk Visuals**: Multi-layer cyber glow with customizable neon palette, high-frequency vibrating outer containment borders with oscillating corner pylons, and a swirling vortex aperture **reflecting the primary theme color of the destination sector**.
-* **Fluid Chained Portal Jumping**: Collision-box exit debouncing tracks arrival state until the player physically leaves the portal's bounding box—eliminating artificial cooldown timers and enabling fluid, rapid portal chaining.
-* **Reversed Outbound Velocity (`reverseVelocity`)**: Optional kinematic inversion on destination portals that negates the player's velocity vector ($\vec{v}_{\text{out}} = -\vec{v}_{\text{in}}$, inverting both $v_x$ and $v_y$). Dropping into a portal from above launches the player upward toward the ceiling with automatic upward momentum preservation (`isBouncePropelled`).
-* **Procedural Warp Audio**: Custom zero-asset Web Audio synthesis featuring an FM phase-shift warp chirp, sub-bass dimensional drop, and crystalline rematerialization shimmer.
-
----
-
 ### 🏃 Precision 2D Platforming Kinematics
 * **Fluid Movement**: Snappy ground acceleration, crisp deceleration, and variable jump height (cutting vertical velocity on early jump release).
 * **Coyote Time (100ms)**: Jump gracefully even after walking off a platform ledge.
@@ -38,32 +28,6 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 * **Dynamic Laser Barriers & Angled Turrets**: Mobile laser barriers that patrol harmonic tracks cycling between idle, telegraph warning, and lethal states; stationary and auto-targeting turrets shooting high-velocity laser bolts or continuous raycast beams that dynamically clip against moving platforms (enabling platforms to act as moving shields).
 * **Multi-Directional Spikes**: Hazard spikes mounted on floors, walls, ceilings/roofs, and solid floating platforms with forgiving apex-matched hitboxes and automatic geometric orientation detection.
 * **Interactive Elements**: One-way ledges, crumble blocks with respawn timers, super bounce launch pads, and collectible Energy Prisms.
-
----
-
-### 🔑 Gate Keys & Key-Gated Exits
-* **Collectible Sector Keys**: Themed keys placed throughout the world requiring exploration and puzzle-solving to acquire.
-* **Locked Boundary Forcefields**: Sector exits gated by key requirements (`gateKeys`), projecting impenetrable energy forcefields until the player collects the matching key.
-* **Tactile Feedback**: Audible lockout buzz and floating key requirement glyphs when touching a locked gate, accompanied by unlocked chime sound effects upon unlocking.
-* **HUD Key Inventory**: Real-time inventory bar displaying all currently held keys with color-coded theme accents.
-* **Sector Map Markers**: Discovered locked gates and key locations are plotted directly onto the 2D Sector Map with `🔑` indicators.
-
----
-
-### 🗺️ Interactive 2D Sector Map Overlay (`M` key)
-* **Panoramic Manifold Minimap**: Press `M` anytime to open the full-screen interactive 2D coordinate grid overlay.
-* **Fog-of-War Exploration**: Tracks visited sectors, dynamically highlights undiscovered adjacent sectors, and marks current player coordinates.
-* **Live Sector Thumbnails**: Renders accurate tilemap miniatures reflecting each room's custom theme colors, keys, locked gates, and portal connections.
-* **Pan, Zoom & Auto-Fit**: Smooth drag panning, scroll zooming, and automatic fit-to-screen scaling accommodating sprawling custom worlds.
-
----
-
-### 🌌 Procedural Infinite World Generator
-* **Deterministic Infinite Manifold**: Procedural world generator creating endless non-Euclidean sectors on demand based on a numeric seed.
-* **Difficulty Scaling**: Mathematical threat curve that progressively ramps hazard density, laser speeds, and moving platform timing as the player traverses deeper into the manifold.
-* **Guaranteed Reachability & Safety**: Rigorous doorway alignment, safe spawn threshold checks, and vertical chute reachability guarantees.
-* **Power Sanctuaries**: Unique peaceful rest-stop chambers generated every 8 sectors with zero lethal hazards and bonus Energy Prisms.
-* **Difficulty Modes**: Select from Easy, Normal, Hard, and Void Abyss modes directly from the in-game menu.
 
 ---
 
@@ -99,6 +63,42 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 ### 📊 Real-Time Performance & Telemetry HUD
 * **Built-In Profiler**: Real-time FPS graph, average/min/max frame-time tracking, sample ring buffers, and memory telemetry.
 * **Toggle Shortcut**: Press `P`, `F3`, or `` ` `` anytime during gameplay to view diagnostic stats.
+
+---
+
+### 🌀 Quantum Teleportation Portals
+* **Intra-Sector & Inter-Sector Travel**: Wormholes linking points within the same chamber or bridging distant sectors across the non-Euclidean manifold.
+* **Topological $N \to 1$ Routing**: Multiple source portals can target the same destination portal; each source portal binds to a single destination via globally unique IDs.
+* **Cyberpunk Visuals**: Multi-layer cyber glow with customizable neon palette, high-frequency vibrating outer containment borders with oscillating corner pylons, and a swirling vortex aperture **reflecting the primary theme color of the destination sector**.
+* **Fluid Chained Portal Jumping**: Collision-box exit debouncing tracks arrival state until the player physically leaves the portal's bounding box—eliminating artificial cooldown timers and enabling fluid, rapid portal chaining.
+* **Reversed Outbound Velocity (`reverseVelocity`)**: Optional kinematic inversion on destination portals that negates the player's velocity vector ($\vec{v}_{\text{out}} = -\vec{v}_{\text{in}}$, inverting both $v_x$ and $v_y$). Dropping into a portal from above launches the player upward toward the ceiling with automatic upward momentum preservation (`isBouncePropelled`).
+* **Procedural Warp Audio**: Custom zero-asset Web Audio synthesis featuring an FM phase-shift warp chirp, sub-bass dimensional drop, and crystalline rematerialization shimmer.
+
+---
+
+### 🔑 Gate Keys & Key-Gated Exits
+* **Collectible Sector Keys**: Themed keys placed throughout the world requiring exploration and puzzle-solving to acquire.
+* **Locked Boundary Forcefields**: Sector exits gated by key requirements (`gateKeys`), projecting impenetrable energy forcefields until the player collects the matching key.
+* **Tactile Feedback**: Audible lockout buzz and floating key requirement glyphs when touching a locked gate, accompanied by unlocked chime sound effects upon unlocking.
+* **HUD Key Inventory**: Real-time inventory bar displaying all currently held keys with color-coded theme accents.
+* **Sector Map Markers**: Discovered locked gates and key locations are plotted directly onto the 2D Sector Map with `🔑` indicators.
+
+---
+
+### 🗺️ Interactive 2D Sector Map Overlay (`M` key)
+* **Panoramic Manifold Minimap**: Press `M` anytime to open the full-screen interactive 2D coordinate grid overlay.
+* **Fog-of-War Exploration**: Tracks visited sectors, dynamically highlights undiscovered adjacent sectors, and marks current player coordinates.
+* **Live Sector Thumbnails**: Renders accurate tilemap miniatures reflecting each room's custom theme colors, keys, locked gates, and portal connections.
+* **Pan, Zoom & Auto-Fit**: Smooth drag panning, scroll zooming, and automatic fit-to-screen scaling accommodating sprawling custom worlds.
+
+---
+
+### 🌌 Procedural Infinite World Generator
+* **Deterministic Infinite Manifold**: Procedural world generator creating endless non-Euclidean sectors on demand based on a numeric seed.
+* **Difficulty Scaling**: Mathematical threat curve that progressively ramps hazard density, laser speeds, and moving platform timing as the player traverses deeper into the manifold.
+* **Guaranteed Reachability & Safety**: Rigorous doorway alignment, safe spawn threshold checks, and vertical chute reachability guarantees.
+* **Power Sanctuaries**: Unique peaceful rest-stop chambers generated every 8 sectors with zero lethal hazards and bonus Energy Prisms.
+* **Difficulty Modes**: Select from Easy, Normal, Hard, and Void Abyss modes directly from the in-game menu.
 
 ---
 
