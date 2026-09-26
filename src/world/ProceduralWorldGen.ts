@@ -1,7 +1,7 @@
 import {
-  COLS,
-  ROWS,
-  FACE_SIZE,
+  GRID_COLS,
+  GRID_ROWS,
+  ROOM_SIZE,
   TileType,
   RoomExits,
   ScreenData,
@@ -336,10 +336,10 @@ export class ProceduralWorldGen {
     const accentColor = isSanctuary ? '#00ffaa' : biome.accentColor;
 
     // Grid Initialization (20x20)
-    const grid: number[][] = [];
-    for (let r = 0; r < ROWS; r++) {
+    const grid: TileType[][] = [];
+    for (let r = 0; r < GRID_ROWS; r++) {
       grid[r] = [];
-      for (let c = 0; c < COLS; c++) {
+      for (let c = 0; c < GRID_COLS; c++) {
         grid[r][c] = TileType.EMPTY;
       }
     }
@@ -353,7 +353,7 @@ export class ProceduralWorldGen {
 
     // --- 1. Outer Border Perimeter Framing ---
     // Top border: row 0
-    for (let c = 0; c < COLS; c++) {
+    for (let c = 0; c < GRID_COLS; c++) {
       if (exits.up && c >= 8 && c <= 11) {
         grid[0][c] = TileType.EMPTY;
       } else {
@@ -362,7 +362,7 @@ export class ProceduralWorldGen {
     }
 
     // Bottom border: rows 18 and 19
-    for (let c = 0; c < COLS; c++) {
+    for (let c = 0; c < GRID_COLS; c++) {
       if (exits.down && c >= 8 && c <= 11) {
         grid[18][c] = TileType.EMPTY;
         grid[19][c] = TileType.EMPTY;
@@ -807,7 +807,7 @@ export class ProceduralWorldGen {
     const prismYPositions = [480, 400, 300, 220, 160];
 
     for (let i = 0; i < prismCount; i++) {
-      const px = 160 + ((i + 1) * (FACE_SIZE - 320)) / (prismCount + 1);
+      const px = 160 + ((i + 1) * (ROOM_SIZE - 320)) / (prismCount + 1);
       const py = prismYPositions[i % prismYPositions.length];
       collectibles.push({
         id: `prism_${x}_${y}_${i}`,

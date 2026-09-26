@@ -1,5 +1,5 @@
 import {
-  FACE_SIZE,
+  ROOM_SIZE,
   ScreenData,
   TILE_SIZE,
   TileType,
@@ -36,8 +36,8 @@ export class FaceRenderer {
 
   constructor() {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = FACE_SIZE;
-    this.canvas.height = FACE_SIZE;
+    this.canvas.width = ROOM_SIZE;
+    this.canvas.height = ROOM_SIZE;
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Could not create 2D canvas context');
     this.ctx = ctx;
@@ -76,26 +76,26 @@ export class FaceRenderer {
     if (cached) return cached;
 
     cached = document.createElement('canvas');
-    cached.width = FACE_SIZE;
-    cached.height = FACE_SIZE;
+    cached.width = ROOM_SIZE;
+    cached.height = ROOM_SIZE;
     const sCtx = cached.getContext('2d');
     if (!sCtx) return cached;
 
     // 1. Dark Cybernetic Background
     sCtx.fillStyle = '#080c14';
-    sCtx.fillRect(0, 0, FACE_SIZE, FACE_SIZE);
+    sCtx.fillRect(0, 0, ROOM_SIZE, ROOM_SIZE);
 
     // Subtle background grid (batched)
     sCtx.strokeStyle = 'rgba(0, 255, 255, 0.04)';
     sCtx.lineWidth = 1;
     sCtx.beginPath();
-    for (let x = 0; x <= FACE_SIZE; x += TILE_SIZE) {
+    for (let x = 0; x <= ROOM_SIZE; x += TILE_SIZE) {
       sCtx.moveTo(x, 0);
-      sCtx.lineTo(x, FACE_SIZE);
+      sCtx.lineTo(x, ROOM_SIZE);
     }
-    for (let y = 0; y <= FACE_SIZE; y += TILE_SIZE) {
+    for (let y = 0; y <= ROOM_SIZE; y += TILE_SIZE) {
       sCtx.moveTo(0, y);
-      sCtx.lineTo(FACE_SIZE, y);
+      sCtx.lineTo(ROOM_SIZE, y);
     }
     sCtx.stroke();
 
@@ -122,7 +122,7 @@ export class FaceRenderer {
     sCtx.lineWidth = 3;
     sCtx.shadowColor = primary;
     sCtx.shadowBlur = 12;
-    sCtx.strokeRect(1.5, 1.5, FACE_SIZE - 3, FACE_SIZE - 3);
+    sCtx.strokeRect(1.5, 1.5, ROOM_SIZE - 3, ROOM_SIZE - 3);
     sCtx.shadowBlur = 0;
 
     this.staticCache.set(cacheKey, cached);
@@ -826,20 +826,20 @@ export class FaceRenderer {
         ctx.lineWidth = 3;
 
         if (dir === 'right') {
-          const ax = FACE_SIZE - 25 + arrowPulse * 6;
-          const ay = FACE_SIZE * 0.75;
+          const ax = ROOM_SIZE - 25 + arrowPulse * 6;
+          const ay = ROOM_SIZE * 0.75;
           this.drawArrow(ctx, ax, ay, 0);
         } else if (dir === 'left') {
           const ax = 25 - arrowPulse * 6;
-          const ay = FACE_SIZE * 0.75;
+          const ay = ROOM_SIZE * 0.75;
           this.drawArrow(ctx, ax, ay, Math.PI);
         } else if (dir === 'up') {
-          const ax = FACE_SIZE * 0.5;
+          const ax = ROOM_SIZE * 0.5;
           const ay = 25 - arrowPulse * 6;
           this.drawArrow(ctx, ax, ay, -Math.PI / 2);
         } else if (dir === 'down') {
-          const ax = FACE_SIZE * 0.5;
-          const ay = FACE_SIZE - 25 + arrowPulse * 6;
+          const ax = ROOM_SIZE * 0.5;
+          const ay = ROOM_SIZE - 25 + arrowPulse * 6;
           this.drawArrow(ctx, ax, ay, Math.PI / 2);
         }
       }
@@ -867,14 +867,14 @@ export class FaceRenderer {
 
     if (dir === 'right' || dir === 'left') {
       const isRight = dir === 'right';
-      const bx = isRight ? FACE_SIZE - 8 : 8;
+      const bx = isRight ? ROOM_SIZE - 8 : 8;
       const y1 = 480;
       const y2 = 720;
-      const ay = FACE_SIZE * 0.75;
+      const ay = ROOM_SIZE * 0.75;
 
       // Emitter pylons
-      ctx.fillRect(isRight ? FACE_SIZE - 14 : 2, y1 - 10, 12, 14);
-      ctx.fillRect(isRight ? FACE_SIZE - 14 : 2, y2 - 4, 12, 14);
+      ctx.fillRect(isRight ? ROOM_SIZE - 14 : 2, y1 - 10, 12, 14);
+      ctx.fillRect(isRight ? ROOM_SIZE - 14 : 2, y2 - 4, 12, 14);
 
       // Shimmering Laser Forcefield lines
       ctx.lineWidth = 3.5;
@@ -897,19 +897,19 @@ export class FaceRenderer {
       ctx.globalAlpha = 1.0;
 
       // Holographic Lock Node
-      const nodeX = isRight ? FACE_SIZE - 68 : 68;
+      const nodeX = isRight ? ROOM_SIZE - 68 : 68;
       this.drawLockBadge(ctx, nodeX, ay, nodeLabel, gateColor);
     } else {
       // 'up' or 'down'
       const isUp = dir === 'up';
-      const by = isUp ? 8 : FACE_SIZE - 8;
+      const by = isUp ? 8 : ROOM_SIZE - 8;
       const x1 = 300;
       const x2 = 500;
-      const ax = FACE_SIZE * 0.5;
+      const ax = ROOM_SIZE * 0.5;
 
       // Emitter pylons
-      ctx.fillRect(x1 - 10, isUp ? 2 : FACE_SIZE - 14, 14, 12);
-      ctx.fillRect(x2 - 4, isUp ? 2 : FACE_SIZE - 14, 14, 12);
+      ctx.fillRect(x1 - 10, isUp ? 2 : ROOM_SIZE - 14, 14, 12);
+      ctx.fillRect(x2 - 4, isUp ? 2 : ROOM_SIZE - 14, 14, 12);
 
       // Shimmering Laser Forcefield lines
       ctx.lineWidth = 3.5;
@@ -932,7 +932,7 @@ export class FaceRenderer {
       ctx.globalAlpha = 1.0;
 
       // Holographic Lock Node
-      const nodeY = isUp ? 68 : FACE_SIZE - 68;
+      const nodeY = isUp ? 68 : ROOM_SIZE - 68;
       this.drawLockBadge(ctx, ax, nodeY, nodeLabel, gateColor);
     }
 
@@ -958,25 +958,25 @@ export class FaceRenderer {
 
     // Draw animated exit arrows in the gate's color
     if (dir === 'right') {
-      const ax = FACE_SIZE - 25 + arrowPulse * 6;
-      const ay = FACE_SIZE * 0.75;
+      const ax = ROOM_SIZE - 25 + arrowPulse * 6;
+      const ay = ROOM_SIZE * 0.75;
       this.drawArrow(ctx, ax, ay, 0);
-      this.drawUnlockedBadge(ctx, FACE_SIZE - 68, ay, nodeLabel, gateColor);
+      this.drawUnlockedBadge(ctx, ROOM_SIZE - 68, ay, nodeLabel, gateColor);
     } else if (dir === 'left') {
       const ax = 25 - arrowPulse * 6;
-      const ay = FACE_SIZE * 0.75;
+      const ay = ROOM_SIZE * 0.75;
       this.drawArrow(ctx, ax, ay, Math.PI);
       this.drawUnlockedBadge(ctx, 68, ay, nodeLabel, gateColor);
     } else if (dir === 'up') {
-      const ax = FACE_SIZE * 0.5;
+      const ax = ROOM_SIZE * 0.5;
       const ay = 25 - arrowPulse * 6;
       this.drawArrow(ctx, ax, ay, -Math.PI / 2);
       this.drawUnlockedBadge(ctx, ax, 68, nodeLabel, gateColor);
     } else if (dir === 'down') {
-      const ax = FACE_SIZE * 0.5;
-      const ay = FACE_SIZE - 25 + arrowPulse * 6;
+      const ax = ROOM_SIZE * 0.5;
+      const ay = ROOM_SIZE - 25 + arrowPulse * 6;
       this.drawArrow(ctx, ax, ay, Math.PI / 2);
-      this.drawUnlockedBadge(ctx, ax, FACE_SIZE - 68, nodeLabel, gateColor);
+      this.drawUnlockedBadge(ctx, ax, ROOM_SIZE - 68, nodeLabel, gateColor);
     }
 
     ctx.restore();
@@ -996,7 +996,7 @@ export class FaceRenderer {
     const badgeH = 22;
 
     const halfW = badgeW * 0.5;
-    const drawX = Math.max(halfW + 8, Math.min(FACE_SIZE - halfW - 8, x));
+    const drawX = Math.max(halfW + 8, Math.min(ROOM_SIZE - halfW - 8, x));
 
     ctx.save();
     ctx.translate(drawX, y);
@@ -1051,7 +1051,7 @@ export class FaceRenderer {
     const badgeH = 18;
 
     const halfW = badgeW * 0.5;
-    const drawX = Math.max(halfW + 8, Math.min(FACE_SIZE - halfW - 8, x));
+    const drawX = Math.max(halfW + 8, Math.min(ROOM_SIZE - halfW - 8, x));
 
     ctx.save();
     ctx.translate(drawX, y);

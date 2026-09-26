@@ -16,8 +16,10 @@
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
     "paths": {
-      "@worlds/*": ["./worlds/*"]
+      "@worlds/*": ["./worlds/*"],
+      "@shared": ["./shared/index.ts"],
+      "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["src", "worlds"]
+  "include": ["src", "worlds", "shared"]
 }

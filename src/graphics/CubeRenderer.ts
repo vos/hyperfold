@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { FACE_SIZE, ScreenData } from '../world/ScreenData';
+import { ROOM_SIZE, ScreenData } from '../world/ScreenData';
 import { FaceRenderer } from './FaceRenderer';
 import { LevelMap } from '../world/LevelMap';
 import { Player } from '../entities/Player';
@@ -148,8 +148,8 @@ export class CubeRenderer {
     // Slightly softened tint (0xd0d0d0) to match the original deeper lighting contrast
     for (let i = 0; i < 6; i++) {
       const cvs = document.createElement('canvas');
-      cvs.width = FACE_SIZE;
-      cvs.height = FACE_SIZE;
+      cvs.width = ROOM_SIZE;
+      cvs.height = ROOM_SIZE;
       const ctx = cvs.getContext('2d');
       if (!ctx) throw new Error('Cannot init canvas context');
       this.faceCanvases.push(cvs);
@@ -192,32 +192,32 @@ export class CubeRenderer {
    */
   private renderVoidGraphics(ctx: CanvasRenderingContext2D, text: string, time: number = 0): void {
     ctx.fillStyle = '#060a14';
-    ctx.fillRect(0, 0, FACE_SIZE, FACE_SIZE);
+    ctx.fillRect(0, 0, ROOM_SIZE, ROOM_SIZE);
 
     // 1. Cyber background grid
     ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
     ctx.lineWidth = 1.5;
-    for (let i = 0; i <= FACE_SIZE; i += 50) {
+    for (let i = 0; i <= ROOM_SIZE; i += 50) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
-      ctx.lineTo(i, FACE_SIZE);
+      ctx.lineTo(i, ROOM_SIZE);
       ctx.stroke();
 
       ctx.beginPath();
       ctx.moveTo(0, i);
-      ctx.lineTo(FACE_SIZE, i);
+      ctx.lineTo(ROOM_SIZE, i);
       ctx.stroke();
     }
 
     // 2. Animated scanning laser beam
-    const scanY = ((time * 110) % (FACE_SIZE + 100)) - 50;
-    if (scanY >= 0 && scanY <= FACE_SIZE) {
+    const scanY = ((time * 110) % (ROOM_SIZE + 100)) - 50;
+    if (scanY >= 0 && scanY <= ROOM_SIZE) {
       const grad = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
       grad.addColorStop(0, 'rgba(0, 255, 255, 0)');
       grad.addColorStop(0.5, 'rgba(0, 255, 255, 0.12)');
       grad.addColorStop(1, 'rgba(0, 255, 255, 0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, scanY - 18, FACE_SIZE, 36);
+      ctx.fillRect(0, scanY - 18, ROOM_SIZE, 36);
     }
 
     // 3. Cybernetic circuit telemetry lines with breathing luminescence
@@ -257,7 +257,7 @@ export class CubeRenderer {
     // 5. Border frame
     ctx.strokeStyle = `rgba(0, 255, 255, ${0.35 + pulse * 0.2})`;
     ctx.lineWidth = 4;
-    ctx.strokeRect(16, 16, FACE_SIZE - 32, FACE_SIZE - 32);
+    ctx.strokeRect(16, 16, ROOM_SIZE - 32, ROOM_SIZE - 32);
 
     // 6. Central console display
     ctx.fillStyle = 'rgba(8, 14, 28, 0.9)';
@@ -269,7 +269,7 @@ export class CubeRenderer {
     ctx.font = 'bold 20px "Courier New", monospace';
     ctx.fillStyle = '#ff00aa';
     ctx.textAlign = 'center';
-    ctx.fillText(`[${text.toUpperCase()}]`, FACE_SIZE * 0.5, 355);
+    ctx.fillText(`[${text.toUpperCase()}]`, ROOM_SIZE * 0.5, 355);
 
     if (text === 'Rear Processing Core') {
       const freq = (8.4 + Math.sin(time * 1.8) * 0.15).toFixed(2);
@@ -277,17 +277,17 @@ export class CubeRenderer {
       const cyc = Math.floor((time * 120) % 9999).toString().padStart(4, '0');
       ctx.font = '14px "Courier New", monospace';
       ctx.fillStyle = '#88c8ff';
-      ctx.fillText('STATUS: QUANTUM HYPER-CORE ONLINE', FACE_SIZE * 0.5, 390);
-      ctx.fillText('MANIFOLD PROCESSOR: 4D NON-EUCLIDEAN KERNEL', FACE_SIZE * 0.5, 415);
-      ctx.fillText(`CORE FREQUENCY: ${freq} THz | FLUX: ${flux}% | CYC: #${cyc}`, FACE_SIZE * 0.5, 440);
+      ctx.fillText('STATUS: QUANTUM HYPER-CORE ONLINE', ROOM_SIZE * 0.5, 390);
+      ctx.fillText('MANIFOLD PROCESSOR: 4D NON-EUCLIDEAN KERNEL', ROOM_SIZE * 0.5, 415);
+      ctx.fillText(`CORE FREQUENCY: ${freq} THz | FLUX: ${flux}% | CYC: #${cyc}`, ROOM_SIZE * 0.5, 440);
       ctx.fillStyle = '#ffe600';
-      ctx.fillText('ACTIVE MANIFOLD BUS: SYNCHRONIZED', FACE_SIZE * 0.5, 465);
+      ctx.fillText('ACTIVE MANIFOLD BUS: SYNCHRONIZED', ROOM_SIZE * 0.5, 465);
     } else {
       ctx.font = '14px "Courier New", monospace';
       ctx.fillStyle = '#88c8ff';
-      ctx.fillText('STATUS: UNMAPPED DIMENSIONAL SECTOR', FACE_SIZE * 0.5, 395);
-      ctx.fillText('MANIFOLD TOPOLOGY: NON-EUCLIDEAN 4D MATRIX', FACE_SIZE * 0.5, 420);
-      ctx.fillText('WARP METRIC: ACTIVE TESSERACT', FACE_SIZE * 0.5, 445);
+      ctx.fillText('STATUS: UNMAPPED DIMENSIONAL SECTOR', ROOM_SIZE * 0.5, 395);
+      ctx.fillText('MANIFOLD TOPOLOGY: NON-EUCLIDEAN 4D MATRIX', ROOM_SIZE * 0.5, 420);
+      ctx.fillText('WARP METRIC: ACTIVE TESSERACT', ROOM_SIZE * 0.5, 445);
     }
 
     // 7. Dynamic Traveling Waveform
@@ -376,7 +376,7 @@ export class CubeRenderer {
 
   /**
    * Raycasts from screen coordinates to the front face of the 3D cube,
-   * returning exact pixel coordinates [0, FACE_SIZE] inside the room.
+   * returning exact pixel coordinates [0, ROOM_SIZE] inside the room.
    */
   public getRoomCoordsFromScreen(clientX: number, clientY: number): { x: number; y: number } | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -393,10 +393,10 @@ export class CubeRenderer {
       const hit = intersects[0];
       // Front face (+Z) corresponds to materialIndex 4
       if (hit.uv && (hit.face?.materialIndex === 4 || !hit.face)) {
-        const roomX = Math.round(hit.uv.x * FACE_SIZE);
-        const roomY = Math.round((1 - hit.uv.y) * FACE_SIZE);
-        const clampedX = Math.max(0, Math.min(FACE_SIZE, roomX));
-        const clampedY = Math.max(0, Math.min(FACE_SIZE, roomY));
+        const roomX = Math.round(hit.uv.x * ROOM_SIZE);
+        const roomY = Math.round((1 - hit.uv.y) * ROOM_SIZE);
+        const clampedX = Math.max(0, Math.min(ROOM_SIZE, roomX));
+        const clampedY = Math.max(0, Math.min(ROOM_SIZE, roomY));
         return { x: clampedX, y: clampedY };
       }
     }
@@ -704,9 +704,9 @@ export class CubeRenderer {
     const destCtx = this.faceContexts[faceIndex];
     if (rotationAngle !== 0) {
       destCtx.save();
-      destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+      destCtx.translate(ROOM_SIZE * 0.5, ROOM_SIZE * 0.5);
       destCtx.rotate(rotationAngle);
-      destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+      destCtx.translate(-ROOM_SIZE * 0.5, -ROOM_SIZE * 0.5);
       this.faceRenderer.renderRoomToContext(destCtx, room, levelMap, undefined, undefined, this.time);
       destCtx.restore();
     } else {
@@ -731,9 +731,9 @@ export class CubeRenderer {
     const binding = this.faceBindings[faceIndex];
     if (binding?.rotationAngle) {
       destCtx.save();
-      destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+      destCtx.translate(ROOM_SIZE * 0.5, ROOM_SIZE * 0.5);
       destCtx.rotate(binding.rotationAngle);
-      destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+      destCtx.translate(-ROOM_SIZE * 0.5, -ROOM_SIZE * 0.5);
       this.renderVoidGraphics(destCtx, text, this.time);
       destCtx.restore();
     } else {
@@ -884,9 +884,9 @@ export class CubeRenderer {
       const destCtx = this.faceContexts[targetIdx];
       if (binding.rotationAngle) {
         destCtx.save();
-        destCtx.translate(FACE_SIZE * 0.5, FACE_SIZE * 0.5);
+        destCtx.translate(ROOM_SIZE * 0.5, ROOM_SIZE * 0.5);
         destCtx.rotate(binding.rotationAngle);
-        destCtx.translate(-FACE_SIZE * 0.5, -FACE_SIZE * 0.5);
+        destCtx.translate(-ROOM_SIZE * 0.5, -ROOM_SIZE * 0.5);
         this.faceRenderer.renderRoomToContext(
           destCtx,
           binding.room,

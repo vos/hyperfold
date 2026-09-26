@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@worlds': path.resolve(import.meta.dirname, '../worlds'),
+      '@shared': path.resolve(import.meta.dirname, '../shared'),
     },
   },
   server: {

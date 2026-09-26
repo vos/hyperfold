@@ -1,7 +1,7 @@
 import {
   GRID_COLS,
   GRID_ROWS,
-  TILE_PIXEL_SIZE,
+  TILE_SIZE,
 } from '../types/world.ts';
 import type {
   DiagnosticIssue,
@@ -68,8 +68,8 @@ export function validateWorld(world: WorldData): DiagnosticIssue[] {
     // Check Spawn Point
     if (room.spawnPoint) {
       const [sx, sy] = room.spawnPoint;
-      const col = Math.floor(sx / TILE_PIXEL_SIZE);
-      const row = Math.floor(sy / TILE_PIXEL_SIZE);
+      const col = Math.floor(sx / TILE_SIZE);
+      const row = Math.floor(sy / TILE_SIZE);
 
       if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
         const tile = room.grid[row]?.[col];
@@ -285,8 +285,8 @@ export function validateWorld(world: WorldData): DiagnosticIssue[] {
         // Check if placed inside a solid block
         const pCenterX = p.x + (p.width ?? 44) * 0.5;
         const pCenterY = p.y + (p.height ?? 68) * 0.5;
-        const col = Math.floor(pCenterX / TILE_PIXEL_SIZE);
-        const row = Math.floor(pCenterY / TILE_PIXEL_SIZE);
+        const col = Math.floor(pCenterX / TILE_SIZE);
+        const row = Math.floor(pCenterY / TILE_SIZE);
         if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
           if (room.grid[row]?.[col] === '#') {
             issues.push({

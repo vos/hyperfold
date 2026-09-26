@@ -2,7 +2,7 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { LaserBarrier } from '../entities/LaserBarrier';
 import { LaserTurret, LaserProjectile } from '../entities/LaserTurret';
-import { FACE_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection, ExitDirection, ExitGateConfig, getGateColor, getExitGate, PortalConfig } from '../world/ScreenData';
+import { ROOM_SIZE, ScreenData, TILE_SIZE, TileType, getSpikeDirection, ExitDirection, ExitGateConfig, getGateColor, getExitGate, PortalConfig } from '../world/ScreenData';
 import { LevelMap } from '../world/LevelMap';
 import { AudioManager } from './AudioManager';
 import { ParticleSystem } from './ParticleSystem';
@@ -728,7 +728,7 @@ export class PhysicsEngine {
     onGateLocked?: (gate: ExitGateConfig, dir: ExitDirection) => void
   ): TransitionEvent | null {
     // Right Exit
-    if (player.x + player.width * 0.5 >= FACE_SIZE) {
+    if (player.x + player.width * 0.5 >= ROOM_SIZE) {
       if (this.isExitOpen(room, 'right', levelMap)) {
         return {
           direction: 'right',
@@ -737,7 +737,7 @@ export class PhysicsEngine {
           preserveVy: player.vy,
         };
       } else {
-        player.x = FACE_SIZE - player.width;
+        player.x = ROOM_SIZE - player.width;
         player.vx = 0;
         const gate = getExitGate(room, 'right');
         if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
@@ -751,7 +751,7 @@ export class PhysicsEngine {
       if (this.isExitOpen(room, 'left', levelMap)) {
         return {
           direction: 'left',
-          entryX: FACE_SIZE - player.width - 4,
+          entryX: ROOM_SIZE - player.width - 4,
           entryY: player.y,
           preserveVy: player.vy,
         };
@@ -771,7 +771,7 @@ export class PhysicsEngine {
         return {
           direction: 'up',
           entryX: player.x,
-          entryY: FACE_SIZE - player.height - 4,
+          entryY: ROOM_SIZE - player.height - 4,
           preserveVy: Math.min(-200, player.vy), // keep upward thrust
         };
       } else {
@@ -785,7 +785,7 @@ export class PhysicsEngine {
     }
 
     // Bottom Exit
-    if (player.y >= FACE_SIZE) {
+    if (player.y >= ROOM_SIZE) {
       if (this.isExitOpen(room, 'down', levelMap)) {
         return {
           direction: 'down',
@@ -796,12 +796,12 @@ export class PhysicsEngine {
       } else {
         const gate = getExitGate(room, 'down');
         if (gate && !(levelMap || this.levelMap)?.hasKey(gate.id)) {
-          player.y = FACE_SIZE - player.height;
+          player.y = ROOM_SIZE - player.height;
           player.vy = 0;
           this.handleLockedGateHit(player, gate, 'down', onGateLocked);
         } else {
           if (this.devManager.enabled && this.devManager.godMode) {
-            player.y = FACE_SIZE - player.height - 10;
+            player.y = ROOM_SIZE - player.height - 10;
             player.vy = -600;
             this.audio.playBounce();
             return null;
@@ -810,7 +810,7 @@ export class PhysicsEngine {
           this.audio.playDeath();
           this.particles.emitPlayerExplosion(
             player.x + player.width * 0.5,
-            FACE_SIZE - 20,
+            ROOM_SIZE - 20,
             player.primaryColor,
             player.accentColor
           );
@@ -882,8 +882,8 @@ export class PhysicsEngine {
       const destW = destPortal.width ?? 44;
       const destH = destPortal.height ?? 68;
 
-      const targetEntryX = Math.max(4, Math.min(FACE_SIZE - player.width - 4, destPortal.x + destW * 0.5 - player.width * 0.5));
-      const targetEntryY = Math.max(4, Math.min(FACE_SIZE - player.height - 4, destPortal.y + destH - player.height));
+      const targetEntryX = Math.max(4, Math.min(ROOM_SIZE - player.width - 4, destPortal.x + destW * 0.5 - player.width * 0.5));
+      const targetEntryY = Math.max(4, Math.min(ROOM_SIZE - player.height - 4, destPortal.y + destH - player.height));
 
       // Disable the destination portal until the player moves away from its collision box (if it has a target set)
       if (destPortal.targetPortalId) {
@@ -1127,7 +1127,7 @@ export class PhysicsEngine {
       p.y += p.vy * dt;
       p.life += dt;
 
-      if (p.life >= p.maxLife || p.x < -20 || p.x > FACE_SIZE + 20 || p.y < -20 || p.y > FACE_SIZE + 20) {
+      if (p.life >= p.maxLife || p.x < -20 || p.x > ROOM_SIZE + 20 || p.y < -20 || p.y > ROOM_SIZE + 20) {
         projectiles.splice(i, 1);
         continue;
       }

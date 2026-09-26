@@ -1,5 +1,5 @@
 import { LevelMap } from '../world/LevelMap';
-import { ScreenData, TileType, getSpikeDirection, ROWS, COLS, getGateColor, ExitDirection, ExitGateConfig, getExitGate } from '../world/ScreenData';
+import { ScreenData, TileType, getSpikeDirection, GRID_ROWS, GRID_COLS, getGateColor, ExitDirection, ExitGateConfig, getExitGate } from '../world/ScreenData';
 import { Player } from '../entities/Player';
 import { DevManager } from '../engine/DevManager';
 
@@ -1840,14 +1840,14 @@ export class SectorMapView {
     tCtx.fillRect(0, 0, thumbSize, thumbSize);
 
     // Render 20x20 tiles
-    const miniTileW = thumbSize / COLS; // 5.2px
-    const miniTileH = thumbSize / ROWS; // 5.2px
+    const miniTileW = thumbSize / GRID_COLS; // 5.2px
+    const miniTileH = thumbSize / GRID_ROWS; // 5.2px
 
     const keyColor = room.themeColor;
     const accentColor = room.accentColor || '#0088ff';
 
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
         const tile = room.tiles[r]?.[c] ?? TileType.EMPTY;
         if (tile === TileType.EMPTY) continue;
 

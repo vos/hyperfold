@@ -3,8 +3,8 @@ import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import {
   GRID_COLS,
   GRID_ROWS,
-  ROOM_PIXEL_SIZE,
-  TILE_PIXEL_SIZE,
+  ROOM_SIZE,
+  TILE_SIZE,
   RoomData,
   WorldData,
   TileGlyph,
@@ -12,6 +12,7 @@ import {
   SelectedEntity,
   isGatedExit,
   getGateColor,
+  getBaseFiringAngle,
 } from '../types/world';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
 import { getAdjacentSectors } from '../utils/navigation.ts';
@@ -109,14 +110,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const canvas = canvasRef.current;
       if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
-      const scaleX = ROOM_PIXEL_SIZE / rect.width;
-      const scaleY = ROOM_PIXEL_SIZE / rect.height;
+      const scaleX = ROOM_SIZE / rect.width;
+      const scaleY = ROOM_SIZE / rect.height;
 
-      const pixelX = Math.max(0, Math.min(ROOM_PIXEL_SIZE - 1, (e.clientX - rect.left) * scaleX));
-      const pixelY = Math.max(0, Math.min(ROOM_PIXEL_SIZE - 1, (e.clientY - rect.top) * scaleY));
+      const pixelX = Math.max(0, Math.min(ROOM_SIZE - 1, (e.clientX - rect.left) * scaleX));
+      const pixelY = Math.max(0, Math.min(ROOM_SIZE - 1, (e.clientY - rect.top) * scaleY));
 
-      const col = Math.floor(pixelX / TILE_PIXEL_SIZE);
-      const row = Math.floor(pixelY / TILE_PIXEL_SIZE);
+      const col = Math.floor(pixelX / TILE_SIZE);
+      const row = Math.floor(pixelY / TILE_SIZE);
 
       return { pixelX, pixelY, col, row };
     },
@@ -517,10 +518,10 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               b.id === draggingEntityHandle.id
                 ? {
                     ...b,
-                    endX1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
-                    endY1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
-                    endX2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
-                    endY2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
+                    endX1: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
+                    endY1: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
+                    endX2: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
+                    endY2: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
                   }
                 : b
             ),
@@ -535,10 +536,10 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               b.id === draggingEntityHandle.id
                 ? {
                     ...b,
-                    startX1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
-                    startY1: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
-                    startX2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
-                    startY2: Math.max(0, Math.min(ROOM_PIXEL_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
+                    startX1: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.x1 + dx)),
+                    startY1: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.y1 + dy)),
+                    startX2: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.x2 + dx)),
+                    startY2: Math.max(0, Math.min(ROOM_SIZE, draggingEntityHandle.initialCoords!.y2 + dy)),
                   }
                 : b
             ),
@@ -559,8 +560,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               p.id === draggingEntityHandle.id
                 ? {
                     ...p,
-                    x: Math.max(0, Math.min(ROOM_PIXEL_SIZE - (p.width ?? 44), snapX - (p.width ?? 44) * 0.5)),
-                    y: Math.max(0, Math.min(ROOM_PIXEL_SIZE - (p.height ?? 68), snapY - (p.height ?? 68) * 0.5 + 6)),
+                    x: Math.max(0, Math.min(ROOM_SIZE - (p.width ?? 44), snapX - (p.width ?? 44) * 0.5)),
+                    y: Math.max(0, Math.min(ROOM_SIZE - (p.height ?? 68), snapY - (p.height ?? 68) * 0.5 + 6)),
                   }
                 : p
             ),
@@ -628,21 +629,21 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
     // High DPI scaling
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = ROOM_PIXEL_SIZE * dpr;
-    canvas.height = ROOM_PIXEL_SIZE * dpr;
+    canvas.width = ROOM_SIZE * dpr;
+    canvas.height = ROOM_SIZE * dpr;
     ctx.resetTransform();
     ctx.scale(dpr, dpr);
 
     // 1. Dark Void Background
     ctx.fillStyle = '#0a0d14';
-    ctx.fillRect(0, 0, ROOM_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+    ctx.fillRect(0, 0, ROOM_SIZE, ROOM_SIZE);
 
     // Subtle Room Theme Glow in Center
     const gradient = ctx.createRadialGradient(400, 400, 50, 400, 400, 450);
     gradient.addColorStop(0, `${room.themeColor}12`);
     gradient.addColorStop(1, 'transparent');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, ROOM_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+    ctx.fillRect(0, 0, ROOM_SIZE, ROOM_SIZE);
 
     // 2. Render Exit Indicators
     const borderThickness = 6;
@@ -852,15 +853,15 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         ctx.moveTo(0, y);
         ctx.lineTo(0, y + h);
       } else if (dir === 'right') {
-        ctx.moveTo(ROOM_PIXEL_SIZE, y);
-        ctx.lineTo(ROOM_PIXEL_SIZE, y + h);
+        ctx.moveTo(ROOM_SIZE, y);
+        ctx.lineTo(ROOM_SIZE, y + h);
       } else if (dir === 'up') {
         ctx.moveTo(x, 0);
         ctx.lineTo(x + w, 0);
       } else {
         // down
-        ctx.moveTo(x, ROOM_PIXEL_SIZE);
-        ctx.lineTo(x + w, ROOM_PIXEL_SIZE);
+        ctx.moveTo(x, ROOM_SIZE);
+        ctx.lineTo(x + w, ROOM_SIZE);
       }
       ctx.stroke();
       ctx.restore();
@@ -891,7 +892,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         badgeX = Math.round(borderThickness + 8);
         badgeY = Math.round(centerPos - badgeH / 2);
       } else if (dir === 'right') {
-        badgeX = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeW - 8);
+        badgeX = Math.round(ROOM_SIZE - borderThickness - badgeW - 8);
         badgeY = Math.round(centerPos - badgeH / 2);
       } else if (dir === 'up') {
         badgeX = Math.round(centerPos - badgeW / 2);
@@ -899,12 +900,12 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       } else {
         // down
         badgeX = Math.round(centerPos - badgeW / 2);
-        badgeY = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeH - 8);
+        badgeY = Math.round(ROOM_SIZE - borderThickness - badgeH - 8);
       }
 
       // Clamp within canvas boundaries with margin
-      badgeX = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeW - 4, badgeX));
-      badgeY = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeH - 4, badgeY));
+      badgeX = Math.max(4, Math.min(ROOM_SIZE - badgeW - 4, badgeX));
+      badgeY = Math.max(4, Math.min(ROOM_SIZE - badgeH - 4, badgeY));
 
       // 1. Drop shadow behind badge
       ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
@@ -980,7 +981,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         badgeX = Math.round(borderThickness + 8);
         badgeY = Math.round(centerPos - badgeH / 2);
       } else if (dir === 'right') {
-        badgeX = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeW - 8);
+        badgeX = Math.round(ROOM_SIZE - borderThickness - badgeW - 8);
         badgeY = Math.round(centerPos - badgeH / 2);
       } else if (dir === 'up') {
         badgeX = Math.round(centerPos - badgeW / 2);
@@ -988,12 +989,12 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       } else {
         // down
         badgeX = Math.round(centerPos - badgeW / 2);
-        badgeY = Math.round(ROOM_PIXEL_SIZE - borderThickness - badgeH - 8);
+        badgeY = Math.round(ROOM_SIZE - borderThickness - badgeH - 8);
       }
 
       // Clamp within canvas boundaries with margin
-      badgeX = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeW - 4, badgeX));
-      badgeY = Math.max(4, Math.min(ROOM_PIXEL_SIZE - badgeH - 4, badgeY));
+      badgeX = Math.max(4, Math.min(ROOM_SIZE - badgeW - 4, badgeX));
+      badgeY = Math.max(4, Math.min(ROOM_SIZE - badgeH - 4, badgeY));
 
       // 1. Drop shadow behind badge
       ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
@@ -1049,8 +1050,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       for (const [start, end] of ranges) {
         const segments = getExitSegments('left', start, end);
         for (const seg of segments) {
-          const y = seg.start * TILE_PIXEL_SIZE;
-          const h = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+          const y = seg.start * TILE_SIZE;
+          const h = (seg.end - seg.start + 1) * TILE_SIZE;
 
           if (seg.isBlocked) {
             // Blocked: red hazard inward aura
@@ -1089,32 +1090,32 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       for (const [start, end] of ranges) {
         const segments = getExitSegments('right', start, end);
         for (const seg of segments) {
-          const y = seg.start * TILE_PIXEL_SIZE;
-          const h = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+          const y = seg.start * TILE_SIZE;
+          const h = (seg.end - seg.start + 1) * TILE_SIZE;
 
           if (seg.isBlocked) {
             // Blocked: red hazard inward aura
-            const grad = ctx.createLinearGradient(ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16, 0);
+            const grad = ctx.createLinearGradient(ROOM_SIZE, 0, ROOM_SIZE - 16, 0);
             grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
-            ctx.fillRect(ROOM_PIXEL_SIZE - 16, y, 16, h);
+            ctx.fillRect(ROOM_SIZE - 16, y, 16, h);
 
             // Red hazard diagonal stripe border
-            drawHazardStrip(ROOM_PIXEL_SIZE - borderThickness, y, borderThickness, h, 'right');
+            drawHazardStrip(ROOM_SIZE - borderThickness, y, borderThickness, h, 'right');
           } else {
             // Open: Portal aura gradient extending into room
-            const grad = ctx.createLinearGradient(ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16, 0);
+            const grad = ctx.createLinearGradient(ROOM_SIZE, 0, ROOM_SIZE - 16, 0);
             grad.addColorStop(0, `${col}33`);
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
-            ctx.fillRect(ROOM_PIXEL_SIZE - 16, y, 16, h);
+            ctx.fillRect(ROOM_SIZE - 16, y, 16, h);
 
             // Glowing border indicator along edge
             ctx.fillStyle = col;
             ctx.shadowColor = col;
             ctx.shadowBlur = 8;
-            ctx.fillRect(ROOM_PIXEL_SIZE - borderThickness, y, borderThickness, h);
+            ctx.fillRect(ROOM_SIZE - borderThickness, y, borderThickness, h);
             ctx.shadowBlur = 0;
           }
         }
@@ -1129,8 +1130,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       for (const [start, end] of ranges) {
         const segments = getExitSegments('up', start, end);
         for (const seg of segments) {
-          const x = seg.start * TILE_PIXEL_SIZE;
-          const w = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+          const x = seg.start * TILE_SIZE;
+          const w = (seg.end - seg.start + 1) * TILE_SIZE;
 
           if (seg.isBlocked) {
             // Blocked: red hazard inward aura
@@ -1169,32 +1170,32 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       for (const [start, end] of ranges) {
         const segments = getExitSegments('down', start, end);
         for (const seg of segments) {
-          const x = seg.start * TILE_PIXEL_SIZE;
-          const w = (seg.end - seg.start + 1) * TILE_PIXEL_SIZE;
+          const x = seg.start * TILE_SIZE;
+          const w = (seg.end - seg.start + 1) * TILE_SIZE;
 
           if (seg.isBlocked) {
             // Blocked: red hazard inward aura
-            const grad = ctx.createLinearGradient(0, ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16);
+            const grad = ctx.createLinearGradient(0, ROOM_SIZE, 0, ROOM_SIZE - 16);
             grad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
-            ctx.fillRect(x, ROOM_PIXEL_SIZE - 16, w, 16);
+            ctx.fillRect(x, ROOM_SIZE - 16, w, 16);
 
             // Red hazard diagonal stripe border
-            drawHazardStrip(x, ROOM_PIXEL_SIZE - borderThickness, w, borderThickness, 'down');
+            drawHazardStrip(x, ROOM_SIZE - borderThickness, w, borderThickness, 'down');
           } else {
             // Open: Portal aura gradient extending into room
-            const grad = ctx.createLinearGradient(0, ROOM_PIXEL_SIZE, 0, ROOM_PIXEL_SIZE - 16);
+            const grad = ctx.createLinearGradient(0, ROOM_SIZE, 0, ROOM_SIZE - 16);
             grad.addColorStop(0, `${col}33`);
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
-            ctx.fillRect(x, ROOM_PIXEL_SIZE - 16, w, 16);
+            ctx.fillRect(x, ROOM_SIZE - 16, w, 16);
 
             // Glowing border indicator along edge
             ctx.fillStyle = col;
             ctx.shadowColor = col;
             ctx.shadowBlur = 8;
-            ctx.fillRect(x, ROOM_PIXEL_SIZE - borderThickness, w, borderThickness);
+            ctx.fillRect(x, ROOM_SIZE - borderThickness, w, borderThickness);
             ctx.shadowBlur = 0;
           }
         }
@@ -1206,27 +1207,27 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const rowStr = room.grid[r] || '';
       for (let c = 0; c < GRID_COLS; c++) {
         const glyph = rowStr[c] || ' ';
-        const x = c * TILE_PIXEL_SIZE;
-        const y = r * TILE_PIXEL_SIZE;
+        const x = c * TILE_SIZE;
+        const y = r * TILE_SIZE;
 
         if (glyph === '#') {
           // Solid Block
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
           ctx.strokeStyle = room.themeColor;
           ctx.lineWidth = 2;
-          ctx.strokeRect(x + 1, y + 1, TILE_PIXEL_SIZE - 2, TILE_PIXEL_SIZE - 2);
+          ctx.strokeRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
 
           // Inner bevel
           ctx.strokeStyle = `${room.accentColor}55`;
           ctx.lineWidth = 1;
-          ctx.strokeRect(x + 4, y + 4, TILE_PIXEL_SIZE - 8, TILE_PIXEL_SIZE - 8);
+          ctx.strokeRect(x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
         } else if (glyph === '=') {
           // One-Way Platform
           ctx.fillStyle = '#00ffaa33';
-          ctx.fillRect(x, y, TILE_PIXEL_SIZE, 8);
+          ctx.fillRect(x, y, TILE_SIZE, 8);
           ctx.fillStyle = '#00ffaa';
-          ctx.fillRect(x, y, TILE_PIXEL_SIZE, 4);
+          ctx.fillRect(x, y, TILE_SIZE, 4);
 
           // Upward indicator arrows
           ctx.fillStyle = '#00ffaa';
@@ -1240,9 +1241,9 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           // Spike Up
           ctx.fillStyle = '#ff0055';
           ctx.beginPath();
-          ctx.moveTo(x + 5, y + TILE_PIXEL_SIZE);
+          ctx.moveTo(x + 5, y + TILE_SIZE);
           ctx.lineTo(x + 20, y + 6);
-          ctx.lineTo(x + 35, y + TILE_PIXEL_SIZE);
+          ctx.lineTo(x + 35, y + TILE_SIZE);
           ctx.closePath();
           ctx.fill();
           ctx.strokeStyle = '#ffffff';
@@ -1253,7 +1254,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           ctx.fillStyle = '#ff0055';
           ctx.beginPath();
           ctx.moveTo(x + 5, y);
-          ctx.lineTo(x + 20, y + TILE_PIXEL_SIZE - 6);
+          ctx.lineTo(x + 20, y + TILE_SIZE - 6);
           ctx.lineTo(x + 35, y);
           ctx.closePath();
           ctx.fill();
@@ -1264,9 +1265,9 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           // Spike Left
           ctx.fillStyle = '#ff0055';
           ctx.beginPath();
-          ctx.moveTo(x + TILE_PIXEL_SIZE, y + 5);
+          ctx.moveTo(x + TILE_SIZE, y + 5);
           ctx.lineTo(x + 6, y + 20);
-          ctx.lineTo(x + TILE_PIXEL_SIZE, y + 35);
+          ctx.lineTo(x + TILE_SIZE, y + 35);
           ctx.closePath();
           ctx.fill();
           ctx.strokeStyle = '#ffffff';
@@ -1277,7 +1278,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           ctx.fillStyle = '#ff0055';
           ctx.beginPath();
           ctx.moveTo(x, y + 5);
-          ctx.lineTo(x + TILE_PIXEL_SIZE - 6, y + 20);
+          ctx.lineTo(x + TILE_SIZE - 6, y + 20);
           ctx.lineTo(x, y + 35);
           ctx.closePath();
           ctx.fill();
@@ -1287,9 +1288,9 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         } else if (glyph === 'B') {
           // Bounce Pad
           ctx.fillStyle = '#ff00d433';
-          ctx.fillRect(x, y + 26, TILE_PIXEL_SIZE, 14);
+          ctx.fillRect(x, y + 26, TILE_SIZE, 14);
           ctx.fillStyle = '#ff00d4';
-          ctx.fillRect(x, y + 22, TILE_PIXEL_SIZE, 6);
+          ctx.fillRect(x, y + 22, TILE_SIZE, 6);
 
           // Energy wave
           ctx.strokeStyle = '#ffffff';
@@ -1302,10 +1303,10 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         } else if (glyph === 'C') {
           // Crumble Block
           ctx.fillStyle = '#ffaa0022';
-          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
           ctx.strokeStyle = '#ffaa00';
           ctx.lineWidth = 2;
-          ctx.strokeRect(x + 2, y + 2, TILE_PIXEL_SIZE - 4, TILE_PIXEL_SIZE - 4);
+          ctx.strokeRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
 
           // Crack lines
           ctx.beginPath();
@@ -1318,10 +1319,10 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         } else if (glyph === 'G') {
           // Goal Beacon
           ctx.fillStyle = '#ffff0033';
-          ctx.fillRect(x, y, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
           ctx.strokeStyle = '#ffff00';
           ctx.lineWidth = 2;
-          ctx.strokeRect(x + 6, y + 6, TILE_PIXEL_SIZE - 12, TILE_PIXEL_SIZE - 12);
+          ctx.strokeRect(x + 6, y + 6, TILE_SIZE - 12, TILE_SIZE - 12);
 
           // Center portal star
           ctx.fillStyle = '#ffff00';
@@ -1341,14 +1342,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       if (currentTool === 'line') {
         const cells = getLineCells(dragStart.row, dragStart.col, hoverPos.row, hoverPos.col);
         for (const c of cells) {
-          ctx.fillRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
-          ctx.strokeRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.fillRect(c.c * TILE_SIZE, c.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          ctx.strokeRect(c.c * TILE_SIZE, c.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
       } else if (currentTool === 'rect') {
         const cells = getRectCells(dragStart.row, dragStart.col, hoverPos.row, hoverPos.col);
         for (const c of cells) {
-          ctx.fillRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
-          ctx.strokeRect(c.c * TILE_PIXEL_SIZE, c.r * TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, TILE_PIXEL_SIZE);
+          ctx.fillRect(c.c * TILE_SIZE, c.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          ctx.strokeRect(c.c * TILE_SIZE, c.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
       }
     }
@@ -1360,14 +1361,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
       for (let i = 0; i <= GRID_COLS; i++) {
         ctx.beginPath();
-        ctx.moveTo(i * TILE_PIXEL_SIZE, 0);
-        ctx.lineTo(i * TILE_PIXEL_SIZE, ROOM_PIXEL_SIZE);
+        ctx.moveTo(i * TILE_SIZE, 0);
+        ctx.lineTo(i * TILE_SIZE, ROOM_SIZE);
         ctx.stroke();
       }
       for (let i = 0; i <= GRID_ROWS; i++) {
         ctx.beginPath();
-        ctx.moveTo(0, i * TILE_PIXEL_SIZE);
-        ctx.lineTo(ROOM_PIXEL_SIZE, i * TILE_PIXEL_SIZE);
+        ctx.moveTo(0, i * TILE_SIZE);
+        ctx.lineTo(ROOM_SIZE, i * TILE_SIZE);
         ctx.stroke();
       }
     }
@@ -1505,18 +1506,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           ctx.strokeRect(tur.x - 12, tur.y - 12, 24, 24);
 
           // Aim Trajectory Line
-          let angleRad = 0;
-          if (tur.angle !== undefined) {
-            angleRad = (tur.angle * Math.PI) / 180;
-          } else if (tur.direction === 'down') {
-            angleRad = Math.PI / 2;
-          } else if (tur.direction === 'up') {
-            angleRad = -Math.PI / 2;
-          } else if (tur.direction === 'left') {
-            angleRad = Math.PI;
-          } else {
-            angleRad = 0; // right
-          }
+          const angleRad = getBaseFiringAngle(tur);
 
           const aimLength = tur.mode === 'beam' ? 600 : 120;
           ctx.strokeStyle = tur.mode === 'beam' ? '#ff007f99' : '#00e5ff99';
@@ -1881,7 +1871,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         const mainRange = ranges.length > 0
           ? ranges.reduce((prev, curr) => (curr[1] - curr[0] > prev[1] - prev[0] ? curr : prev), ranges[0])
           : [7, 12] as [number, number];
-        const centerPos = (mainRange[0] + mainRange[1] + 1) * 0.5 * TILE_PIXEL_SIZE;
+        const centerPos = (mainRange[0] + mainRange[1] + 1) * 0.5 * TILE_SIZE;
 
         const segments = getExitSegments(dir, mainRange[0], mainRange[1]);
         const allBlocked = segments.length > 0 && segments.every((s) => s.isBlocked);
@@ -1894,14 +1884,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         for (const [start, end] of ranges) {
           const segments = getExitSegments(dir, start, end);
           for (const seg of segments) {
-            const midPos = (seg.start + seg.end + 1) * 0.5 * TILE_PIXEL_SIZE;
+            const midPos = (seg.start + seg.end + 1) * 0.5 * TILE_SIZE;
             if (seg.isBlocked) {
               drawBlockedMarker(dir, midPos, seg.reason);
             } else {
               if (dir === 'left') drawExitArrow(14, midPos, Math.PI, col);
-              else if (dir === 'right') drawExitArrow(ROOM_PIXEL_SIZE - 14, midPos, 0, col);
+              else if (dir === 'right') drawExitArrow(ROOM_SIZE - 14, midPos, 0, col);
               else if (dir === 'up') drawExitArrow(midPos, 14, -Math.PI / 2, col);
-              else if (dir === 'down') drawExitArrow(midPos, ROOM_PIXEL_SIZE - 14, Math.PI / 2, col);
+              else if (dir === 'down') drawExitArrow(midPos, ROOM_SIZE - 14, Math.PI / 2, col);
             }
           }
         }
@@ -1914,10 +1904,10 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       ctx.lineWidth = 2;
       const bSize = (currentTool === 'pencil' || currentTool === 'eraser') ? brushSize : 1;
       ctx.strokeRect(
-        hoverPos.col * TILE_PIXEL_SIZE,
-        hoverPos.row * TILE_PIXEL_SIZE,
-        TILE_PIXEL_SIZE * bSize,
-        TILE_PIXEL_SIZE * bSize
+        hoverPos.col * TILE_SIZE,
+        hoverPos.row * TILE_SIZE,
+        TILE_SIZE * bSize,
+        TILE_SIZE * bSize
       );
     }
 
@@ -1929,14 +1919,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
 
       // Horizontal crosshair
       ctx.beginPath();
-      ctx.moveTo(0, hoverPos.row * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2);
-      ctx.lineTo(ROOM_PIXEL_SIZE, hoverPos.row * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2);
+      ctx.moveTo(0, hoverPos.row * TILE_SIZE + TILE_SIZE / 2);
+      ctx.lineTo(ROOM_SIZE, hoverPos.row * TILE_SIZE + TILE_SIZE / 2);
       ctx.stroke();
 
       // Vertical crosshair
       ctx.beginPath();
-      ctx.moveTo(hoverPos.col * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2, 0);
-      ctx.lineTo(hoverPos.col * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2, ROOM_PIXEL_SIZE);
+      ctx.moveTo(hoverPos.col * TILE_SIZE + TILE_SIZE / 2, 0);
+      ctx.lineTo(hoverPos.col * TILE_SIZE + TILE_SIZE / 2, ROOM_SIZE);
       ctx.stroke();
 
       ctx.setLineDash([]);
@@ -2063,7 +2053,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             {showCoordinates && (
               <div
                 className="flex items-center"
-                style={{ width: `${(ROOM_PIXEL_SIZE * zoom) + 28}px` }}
+                style={{ width: `${(ROOM_SIZE * zoom) + 28}px` }}
               >
                 {/* Corner Coordinate Label */}
                 <div className="w-7 h-6 bg-cyber-card border-t border-l border-b border-cyber-border rounded-tl flex items-center justify-center text-[9px] font-mono font-bold text-slate-500">
@@ -2073,7 +2063,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
                 {/* Column Numbers 0..19 */}
                 <div
                   className="h-6 bg-cyber-card border-t border-b border-r border-cyber-border rounded-tr flex overflow-hidden font-mono text-[9px]"
-                  style={{ width: `${ROOM_PIXEL_SIZE * zoom}px` }}
+                  style={{ width: `${ROOM_SIZE * zoom}px` }}
                 >
                   {Array.from({ length: GRID_COLS }).map((_, c) => {
                     const isHovered = hoverPos?.col === c;
@@ -2101,7 +2091,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
               {showCoordinates && (
                 <div
                   className="w-7 bg-cyber-card border-l border-r border-b border-cyber-border rounded-bl flex flex-col overflow-hidden font-mono text-[9px]"
-                  style={{ height: `${ROOM_PIXEL_SIZE * zoom}px` }}
+                  style={{ height: `${ROOM_SIZE * zoom}px` }}
                 >
                   {Array.from({ length: GRID_ROWS }).map((_, r) => {
                     const isHovered = hoverPos?.row === r;
@@ -2128,8 +2118,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
                   showCoordinates ? 'rounded-br' : 'rounded-lg'
                 }`}
                 style={{
-                  width: `${ROOM_PIXEL_SIZE * zoom}px`,
-                  height: `${ROOM_PIXEL_SIZE * zoom}px`,
+                  width: `${ROOM_SIZE * zoom}px`,
+                  height: `${ROOM_SIZE * zoom}px`,
                 }}
               >
                 <canvas

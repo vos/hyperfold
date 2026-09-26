@@ -1,5 +1,5 @@
 import { LevelMap } from './world/LevelMap';
-import { FACE_SIZE, ScreenData, ExitDirection, ExitGateConfig, getGateColor } from './world/ScreenData';
+import { ROOM_SIZE, ScreenData, ExitDirection, ExitGateConfig, getGateColor } from './world/ScreenData';
 import { WorldRegistry } from './world/WorldRegistry';
 import { ProceduralLevelMap } from './world/ProceduralLevelMap';
 import { DifficultyLevel } from './world/ProceduralWorldGen';
@@ -1201,8 +1201,8 @@ class Game {
   }
 
   public teleportPlayer(x: number, y: number): void {
-    const clampedX = Math.max(0, Math.min(FACE_SIZE - this.player.width, x));
-    const clampedY = Math.max(0, Math.min(FACE_SIZE - this.player.height, y));
+    const clampedX = Math.max(0, Math.min(ROOM_SIZE - this.player.width, x));
+    const clampedY = Math.max(0, Math.min(ROOM_SIZE - this.player.height, y));
     this.player.setPosition(clampedX, clampedY);
     this.player.vx = 0;
     this.player.vy = 0;

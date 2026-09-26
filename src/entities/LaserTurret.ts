@@ -1,4 +1,4 @@
-import { LaserTurretConfig, TileType, TILE_SIZE, FACE_SIZE } from '../world/ScreenData';
+import { LaserTurretConfig, TileType, TILE_SIZE, ROOM_SIZE, getBaseFiringAngle } from '../../shared/index.ts';
 import { MovingPlatform } from './MovingPlatform';
 import { LaserBarrier } from './LaserBarrier';
 import { Player } from './Player';
@@ -160,16 +160,7 @@ export class LaserTurret {
    * Returns the base/idle firing angle in radians based on angle or cardinal direction.
    */
   public getBaseFiringAngle(): number {
-    if (this.config.angle !== undefined) {
-      return (this.config.angle * Math.PI) / 180;
-    }
-    switch (this.config.direction) {
-      case 'right': return 0;
-      case 'down': return Math.PI * 0.5;
-      case 'left': return Math.PI;
-      case 'up': return -Math.PI * 0.5;
-      default: return 0;
-    }
+    return getBaseFiringAngle(this.config);
   }
 
   /**
@@ -262,13 +253,13 @@ export class LaserTurret {
       dirY = directionOrAngle.dirY / len;
     }
 
-    // 1. Intersect Room Boundary [0, FACE_SIZE] x [0, FACE_SIZE]
+    // 1. Intersect Room Boundary [0, ROOM_SIZE] x [0, ROOM_SIZE]
     let boundaryDist = Infinity;
     let boundaryNormX = 0;
     let boundaryNormY = 0;
 
     if (dirX > 1e-6) {
-      const d = (FACE_SIZE - startX) / dirX;
+      const d = (ROOM_SIZE - startX) / dirX;
       if (d > 0 && d < boundaryDist) {
         boundaryDist = d;
         boundaryNormX = -1;
@@ -284,7 +275,7 @@ export class LaserTurret {
     }
 
     if (dirY > 1e-6) {
-      const d = (FACE_SIZE - startY) / dirY;
+      const d = (ROOM_SIZE - startY) / dirY;
       if (d > 0 && d < boundaryDist) {
         boundaryDist = d;
         boundaryNormX = 0;

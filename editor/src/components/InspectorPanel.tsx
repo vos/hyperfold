@@ -37,6 +37,10 @@ import {
   GATE_KEY_PALETTE,
   isGatedExit,
   getGateColor,
+  DEFAULT_MOVING_PLATFORM,
+  DEFAULT_LASER_BARRIER,
+  DEFAULT_LASER_TURRET,
+  DEFAULT_PORTAL,
 } from '../types/world';
 import { getAdjacentSectors, getOppositeDirection } from '../utils/navigation.ts';
 
@@ -146,12 +150,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       startY: 400,
       endX: 600,
       endY: 400,
-      width: 100,
-      height: 16,
-      speed: 120,
-      pauseTime: 0.4,
-      initialProgress: 0,
-      oneWay: true,
+      ...DEFAULT_MOVING_PLATFORM,
     };
     onUpdateRoom((prev) => ({
       ...prev,
@@ -169,10 +168,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       startY1: 300,
       startX2: 600,
       startY2: 300,
-      activeDuration: 2.0,
-      inactiveDuration: 2.0,
-      warningDuration: 0.6,
-      width: 4,
+      ...DEFAULT_LASER_BARRIER,
     };
     onUpdateRoom((prev) => ({
       ...prev,
@@ -188,10 +184,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       id,
       x: 400,
       y: 120,
-      direction: 'down',
-      mode: 'projectile',
-      fireInterval: 1.8,
-      projectileSpeed: 280,
+      ...DEFAULT_LASER_TURRET,
     };
     onUpdateRoom((prev) => ({
       ...prev,
@@ -207,8 +200,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       id,
       x: 378,
       y: 652,
-      width: 44,
-      height: 68,
+      ...DEFAULT_PORTAL,
       themeColor: room.themeColor,
       label: `Portal ${id.slice(-4)}`,
     };
