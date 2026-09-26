@@ -177,6 +177,7 @@ class Game {
 
     this.input = new InputManager();
     this.audio = new AudioManager();
+    this.audio.updateSector(this.currentRoom, this.levelMap);
     this.particles = new ParticleSystem();
     this.physics = new PhysicsEngine(this.audio, this.particles);
     this.devManager = DevManager.getInstance();
@@ -284,6 +285,23 @@ class Game {
     this.btnPerfEl?.addEventListener('click', () => {
       this.perfDebug.toggle();
     });
+
+    const btnMusicVol = document.getElementById('btn-music-vol');
+    if (btnMusicVol) {
+      const volLevels = [
+        { label: 'HIGH', val: 0.55 },
+        { label: 'MED', val: 0.35 },
+        { label: 'LOW', val: 0.15 },
+        { label: 'OFF', val: 0.0 },
+      ];
+      let currentVolIdx = 0;
+      btnMusicVol.addEventListener('click', () => {
+        currentVolIdx = (currentVolIdx + 1) % volLevels.length;
+        const current = volLevels[currentVolIdx];
+        this.audio.setMusicVolume(current.val);
+        btnMusicVol.innerHTML = `<span class="gear-icon">🎹</span> Music: ${current.label}`;
+      });
+    }
 
     const btnDevToggleEl = document.getElementById('btn-dev-toggle');
     const gearDevStatusEl = document.getElementById('gear-dev-status');
@@ -938,6 +956,7 @@ class Game {
         const threat = this.levelMap.getThreatLevel(targetX, targetY);
         this.audio.updateDepthAtmosphere(depth, threat);
       }
+      this.audio.updateSector(this.currentRoom, this.levelMap);
       this.updateHUD();
 
       if (this.bannerTimeout !== null) {
@@ -1035,6 +1054,7 @@ class Game {
         const threat = this.levelMap.getThreatLevel(targetX, targetY);
         this.audio.updateDepthAtmosphere(depth, threat);
       }
+      this.audio.updateSector(this.currentRoom, this.levelMap);
       this.updateHUD();
 
       // Keep transition notification banner visible for 3.0s after rotation completes
@@ -1113,6 +1133,7 @@ class Game {
     this.cubeRenderer.resetRotationToZero();
     this.cubeRenderer.faceRenderer.invalidateCache();
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+    this.audio.updateSector(this.currentRoom, this.levelMap);
 
     // Start intro 3D orbit around front face on game load / reset
     this.startIntroOrbit();
@@ -1139,6 +1160,8 @@ class Game {
     this.particles.emitPlayerExplosion(spawn.x, spawn.y, '#00ffff', '#ffe600');
     this.particles.emitSparks(spawn.x, spawn.y, 30, '#ff00aa');
     this.audio.playLevelReset();
+    this.audio.triggerRespawnRestore();
+    this.audio.updateSector(this.currentRoom, this.levelMap);
 
     this.winModalEl.style.display = 'none';
     this.gameState = 'PLAYING';
@@ -1192,6 +1215,7 @@ class Game {
       const threat = this.levelMap.getThreatLevel(targetX, targetY);
       this.audio.updateDepthAtmosphere(depth, threat);
     }
+    this.audio.updateSector(this.currentRoom, this.levelMap);
     this.updateHUD();
     this.updateKeyInventory();
     this.audio.playLand();
@@ -1262,6 +1286,7 @@ class Game {
   private respawnPlayer(): void {
     this.player.isAlive = true;
     this.player.setDucking(false);
+    this.audio.triggerRespawnRestore();
     this.physics.resetCrumblingTiles();
     const spawn = this.currentRoom.spawnPoint || { x: 80, y: 660 };
     this.player.setPosition(spawn.x, spawn.y);

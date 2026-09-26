@@ -1,3 +1,7 @@
+import type { ScreenData } from '../world/ScreenData.ts';
+import type { LevelMap } from '../world/LevelMap.ts';
+import { ProceduralMusicEngine } from './ProceduralMusicEngine.ts';
+
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
@@ -5,6 +9,10 @@ export class AudioManager {
   private ambientOsc1: OscillatorNode | null = null;
   private ambientOsc2: OscillatorNode | null = null;
   private ambientFilter: BiquadFilterNode | null = null;
+  private masterCompressor: DynamicsCompressorNode | null = null;
+  private musicEngine: ProceduralMusicEngine | null = null;
+  private pendingRoom: ScreenData | null = null;
+  private pendingLevelMap: LevelMap | null = null;
 
   constructor() {
     // AudioContext is initialized on first user interaction to comply with browser autoplay policies
@@ -15,6 +23,27 @@ export class AudioManager {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+
+        // Dynamics compressor limiter to avoid distortion under heavy layering
+        this.masterCompressor = this.ctx.createDynamicsCompressor();
+        this.masterCompressor.threshold.value = -12;
+        this.masterCompressor.knee.value = 8;
+        this.masterCompressor.ratio.value = 4;
+        this.masterCompressor.attack.value = 0.003;
+        this.masterCompressor.release.value = 0.15;
+        this.masterCompressor.connect(this.ctx.destination);
+
+        // Initialize Generative Procedural Music Engine
+        this.musicEngine = new ProceduralMusicEngine(this.ctx, this.masterCompressor);
+        if (this.isMuted) {
+          this.musicEngine.setMuted(true);
+        }
+        if (this.pendingRoom) {
+          this.musicEngine.updateSector(this.pendingRoom, this.pendingLevelMap ?? undefined);
+        } else {
+          this.musicEngine.start();
+        }
+
         this.startAmbientDrone();
       }
     }
@@ -27,7 +56,10 @@ export class AudioManager {
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     if (this.ambientGain) {
-      this.ambientGain.gain.value = this.isMuted ? 0 : 0.05;
+      this.ambientGain.gain.value = this.isMuted ? 0 : 0.02;
+    }
+    if (this.musicEngine) {
+      this.musicEngine.setMuted(this.isMuted);
     }
     return this.isMuted;
   }
@@ -104,6 +136,7 @@ export class AudioManager {
 
   public playRotate(): void {
     if (this.isMuted) return;
+    this.musicEngine?.triggerRotationSweep(0.45);
     const ctx = this.initCtx();
     if (!ctx) return;
 
@@ -262,6 +295,7 @@ export class AudioManager {
 
   public playDeath(): void {
     if (this.isMuted) return;
+    this.musicEngine?.triggerDeathChoke();
     const ctx = this.initCtx();
     if (!ctx) return;
 
@@ -342,6 +376,7 @@ export class AudioManager {
 
   public playWin(): void {
     if (this.isMuted) return;
+    this.musicEngine?.triggerVictoryModulation();
     const ctx = this.initCtx();
     if (!ctx) return;
 
@@ -650,5 +685,34 @@ export class AudioManager {
     // Modulate filter cutoff from 180Hz up to 340Hz as threat increases
     const cutoff = 180 + threat * 160;
     this.ambientFilter.frequency.linearRampToValueAtTime(cutoff, t + 1.2);
+  }
+
+  /**
+   * Adapts the generative soundtrack to the given sector's coordinates, theme, and hazards.
+   */
+  public updateSector(room: ScreenData, levelMap?: LevelMap): void {
+    this.pendingRoom = room;
+    this.pendingLevelMap = levelMap ?? null;
+    if (this.musicEngine) {
+      this.musicEngine.updateSector(room, levelMap);
+    }
+  }
+
+  /**
+   * Restores music filter and ducking after player respawns.
+   */
+  public triggerRespawnRestore(): void {
+    this.musicEngine?.triggerRespawnRestore();
+  }
+
+  /**
+   * Sets the generative music volume independently (0.0 to 1.0).
+   */
+  public setMusicVolume(volume: number): void {
+    this.musicEngine?.setMusicVolume(volume);
+  }
+
+  public getMusicEngine(): ProceduralMusicEngine | null {
+    return this.musicEngine;
   }
 }
