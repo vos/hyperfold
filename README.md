@@ -55,7 +55,13 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 ### 🌌 Synthwave Atmosphere & Procedural Audio
 * **Cosmic Starfield**: Independent deep-space starfield and drifting wireframe octahedra that remain stationary relative to the camera to accentuate the cube's 3D rotation.
 * **Dynamic Particle Systems**: Landing dust, jump bursts, collectible pickup sparks, motion trails, laser impact sparks, charging motes, muzzle flashes, 360° death explosions, expanding shockwaves, and screen-edge boundary luminescence.
-* **Zero-Asset Web Audio API Synthesizer**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, blaster zaps, impact sizzles, warning telegraph chirps, portal warp chirps, locked gate buzzes, a 3-layer cyberpunk synth explosion (sub-bass drop + detuned dual sawtooth/square filter sweep + filtered noise burst), an ascending 6-note level reboot fanfare, and a low-pass ambient drone. No external audio files required.
+* **Adaptive Procedurally Generated Synth Soundtrack**: Zero-asset, multi-track generative Web Audio synthesizer engine (`ProceduralMusicEngine`, `SynthInstruments`) creating real-time retro-futuristic synthwave and ambient soundscapes without any external audio files or bandwidth lag:
+  * **Synthesizer Layers**: Warm dual-sawtooth cosmic pads, punchy 303-style resonant acid basslines with sub-bass sine weight, plucky 16th-note cyber arpeggiators, and synthesized percussion (pitch-sweeping kick, highpass noise hi-hats, dual-layer cyber snares).
+  * **Deterministic Sector Adaptation**: Every sector in both fixed campaigns and procedural worlds hashes its coordinates $(X, Y)$ and visual theme to select unique root keys, chord progressions, and harmonic modal scales (**Dorian** for cyan data matrices, **Phrygian** for thermal solar flares, **Harmonic Minor** for toxic conduits and cosmic void, **Lydian** for zero-g spires).
+  * **Dynamic Hazard & Threat Reactivity**: Calmer exploration sectors play spacious ambient pads and subtle pulses; chambers with high hazard density (lasers, turrets, spikes) dynamically ramp BPM (96 $\to$ 128 BPM), open filter brightness, engage rolling 16th basslines, and drop driving kick and snare backbeats.
+  * **Event-Driven Audio Modulation**: Resonant 0.45s lowpass filter sweeps on 3D cube rotations, instant 220Hz low-pass filter choke ("underwater/system overload" effect) with ducking on player death, smooth restoration on respawn, and major scale transposition on stage clear.
+  * **Dedicated Music Controls**: Independent multi-level music volume control (`Music: HIGH / MED / LOW / OFF`) in the Settings Gear menu alongside the master sound mute toggle (`U` / `♫`).
+* **Zero-Asset Web Audio API Sound Effects**: Fully procedural sound effects—resonant 3D rotation whooshes, synth jump arps, landing thuds, collectible chimes, blaster zaps, impact sizzles, warning telegraph chirps, portal warp chirps, locked gate buzzes, a 3-layer cyberpunk synth explosion (sub-bass drop + detuned dual sawtooth/square filter sweep + filtered noise burst), and an ascending 6-note level reboot fanfare.
 
 ---
 
@@ -186,6 +192,7 @@ Hyperfold includes a visual web-based world editor built with **React**, **TypeS
 | **Reset Sector / Die (Tap)** | `R` (Tap) | Button `Select` / `Back` (Tap) | `Reset [R]` Button (Tap) |
 | **Restart Whole Level (Hold 0.8s)** | `Hold R` | `Hold Select` / `Back` | `Reset [R]` Button (Hold) |
 | **Toggle Sound** | `U` | — | HUD Sound Button |
+| **Music Volume (HIGH/MED/LOW/OFF)** | — | — | Settings Gear Menu (`⚙`) |
 | **Toggle 3D / Flat View** | `C` | — | HUD View Button |
 | **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Camera Button |
 | **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Profiler Button |
@@ -280,7 +287,8 @@ Run the comprehensive unit and integration test suite powered by Node.js's nativ
 npm test
 ```
 
-**187 automated tests passing across 18 test suites**:
+**196 automated tests passing across 19 test suites**:
+* `tests/procedural_music.test.mjs` — Procedural generative music engine: MIDI-to-frequency conversion math, deterministic sector harmonic seeding, modal scale mapping, dynamic hazard score & percussion scaling, death choke / rotation sweep filter modulation, volume & mute controls, and lookahead clock lifecycle.
 * `tests/shared-entities.test.mjs` — Single source of truth verification: canonical spatial constants, entity defaults, gate key palettes, turret base angles, turret sanitization, kinematics solvers, tile conversions, portal geometry, and coordinate navigation math.
 * `tests/dev-tools.test.mjs` — Developer manager singleton, dynamic hazard modes, god mode, fly mode, kinematics cheats, sector discovery, draggable overlay interaction, boundary clamping, and state persistence.
 * `tests/portals.test.mjs` — Quantum portal routing, $N \to 1$ topology, collision exit debouncing, intra/inter-sector kinematics, and reversed velocity vector inversion.
@@ -350,12 +358,14 @@ hyperfold/
 ├── src/
 │   ├── main.ts                    # Game loop, state coordinator, and transition manager
 │   ├── engine/
-│   │   ├── AudioManager.ts        # Procedural Web Audio API sound synthesizer
+│   │   ├── AudioManager.ts        # Master audio facade, SFX synthesis, and music engine routing
 │   │   ├── DevManager.ts          # Cheats, kinematics overrides, hazard modes, and persistence
 │   │   ├── InputManager.ts        # Keyboard, mouse, and Gamepad API handlers
 │   │   ├── ParticleSystem.ts      # 2D canvas particle emitter and trail effects
 │   │   ├── PerformanceTracker.ts  # Frame time profiler and ring buffer
-│   │   └── PhysicsEngine.ts       # Kinematics, AABB collision, moving platforms, lasers, portals
+│   │   ├── PhysicsEngine.ts       # Kinematics, AABB collision, moving platforms, lasers, portals
+│   │   ├── ProceduralMusicEngine.ts # Generative synthesizer engine, lookahead clock, & sector adapter
+│   │   └── SynthInstruments.ts      # Pure Web Audio procedural instruments (pads, 303 bass, arps, drums)
 │   ├── entities/
 │   │   ├── LaserBarrier.ts        # Laser barrier entity delegating kinematics to @shared
 │   │   ├── LaserTurret.ts         # Wall/ceiling turrets with projectile and raycast beam collision
@@ -380,7 +390,7 @@ hyperfold/
 ├── worlds/
 │   ├── demo/                      # Built-in campaign sectors (Genesis Core, Spire, Zenith, etc.)
 │   └── schemas/                   # JSON schemas for room and world validation
-└── tests/                         # Node.js automated test suites (187 tests)
+└── tests/                         # Node.js automated test suites (196 tests)
 ```
 
 ---
