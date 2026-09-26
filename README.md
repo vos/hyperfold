@@ -68,6 +68,7 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 
 ### 📊 Real-Time Performance & Telemetry HUD
 * **Built-In Profiler**: Real-time FPS graph, average/min/max frame-time tracking, sample ring buffers, and memory telemetry.
+* **Movable Overlay**: Drag and drop the telemetry card by its header to position it anywhere on screen (with automatic position persistence via `localStorage` and viewport edge clamping).
 * **Toggle Shortcut**: Press `P`, `F3`, or `` ` `` anytime during gameplay to view diagnostic stats.
 
 ---
@@ -105,6 +106,37 @@ The game combines classic 2D jump & run platforming mechanics with a pseudo-3D c
 * **Guaranteed Reachability & Safety**: Rigorous doorway alignment, safe spawn threshold checks, and vertical chute reachability guarantees.
 * **Power Sanctuaries**: Unique peaceful rest-stop chambers generated every 8 sectors with zero lethal hazards and bonus Energy Prisms.
 * **Difficulty Modes**: Select from Easy, Normal, Hard, and Void Abyss modes directly from the in-game menu.
+
+---
+
+### 🛠️ Developer Console & Debug Diagnostics (`F2`)
+* **Dedicated Shortcut & Gear Menu Access**: Press `F2` or open the in-game Gear Menu (**🛠 Dev Tools [F2]**) to summon the developer debug console.
+* **Movable / Draggable Overlays**: Click and drag the console header to reposition it anywhere on your screen. Positions are safely constrained to viewport bounds and persist across browser reloads via `localStorage`.
+* **Header Icon Controls & Top HUD Badges**:
+  * **Dev Mode Master Toggle (`⚡`)**: Suspend or reactivate all configured modifiers on the fly without resetting preferences.
+  * **Reset All Modifiers (`↺`)**: Instantly restore all cheats and kinematics to vanilla defaults.
+  * **Top Menu Status Bar**: Live modifier pills and master suspend toggle rendered directly in the center of the top HUD bar (`#hud-dev-badges`).
+* **Navigation & Sector Warping**:
+  * Jump instantly to any sector via dropdown selector or coordinate inputs $(X, Y)$.
+  * **Cardinal Jumps**: Move North, South, East, or West with automated doorway reachability validation.
+  * **Shift + Click Teleportation**: Hold `Shift` and Left-Click anywhere in the active chamber to instantly relocate the player avatar.
+  * **Reveal Full Sector Map**: Unveil all rooms in fixed world campaigns or iteratively discover unexplored frontier sectors in procedural void maps.
+* **Kinematics & Dynamic Hazard Controls**:
+  * **3-Tier Hazard Lethality**: Cycle between **Normal (Lethal)**, **Non-Lethal** (lasers & turrets pass through player without damage), and **Frozen (OFF)** (all lasers/turrets halted and active projectiles despawned).
+  * **God Mode & Spike Immunity**: Total invulnerability to all hazards, falls, and spikes.
+  * **Fly Mode / No-Clip (`WASD`)**: Free omnidirectional flight through solid terrain.
+  * **Infinite Air-Jump**: Jump indefinitely mid-air without landing.
+* **Diagnostics & Visual Overlays**:
+  * **Hitbox & Collision Visualizer**: Render AABB hitboxes, turret raycast lines, and dynamic moving platform shielding points directly on the canvas.
+  * **20×20 Tile Grid**: Overlay coordinate tile grids to measure jump distances and inspect room layouts.
+  * **Live Telemetry**: Real-time readouts of player coordinates, velocity vectors ($V_x, V_y$), and kinematic states (grounded, ducking).
+* **Inventory & Time Simulation Controls**:
+  * Instantly unlock all key-gated exits, collect room or world Energy Prisms, respawn items, or trigger victory.
+  * Adjust game simulation speed (`0.25x` to `4.0x`), pause physics (`⏸ PAUSE PHYSICS`), and single-step through frames (`⏭ STEP`).
+* **Procedural VOID Controls**:
+  * Quick-warp across deep procedural distances (Depth 10, 25, 50, 100) and jump directly to the nearest peaceful **Power Sanctuary**.
+* **Browser Storage Persistence**:
+  * All configured dev modifiers, hazard states, and panel coordinates are remembered in `localStorage` across page reloads while keeping the overlay unobtrusively closed on initial load until summoned.
 
 ---
 
@@ -157,6 +189,8 @@ Hyperfold includes a visual web-based world editor built with **React**, **TypeS
 | **Toggle 3D / Flat View** | `C` | — | HUD View Button |
 | **Reset 3D Camera** | `V` | Button `R3` (Stick Click) | HUD Camera Button |
 | **Performance Telemetry** | `P` / `F3` / `` ` `` | — | HUD Profiler Button |
+| **Developer Console** | `F2` | — | Gear Menu &bull; Status Badges |
+| **Shift+Click Teleport (Dev Mode)** | `Shift + Left Click` | — | Click anywhere in chamber |
 | **Orbit 3D Camera** | `I` / `J` / `K` / `L` | Right Thumbstick | Left Click + Drag |
 | **Zoom In / Out** | — | — | Mouse Wheel |
 
@@ -246,7 +280,8 @@ Run the comprehensive unit and integration test suite powered by Node.js's nativ
 npm test
 ```
 
-**154 automated tests passing across 16 test suites**:
+**170 automated tests passing across 17 test suites**:
+* `tests/dev-tools.test.mjs` — Developer manager singleton, dynamic hazard modes, god mode, fly mode, kinematics cheats, sector discovery, draggable overlay interaction, boundary clamping, and state persistence.
 * `tests/portals.test.mjs` — Quantum portal routing, $N \to 1$ topology, collision exit debouncing, intra/inter-sector kinematics, and reversed velocity vector inversion.
 * `tests/gate-keys.test.mjs` — Key pickups, locked exit forcefields, collision rejection, and sector map key markers.
 * `tests/danger-spikes.test.mjs` — Directional spikes (walls, roof, platform) collision & geometric orientation detection.
@@ -294,6 +329,7 @@ hyperfold/
 │   ├── main.ts                    # Game loop, state coordinator, and transition manager
 │   ├── engine/
 │   │   ├── AudioManager.ts        # Procedural Web Audio API sound synthesizer
+│   │   ├── DevManager.ts          # Cheats, kinematics overrides, hazard modes, and persistence
 │   │   ├── InputManager.ts        # Keyboard, mouse, and Gamepad API handlers
 │   │   ├── ParticleSystem.ts      # 2D canvas particle emitter and trail effects
 │   │   ├── PerformanceTracker.ts  # Frame time profiler and ring buffer
@@ -308,6 +344,8 @@ hyperfold/
 │   │   ├── FaceRenderer.ts        # 2D Canvas tilemap, portals, and HUD compositor for cube faces
 │   │   └── VoidBackground.ts      # Deep space starfield and floating polyhedra
 │   ├── ui/
+│   │   ├── DevDebugOverlay.ts     # Developer debug console, cheats, and diagnostics
+│   │   ├── Draggable.ts           # Pointer-based draggable overlay controller with persistence
 │   │   ├── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
 │   │   └── SectorMapView.ts       # 2D panoramic sector map overlay
 │   └── world/
@@ -320,7 +358,7 @@ hyperfold/
 ├── worlds/
 │   ├── demo/                      # Built-in campaign sectors (Genesis Core, Spire, Zenith, etc.)
 │   └── schemas/                   # JSON schemas for room and world validation
-└── tests/                         # Node.js automated test suites (152 tests)
+└── tests/                         # Node.js automated test suites (170 tests)
 ```
 
 ---

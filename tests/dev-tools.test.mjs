@@ -604,6 +604,164 @@ test('Developer Tools & Debug Mode Verification', async (t) => {
     assert.equal(dev.isSpikeLethal(), false, 'Spikes should be harmless again after re-enabling');
   });
 
+  await t.test('makeDraggable overlay interaction, boundary clamping, and position persistence', () => {
+    const { makeDraggable } = require('./dist-world/ui/Draggable.js');
+
+    // Setup mock elements
+    function createMockElement(tag = 'div') {
+      const listeners = {};
+      const classList = new Set();
+      return {
+        tagName: tag.toUpperCase(),
+        style: {},
+        classList: {
+          add: (c) => classList.add(c),
+          remove: (c) => classList.delete(c),
+          contains: (c) => classList.has(c),
+        },
+        addEventListener: (event, fn) => {
+          listeners[event] = listeners[event] || [];
+          listeners[event].push(fn);
+        },
+        removeEventListener: (event, fn) => {
+          if (listeners[event]) {
+            listeners[event] = listeners[event].filter((f) => f !== fn);
+          }
+        },
+        dispatch: (event) => {
+          if (listeners[event.type]) {
+            listeners[event.type].forEach((fn) => fn(event));
+          }
+        },
+        offsetWidth: 300,
+        offsetHeight: 200,
+        getBoundingClientRect: () => ({ left: 50, top: 50, width: 300, height: 200 }),
+        closest: (selector) => null,
+      };
+    }
+
+    // Mock window, document, and localStorage
+    const origWindow = globalThis.window;
+    const origDoc = globalThis.document;
+    const origLocalStorage = globalThis.localStorage;
+
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+      clear: () => store.clear(),
+    };
+
+    const windowListeners = {};
+    globalThis.window = {
+      innerWidth: 1000,
+      innerHeight: 800,
+      addEventListener: (evt, fn) => {
+        windowListeners[evt] = windowListeners[evt] || [];
+        windowListeners[evt].push(fn);
+      },
+      removeEventListener: (evt, fn) => {
+        if (windowListeners[evt]) {
+          windowListeners[evt] = windowListeners[evt].filter((f) => f !== fn);
+        }
+      },
+    };
+    globalThis.document = {
+      body: { style: {} },
+    };
+
+    try {
+      const panel = createMockElement('div');
+      const handle = createMockElement('div');
+
+      const drag = makeDraggable(panel, handle, {
+        storageKey: 'test_panel_pos',
+      });
+
+      // 1. Initial drag initiation
+      handle.dispatch({
+        type: 'pointerdown',
+        button: 0,
+        clientX: 60,
+        clientY: 60,
+        target: handle,
+      });
+
+      assert.equal(panel.classList.contains('is-dragging'), true);
+      assert.equal(handle.classList.contains('is-dragging'), true);
+
+      // 2. Drag movement
+      windowListeners['pointermove'].forEach((fn) => fn({
+        type: 'pointermove',
+        clientX: 160, // +100px X
+        clientY: 110, // +50px Y
+      }));
+
+      assert.equal(panel.style.left, '150px'); // 50 + 100
+      assert.equal(panel.style.top, '100px');  // 50 + 50
+
+      // 3. Pointer up finishes drag and persists to localStorage
+      windowListeners['pointerup'].forEach((fn) => fn({
+        type: 'pointerup',
+      }));
+
+      assert.equal(panel.classList.contains('is-dragging'), false);
+      assert.equal(handle.classList.contains('is-dragging'), false);
+
+      const saved = JSON.parse(globalThis.localStorage.getItem('test_panel_pos'));
+      assert.equal(saved.left, 150);
+      assert.equal(saved.top, 100);
+
+      // 4. Clamping bounds check (e.g. dragged far beyond screen)
+      handle.dispatch({
+        type: 'pointerdown',
+        button: 0,
+        clientX: 150,
+        clientY: 100,
+        target: handle,
+      });
+
+      windowListeners['pointermove'].forEach((fn) => fn({
+        type: 'pointermove',
+        clientX: 5000,
+        clientY: 5000,
+      }));
+
+      // Clamped to innerWidth - width - margin = 1000 - 300 - 8 = 692px
+      assert.equal(panel.style.left, '692px');
+      // Clamped to innerHeight - 40 = 800 - 40 = 760px
+      assert.equal(panel.style.top, '760px');
+
+      windowListeners['pointerup'].forEach((fn) => fn({ type: 'pointerup' }));
+
+      // 5. Buttons inside handle are ignored
+      const buttonTarget = {
+        closest: (sel) => ({ tagName: 'BUTTON' }),
+      };
+      handle.dispatch({
+        type: 'pointerdown',
+        button: 0,
+        clientX: 100,
+        clientY: 100,
+        target: buttonTarget,
+      });
+      assert.equal(panel.classList.contains('is-dragging'), false, 'Clicking a button in the handle should not initiate dragging');
+
+      // 6. Reset position
+      drag.resetPosition();
+      assert.equal(panel.style.left, '');
+      assert.equal(panel.style.top, '');
+      assert.equal(globalThis.localStorage.getItem('test_panel_pos'), null);
+
+      drag.destroy();
+    } finally {
+      globalThis.window = origWindow;
+      globalThis.document = origDoc;
+      globalThis.localStorage = origLocalStorage;
+    }
+  });
+
   // Clean up dev manager state
   dev.resetToDefaults();
   dev.enabled = false;

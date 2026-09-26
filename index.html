@@ -536,7 +536,7 @@
 
       /* Performance Debug Overlay */
       .perf-overlay-card {
-        position: absolute;
+        position: fixed;
         top: 66px;
         right: 24px;
         width: 250px;
@@ -546,6 +546,11 @@
         pointer-events: auto;
       }
 
+      .perf-overlay-card.is-dragging {
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 255, 170, 0.4);
+        border-color: #00ffaa;
+      }
+
       .perf-header {
         display: flex;
         justify-content: space-between;
@@ -553,6 +558,13 @@
         border-bottom: 1px solid rgba(0, 255, 255, 0.2);
         padding-bottom: 6px;
         margin-bottom: 8px;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .perf-header:active, .perf-header.is-dragging {
+        cursor: grabbing;
       }
 
       .perf-title-group {
@@ -693,7 +705,7 @@
 
       /* Developer Debug Overlay Panel */
       .dev-overlay-panel {
-        position: absolute;
+        position: fixed;
         top: 50px;
         right: 14px;
         width: 330px;
@@ -713,6 +725,11 @@
         user-select: none;
       }
 
+      .dev-overlay-panel.is-dragging {
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), 0 0 24px rgba(0, 255, 255, 0.4);
+        border-color: #00ffff;
+      }
+
       .dev-header {
         display: flex;
         align-items: center;
@@ -720,6 +737,13 @@
         padding: 10px 14px;
         background: rgba(0, 255, 255, 0.06);
         border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .dev-header:active, .dev-header.is-dragging {
+        cursor: grabbing;
       }
 
       .dev-title-group {

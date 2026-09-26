@@ -1,4 +1,5 @@
 import { PerformanceTracker, PerfSnapshot } from '../engine/PerformanceTracker';
+import { makeDraggable, DraggableInstance } from './Draggable';
 
 export interface PerformanceMetricsData {
   drawCalls: number;
@@ -14,6 +15,7 @@ export interface PerformanceMetricsData {
 export class PerformanceDebugView {
   private tracker: PerformanceTracker;
   private containerEl: HTMLElement | null = null;
+  private draggable: DraggableInstance | null = null;
   private canvasEl: HTMLCanvasElement | null = null;
   private canvasCtx: CanvasRenderingContext2D | null = null;
 
@@ -146,6 +148,13 @@ export class PerformanceDebugView {
   }
 
   private setupListeners(): void {
+    const headerEl = this.containerEl?.querySelector('.perf-header') as HTMLElement | null;
+    if (this.containerEl && headerEl) {
+      this.draggable = makeDraggable(this.containerEl, headerEl, {
+        storageKey: 'perf_overlay_pos',
+      });
+    }
+
     window.addEventListener('keydown', (e: KeyboardEvent) => {
       // Ignore when typing in editable elements if any
       const target = e.target as HTMLElement | null;
@@ -164,6 +173,9 @@ export class PerformanceDebugView {
 
   public toggle(force?: boolean): boolean {
     this.isVisible = force !== undefined ? force : !this.isVisible;
+    if (this.isVisible) {
+      this.draggable?.bringToFront();
+    }
     this.updateVisibility();
     if (this.onToggleCallback) {
       this.onToggleCallback(this.isVisible);

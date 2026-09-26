@@ -3,6 +3,7 @@ import { ScreenData } from '../world/ScreenData';
 import { LevelMap } from '../world/LevelMap';
 import { Player } from '../entities/Player';
 import { ProceduralLevelMap } from '../world/ProceduralLevelMap';
+import { makeDraggable, DraggableInstance } from './Draggable';
 
 export interface DevDebugOverlayCallbacks {
   goToRoom: (x: number, y: number, spawnTarget?: { x: number; y: number }) => void;
@@ -22,6 +23,7 @@ export class DevDebugOverlay {
   private dev: DevManager;
   private callbacks: DevDebugOverlayCallbacks;
   private containerEl: HTMLElement | null = null;
+  private draggable: DraggableInstance | null = null;
   private activeTab: 'nav' | 'hazards' | 'items' | 'visuals' | 'time' | 'void' = 'nav';
 
   // Cached DOM elements
@@ -98,6 +100,7 @@ export class DevDebugOverlay {
       this.syncMapSubscription();
       this.populateRoomSelector();
       this.updateUIState();
+      this.draggable?.bringToFront();
     }
     this.updateVisibility();
     this.updateBadges();
@@ -320,6 +323,14 @@ export class DevDebugOverlay {
 
   private setupListeners(): void {
     if (!this.containerEl) return;
+
+    // Draggable header
+    const headerEl = this.containerEl.querySelector('.dev-header') as HTMLElement | null;
+    if (headerEl) {
+      this.draggable = makeDraggable(this.containerEl, headerEl, {
+        storageKey: 'dev_overlay_pos',
+      });
+    }
 
     // Close button
     const closeBtn = this.containerEl.querySelector('#dev-close');
