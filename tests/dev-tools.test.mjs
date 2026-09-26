@@ -11,6 +11,7 @@ const { LaserTurret } = require('./dist-world/entities/LaserTurret.js');
 const { TileType, TILE_SIZE, FACE_SIZE } = require('./dist-world/world/ScreenData.js');
 const { Player } = require('./dist-world/entities/Player.js');
 const { PhysicsEngine } = require('./dist-world/engine/PhysicsEngine.js');
+const { ParticleSystem } = require('./dist-world/engine/ParticleSystem.js');
 
 function createMockPhysics() {
   const dummyAudio = {
@@ -760,6 +761,111 @@ test('Developer Tools & Debug Mode Verification', async (t) => {
       globalThis.document = origDoc;
       globalThis.localStorage = origLocalStorage;
     }
+  });
+
+  await t.test('Simulation Pause & Particle Emitter Freeze: stops growth from lasers and dev tools pause', () => {
+    const dev = DevManager.getInstance();
+    dev.resetToDefaults();
+    dev.enabled = true;
+
+    const particles = new ParticleSystem();
+    const dummyAudio = {
+      playDeath: () => {},
+      playLaserWarning: () => {},
+      playLaserHum: () => {},
+      playLaserShoot: () => {},
+      playLaserImpact: () => {},
+      playJump: () => {},
+      playLand: () => {},
+    };
+    const physics = new PhysicsEngine(dummyAudio, particles);
+    physics.setDevManager(dev);
+
+    // 1. Initial particle emission works when unpaused
+    assert.equal(particles.count, 0);
+    particles.emitDust(100, 100, 5);
+    assert.equal(particles.count, 5);
+    particles.clear();
+    assert.equal(particles.count, 0);
+
+    // 2. Setting particles.isPaused stops all particle emitter methods
+    particles.isPaused = true;
+    particles.emitDust(100, 100, 5);
+    particles.emitSparks(100, 100, 5);
+    particles.emitTrail(100, 100, 10, 10, '#fff');
+    particles.emitAmbientMote(100, 100, '#fff');
+    particles.emitLaserSparks(100, 100, 5);
+    particles.emitLaserCharge(100, 100);
+    particles.emitLaserVaporize(100, 100);
+    particles.emitLaserMuzzle(100, 100, 1, 0);
+    particles.emitPlayerExplosion(100, 100);
+    assert.equal(particles.count, 0, 'No particles should be added when isPaused is true');
+
+    // 3. Existing particles remain frozen in place without life decrement when paused
+    particles.isPaused = false;
+    particles.emitLaserSparks(100, 100, 4);
+    assert.equal(particles.count, 4);
+
+    particles.isPaused = true;
+    // Calling update with paused particles or dt = 0 should not decrease particle count or change particle state
+    particles.update(0.016);
+    assert.equal(particles.count, 4);
+    particles.update(0);
+    assert.equal(particles.count, 4);
+
+    // 4. DevManager pause prevents lasers from continuously spawning particles indefinitely
+    dev.isPaused = true;
+    particles.clear();
+
+    const map = WorldRegistry.getWorld('demo').load();
+    const roomWithLaser = map.getRoom(1, 0); // Sector 1 has lasers
+    const player = new Player(100, 700);
+
+    // Run 60 frames of simulation while paused with dt = 0
+    for (let frame = 0; frame < 60; frame++) {
+      physics.update(player, roomWithLaser, {}, 0);
+    }
+    assert.equal(particles.count, 0, 'Laser emissions must not accumulate particles while paused');
+
+    // 5. Step frame allows exactly 1 frame of particle emission / simulation
+    dev.stepFrame();
+    assert.equal(dev.stepFrameRequested, true);
+
+    // Emulate game loop frame step handling:
+    let dt = 0;
+    if (dev.isPaused) {
+      if (dev.stepFrameRequested) {
+        dev.stepFrameRequested = false;
+        dt = 0.016;
+      } else {
+        dt = 0;
+      }
+    }
+    particles.isPaused = (dev.enabled && dev.isPaused && dt === 0);
+    assert.equal(particles.isPaused, false, 'Step frame should unpause particles for 1 frame');
+
+    // On that stepped frame, particles can emit
+    particles.emitDust(100, 100, 3);
+    assert.equal(particles.count, 3);
+
+    // On the next frame, stepFrameRequested is false so dt = 0 and particles pause again
+    if (dev.isPaused) {
+      if (dev.stepFrameRequested) {
+        dev.stepFrameRequested = false;
+        dt = 0.016;
+      } else {
+        dt = 0;
+      }
+    }
+    particles.isPaused = (dev.enabled && dev.isPaused && dt === 0);
+    assert.equal(particles.isPaused, true, 'Particles must be paused again after step frame');
+
+    // Subsequent emissions during pause are blocked
+    particles.emitLaserSparks(100, 100, 10);
+    assert.equal(particles.count, 3, 'Particle count must not grow while paused');
+
+    dev.resetToDefaults();
+    dev.enabled = false;
   });
 
   // Clean up dev manager state

@@ -1194,7 +1194,7 @@ export class FaceRenderer {
         ctx.fill();
 
         // Emit occasional thruster micro-spark into particle system
-        if (particles && Math.random() < 0.08) {
+        if (particles && !particles.isPaused && Math.random() < 0.08) {
           particles.emitDust(tx, ty + 2, 1, color);
         }
       }

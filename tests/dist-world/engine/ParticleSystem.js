@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ParticleSystem = void 0;
 class ParticleSystem {
     particles = [];
+    isPaused = false;
     emitDust(x, y, count = 6, color = '#00ffff') {
+        if (this.isPaused) return;
         for (let i = 0; i < count; i++) {
             const angle = Math.PI + (Math.random() - 0.5) * Math.PI * 0.8; // mostly upward
             const speed = 20 + Math.random() * 50;
@@ -21,6 +23,7 @@ class ParticleSystem {
         }
     }
     emitSparks(x, y, count = 16, color = '#ffe600') {
+        if (this.isPaused) return;
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 60 + Math.random() * 120;
@@ -38,6 +41,7 @@ class ParticleSystem {
         }
     }
     emitTrail(x, y, width, height, color) {
+        if (this.isPaused) return;
         this.particles.push({
             x,
             y,
@@ -52,7 +56,7 @@ class ParticleSystem {
         });
     }
     emitAmbientMote(x, y, color) {
-        if (this.particles.length > 150)
+        if (this.isPaused || this.particles.length > 150)
             return;
         this.particles.push({
             x: x + (Math.random() - 0.5) * 40,
@@ -67,6 +71,7 @@ class ParticleSystem {
         });
     }
     emitLaserSparks(x, y, count = 10, color = '#ff0055', normalX = 0, normalY = 0) {
+        if (this.isPaused) return;
         const hasNormal = normalX !== 0 || normalY !== 0;
         const baseAngle = hasNormal ? Math.atan2(normalY, normalX) : 0;
         for (let i = 0; i < count; i++) {
@@ -88,7 +93,7 @@ class ParticleSystem {
         }
     }
     emitLaserCharge(x, y, color = '#ff0055') {
-        if (this.particles.length > 200)
+        if (this.isPaused || this.particles.length > 200)
             return;
         const angle = Math.random() * Math.PI * 2;
         const dist = 14 + Math.random() * 14;
@@ -108,6 +113,7 @@ class ParticleSystem {
         });
     }
     emitLaserVaporize(x, y, color = '#ff0055') {
+        if (this.isPaused) return;
         for (let i = 0; i < 30; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 90 + Math.random() * 180;
@@ -125,6 +131,7 @@ class ParticleSystem {
         }
     }
     emitLaserMuzzle(x, y, dirX, dirY, color = '#ff0055') {
+        if (this.isPaused) return;
         const baseAngle = Math.atan2(dirY, dirX);
         for (let i = 0; i < 8; i++) {
             const angle = baseAngle + (Math.random() - 0.5) * 0.9;
@@ -143,6 +150,7 @@ class ParticleSystem {
         }
     }
     emitPlayerExplosion(x, y, primaryColor = '#00ffff', accentColor = '#ff007f') {
+        if (this.isPaused) return;
         // 1. Expanding energy shockwave rings
         for (let r = 0; r < 2; r++) {
             this.particles.push({
@@ -197,6 +205,7 @@ class ParticleSystem {
         }
     }
     update(dt) {
+        if (this.isPaused || dt <= 0) return;
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.life -= dt;

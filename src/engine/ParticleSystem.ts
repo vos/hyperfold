@@ -14,8 +14,10 @@ export interface Particle {
 
 export class ParticleSystem {
   private particles: Particle[] = [];
+  public isPaused: boolean = false;
 
   public emitDust(x: number, y: number, count: number = 6, color: string = '#00ffff'): void {
+    if (this.isPaused) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.PI + (Math.random() - 0.5) * Math.PI * 0.8; // mostly upward
       const speed = 20 + Math.random() * 50;
@@ -34,6 +36,7 @@ export class ParticleSystem {
   }
 
   public emitSparks(x: number, y: number, count: number = 16, color: string = '#ffe600'): void {
+    if (this.isPaused) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 60 + Math.random() * 120;
@@ -52,6 +55,7 @@ export class ParticleSystem {
   }
 
   public emitTrail(x: number, y: number, width: number, height: number, color: string): void {
+    if (this.isPaused) return;
     this.particles.push({
       x,
       y,
@@ -67,7 +71,7 @@ export class ParticleSystem {
   }
 
   public emitAmbientMote(x: number, y: number, color: string): void {
-    if (this.particles.length > 150) return;
+    if (this.isPaused || this.particles.length > 150) return;
     this.particles.push({
       x: x + (Math.random() - 0.5) * 40,
       y: y + (Math.random() - 0.5) * 40,
@@ -89,6 +93,7 @@ export class ParticleSystem {
     normalX: number = 0,
     normalY: number = 0
   ): void {
+    if (this.isPaused) return;
     const hasNormal = normalX !== 0 || normalY !== 0;
     const baseAngle = hasNormal ? Math.atan2(normalY, normalX) : 0;
 
@@ -112,7 +117,7 @@ export class ParticleSystem {
   }
 
   public emitLaserCharge(x: number, y: number, color: string = '#ff0055'): void {
-    if (this.particles.length > 200) return;
+    if (this.isPaused || this.particles.length > 200) return;
     const angle = Math.random() * Math.PI * 2;
     const dist = 14 + Math.random() * 14;
     const spawnX = x + Math.cos(angle) * dist;
@@ -133,6 +138,7 @@ export class ParticleSystem {
   }
 
   public emitLaserVaporize(x: number, y: number, color: string = '#ff0055'): void {
+    if (this.isPaused) return;
     for (let i = 0; i < 30; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 90 + Math.random() * 180;
@@ -157,6 +163,7 @@ export class ParticleSystem {
     dirY: number,
     color: string = '#ff0055'
   ): void {
+    if (this.isPaused) return;
     const baseAngle = Math.atan2(dirY, dirX);
     for (let i = 0; i < 8; i++) {
       const angle = baseAngle + (Math.random() - 0.5) * 0.9;
@@ -181,6 +188,7 @@ export class ParticleSystem {
     primaryColor: string = '#00ffff',
     accentColor: string = '#ff007f'
   ): void {
+    if (this.isPaused) return;
     // 1. Expanding energy shockwave rings
     for (let r = 0; r < 2; r++) {
       this.particles.push({
@@ -239,6 +247,7 @@ export class ParticleSystem {
   }
 
   public update(dt: number): void {
+    if (this.isPaused || dt <= 0) return;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;

@@ -125,6 +125,7 @@ export class PhysicsEngine {
   }
 
   private updateCrumble(dt: number): void {
+    if (dt <= 0) return;
     for (const [key, item] of this.crumblingTiles) {
       item.timer -= dt;
       if (item.state === 'shaking') {
@@ -395,7 +396,7 @@ export class PhysicsEngine {
     }
 
     // 6. Laser Hazards Collision & Projectile Simulation
-    const barrierKilled = this.checkLaserBarriers(player, room, onPlayerDeath);
+    const barrierKilled = this.checkLaserBarriers(player, room, onPlayerDeath, dt);
     if (barrierKilled) return null;
 
     const turretKilled = this.updateLaserTurrets(player, room, platforms, dt, onPlayerDeath);
@@ -958,32 +959,40 @@ export class PhysicsEngine {
     return null;
   }
 
-  private checkLaserBarriers(
+  public checkLaserBarriers(
     player: Player,
     room: ScreenData,
-    onPlayerDeath?: () => void
+    onPlayerDeath?: () => void,
+    dt: number = 0.016
   ): boolean {
     if (this.devManager.enabled && this.devManager.hazardMode === 'frozen') {
       return false;
     }
+    const isPaused = (this.devManager.enabled && this.devManager.isPaused) || dt <= 0;
+    if (isPaused) {
+      this.particles.isPaused = true;
+    }
+
     const barriers = this.getBarriersForRoom(room, this.gameTime);
     for (const barrier of barriers) {
-      if (barrier.justEnteredWarning()) {
-        this.audio.playLaserWarning();
-      }
-      if (barrier.justActivated()) {
-        this.audio.playLaserHum();
-      }
-
-      if (barrier.state.state === 'WARNING') {
-        if (Math.random() < 0.25) {
-          this.particles.emitLaserCharge(barrier.state.x1, barrier.state.y1, barrier.themeColor);
-          this.particles.emitLaserCharge(barrier.state.x2, barrier.state.y2, barrier.themeColor);
+      if (!isPaused) {
+        if (barrier.justEnteredWarning()) {
+          this.audio.playLaserWarning();
         }
-      } else if (barrier.state.isActive) {
-        if (Math.random() < 0.15) {
-          this.particles.emitLaserSparks(barrier.state.x1, barrier.state.y1, 2, barrier.themeColor);
-          this.particles.emitLaserSparks(barrier.state.x2, barrier.state.y2, 2, barrier.themeColor);
+        if (barrier.justActivated()) {
+          this.audio.playLaserHum();
+        }
+
+        if (barrier.state.state === 'WARNING') {
+          if (Math.random() < 0.25) {
+            this.particles.emitLaserCharge(barrier.state.x1, barrier.state.y1, barrier.themeColor);
+            this.particles.emitLaserCharge(barrier.state.x2, barrier.state.y2, barrier.themeColor);
+          }
+        } else if (barrier.state.isActive) {
+          if (Math.random() < 0.15) {
+            this.particles.emitLaserSparks(barrier.state.x1, barrier.state.y1, 2, barrier.themeColor);
+            this.particles.emitLaserSparks(barrier.state.x2, barrier.state.y2, 2, barrier.themeColor);
+          }
         }
       }
 
@@ -1018,6 +1027,11 @@ export class PhysicsEngine {
       return false;
     }
 
+    const isPaused = (this.devManager.enabled && this.devManager.isPaused) || dt <= 0;
+    if (isPaused) {
+      this.particles.isPaused = true;
+    }
+
     const turrets = this.getTurretsForRoom(room);
     let projectiles = this.roomProjectiles.get(room.id);
     if (!projectiles) {
@@ -1033,19 +1047,23 @@ export class PhysicsEngine {
       if (turret.mode === 'beam') {
         turret.updateBeam(this.gameTime, playerTarget);
         const nozzle = turret.getNozzlePosition(playerTarget);
-        if (turret.justEnteredWarning()) {
-          this.audio.playLaserWarning();
-        }
-        if (turret.justActivated()) {
-          this.audio.playLaserHum();
+        if (!isPaused) {
+          if (turret.justEnteredWarning()) {
+            this.audio.playLaserWarning();
+          }
+          if (turret.justActivated()) {
+            this.audio.playLaserHum();
+          }
         }
 
         if (turret.isBeamActive) {
           const ray = LaserTurret.castRay(nozzle.x, nozzle.y, nozzle.angle, room.tiles, platforms);
-          if (turret.justActivated()) {
-            this.particles.emitLaserSparks(ray.hitX, ray.hitY, 8, turret.themeColor, ray.normalX, ray.normalY);
-          } else if (Math.random() < 0.35) {
-            this.particles.emitLaserSparks(ray.hitX, ray.hitY, 2, turret.themeColor, ray.normalX, ray.normalY);
+          if (!isPaused) {
+            if (turret.justActivated()) {
+              this.particles.emitLaserSparks(ray.hitX, ray.hitY, 8, turret.themeColor, ray.normalX, ray.normalY);
+            } else if (Math.random() < 0.35) {
+              this.particles.emitLaserSparks(ray.hitX, ray.hitY, 2, turret.themeColor, ray.normalX, ray.normalY);
+            }
           }
           if (LaserTurret.rayIntersectsPlayer(nozzle.x, nozzle.y, ray.hitX, ray.hitY, player)) {
             if (this.devManager.isDynamicHazardLethal()) {
@@ -1062,7 +1080,7 @@ export class PhysicsEngine {
             }
           }
         } else if (turret.beamState === 'WARNING') {
-          if (Math.random() < 0.25) {
+          if (!isPaused && Math.random() < 0.25) {
             this.particles.emitLaserCharge(nozzle.x, nozzle.y, turret.themeColor);
           }
         }
@@ -1073,7 +1091,7 @@ export class PhysicsEngine {
         const fireOffset = turret.config.fireOffset ?? 0;
         const effectiveTime = this.gameTime - fireOffset;
 
-        if (effectiveTime >= 0) {
+        if (!isPaused && effectiveTime >= 0) {
           if (turret.lastShotTime < 0 || effectiveTime - turret.lastShotTime >= fireInterval) {
             turret.lastShotTime = effectiveTime - (effectiveTime % fireInterval);
             const speed = turret.config.projectileSpeed ?? 320;

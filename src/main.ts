@@ -181,6 +181,11 @@ class Game {
     this.physics = new PhysicsEngine(this.audio, this.particles);
     this.devManager = DevManager.getInstance();
     this.physics.setDevManager(this.devManager);
+    this.devManager.subscribe((key, val) => {
+      if (key === 'isPaused') {
+        this.particles.isPaused = this.devManager.enabled && Boolean(val);
+      }
+    });
     this.cubeRenderer = new CubeRenderer(container);
 
     this.sectorMap = new SectorMapView({
@@ -675,6 +680,8 @@ class Game {
         dt *= this.devManager.timeScale;
       }
     }
+
+    this.particles.isPaused = (this.devManager.enabled && this.devManager.isPaused && dt === 0);
 
     this.gameTime += dt;
 
