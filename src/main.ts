@@ -4,7 +4,7 @@ import { WorldRegistry } from './world/WorldRegistry';
 import { ProceduralLevelMap } from './world/ProceduralLevelMap';
 import { DifficultyLevel } from './world/ProceduralWorldGen';
 import { Player } from './entities/Player';
-import { InputManager } from './engine/InputManager';
+import { InputManager, InputState } from './engine/InputManager';
 import { AudioManager } from './engine/AudioManager';
 import { ParticleSystem } from './engine/ParticleSystem';
 import { PhysicsEngine, TransitionEvent } from './engine/PhysicsEngine';
@@ -32,6 +32,7 @@ class Game {
   private gameTime: number = 0;
   private sidesTraversed: number = 1;
   private camera3DMode: boolean = true;
+  private isIntroOrbiting: boolean = true;
   private pendingNextRoom: ScreenData | null = null;
   private bannerTimeout: number | null = null;
   private rHoldTime: number = 0;
@@ -211,6 +212,10 @@ class Game {
       }
     };
 
+    this.cubeRenderer.onPlayerInteraction = () => {
+      this.stopIntroOrbitAndTransitionTo2D();
+    };
+
     this.btnDevEl = document.getElementById('btn-dev');
 
     this.physics.setLevelMap(this.levelMap);
@@ -220,6 +225,7 @@ class Game {
     this.updateHUD();
     this.updateKeyInventory();
     this.setupUIEvents();
+    this.startIntroOrbit();
 
     requestAnimationFrame(this.gameLoop);
   }
@@ -238,15 +244,13 @@ class Game {
     });
 
     this.btnCameraEl.addEventListener('click', () => {
+      if (this.isIntroOrbiting) {
+        this.stopIntroOrbitAndTransitionTo2D();
+        return;
+      }
       this.camera3DMode = !this.camera3DMode;
       this.cubeRenderer.setCameraMode(this.camera3DMode);
-      // Update gear menu item text
-      const textNodes = Array.from(this.btnCameraEl.childNodes);
-      for (const node of textNodes) {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent?.includes('View:')) {
-          node.textContent = this.camera3DMode ? ' View: 3D Depth ' : ' View: Flat Face ';
-        }
-      }
+      this.updateCameraModeUI();
     });
 
     const btnReset = document.getElementById('btn-reset');
@@ -458,7 +462,25 @@ class Game {
       }
     });
 
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target && (e.target as HTMLElement).closest('#btn-camera')) {
+        return;
+      }
+      if (this.isIntroOrbiting) {
+        this.stopIntroOrbitAndTransitionTo2D();
+      }
+    });
+
+    window.addEventListener('wheel', () => {
+      if (this.isIntroOrbiting) {
+        this.stopIntroOrbitAndTransitionTo2D();
+      }
+    }, { passive: true });
+
     window.addEventListener('keydown', (e) => {
+      if (this.isIntroOrbiting && e.code !== 'KeyC') {
+        this.stopIntroOrbitAndTransitionTo2D();
+      }
       if (e.code === 'KeyM') {
         this.sectorMap.toggle();
       }
@@ -661,6 +683,11 @@ class Game {
 
     const inputState = this.input.update();
 
+    // First player interaction stops intro orbit and smoothly transitions to 2D
+    if (this.isIntroOrbiting && this.hasPlayerMovementOrAction(inputState)) {
+      this.stopIntroOrbitAndTransitionTo2D();
+    }
+
     // Handle R reset input (tap to die & respawn, long-press 0.8s to reset whole level to start)
     const isRestarting = inputState.restart || this.isButtonResetHeld;
 
@@ -790,7 +817,7 @@ class Game {
       particleCount: this.particles.count,
       sectorName: this.currentRoom.title,
       coords: this.currentCoords,
-      cameraMode: this.camera3DMode ? '3D Orbit' : '2D Flat',
+      cameraMode: this.isIntroOrbiting ? '3D Intro Orbit' : (this.camera3DMode ? '3D Orbit' : '2D Flat'),
     });
 
     this.devOverlay.updateTelemetry();
@@ -1079,6 +1106,9 @@ class Game {
     this.cubeRenderer.resetRotationToZero();
     this.cubeRenderer.faceRenderer.invalidateCache();
     this.cubeRenderer.bindCurrentAndNeighborRooms(this.currentRoom, this.levelMap);
+
+    // Start intro 3D orbit around front face on game load / reset
+    this.startIntroOrbit();
 
     // Reset physics & particles
     this.physics.clearAllRoomsCache();
@@ -1369,6 +1399,50 @@ class Game {
         <span class="key-chip-id">${displayLabel}</span>
       `;
       this.keyInventorySlotsEl.appendChild(chip);
+    }
+  }
+
+  private hasPlayerMovementOrAction(input: InputState): boolean {
+    return (
+      input.left ||
+      input.right ||
+      input.up ||
+      input.down ||
+      input.jump ||
+      input.jumpJustPressed ||
+      input.dashJustPressed ||
+      input.restart ||
+      input.restartJustPressed ||
+      Math.abs(input.cameraOrbitX) > 0.05 ||
+      Math.abs(input.cameraOrbitY) > 0.05 ||
+      input.cameraResetJustPressed
+    );
+  }
+
+  private startIntroOrbit(): void {
+    this.isIntroOrbiting = true;
+    this.camera3DMode = true;
+    this.cubeRenderer.startIntroOrbit();
+    this.updateCameraModeUI();
+  }
+
+  private stopIntroOrbitAndTransitionTo2D(): void {
+    if (!this.isIntroOrbiting) return;
+    this.isIntroOrbiting = false;
+    this.cubeRenderer.stopIntroOrbit();
+    this.camera3DMode = false;
+    this.cubeRenderer.setCameraMode(false);
+    this.updateCameraModeUI();
+  }
+
+  private updateCameraModeUI(): void {
+    if (this.btnCameraEl) {
+      const textNodes = Array.from(this.btnCameraEl.childNodes);
+      for (const node of textNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent?.includes('View:')) {
+          node.textContent = this.camera3DMode ? ' View: 3D Depth ' : ' View: Flat Face ';
+        }
+      }
     }
   }
 }

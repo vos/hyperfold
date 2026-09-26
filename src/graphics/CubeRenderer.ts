@@ -86,6 +86,11 @@ export class CubeRenderer {
   public readonly CUBE_SIZE = 16;
   public is3DMode: boolean = true;
 
+  // Intro 3D Camera Orbit Animation
+  public isIntroOrbiting: boolean = true;
+  private introOrbitTime: number = 0;
+  private readonly INTRO_ORBIT_SPEED: number = 0.45; // Smooth, gentle rotation speed
+
   // Interactive 3D Orbit Camera System
   // Default 3D perspective angles:
   private readonly DEFAULT_YAW = 0.285;       // ~16.3 degrees
@@ -104,6 +109,9 @@ export class CubeRenderer {
   private isPointerDragging: boolean = false;
   private lastPointerX: number = 0;
   private lastPointerY: number = 0;
+
+  // Player interaction callback (for exiting intro orbit)
+  public onPlayerInteraction?: () => void;
 
   // Shift+Click Teleport callback for dev mode
   public onShiftClickTeleportCallback?: (roomX: number, roomY: number) => void;
@@ -127,8 +135,8 @@ export class CubeRenderer {
     this.renderer.toneMappingExposure = 0.95;
     container.appendChild(this.renderer.domElement);
 
-    // Initial camera layout with full cube framing
-    this.updateCameraLayout(true);
+    // Initial camera layout with cool 3D orbit around front face
+    this.startIntroOrbit();
 
     // Cosmic void background
     this.voidBg = new VoidBackground();
@@ -302,6 +310,8 @@ export class CubeRenderer {
     const el = this.renderer.domElement;
 
     el.addEventListener('pointerdown', (e: PointerEvent) => {
+      this.onPlayerInteraction?.();
+
       // Shift + Left Click for Dev Mode Click-to-Teleport
       if (e.button === 0 && e.shiftKey) {
         if (this.handleShiftClickTeleport(e.clientX, e.clientY)) {
@@ -347,6 +357,7 @@ export class CubeRenderer {
     el.addEventListener('pointercancel', stopDrag);
 
     el.addEventListener('wheel', (e: WheelEvent) => {
+      this.onPlayerInteraction?.();
       if (this.is3DMode) {
         e.preventDefault();
         this.addZoom(e.deltaY * 0.025);
@@ -430,6 +441,38 @@ export class CubeRenderer {
    * Smoothly resets the camera orbit to the default 3D gameplay view.
    */
   public resetCameraToDefault(): void {
+    this.orbitYaw = this.DEFAULT_YAW;
+    this.orbitPitch = this.DEFAULT_PITCH;
+    this.orbitDistance = this.DEFAULT_DISTANCE;
+    this.lookTarget.set(-1.5, -0.7, 0);
+  }
+
+  /**
+   * Starts a continuous cinematic 3D camera orbit circling the front face of the cube.
+   */
+  public startIntroOrbit(): void {
+    this.isIntroOrbiting = true;
+    this.introOrbitTime = 0;
+    this.is3DMode = true;
+
+    // Immediately evaluate initial orbit angles (angle = 0) so the camera begins smoothly
+    const angle = 0;
+    const radiusYaw = 0.36;
+    const radiusPitch = 0.20;
+    this.orbitYaw = Math.sin(angle) * radiusYaw + Math.sin(angle * 2.3) * 0.04;
+    this.orbitPitch = Math.cos(angle) * radiusPitch + Math.cos(angle * 1.7) * 0.03;
+    this.orbitDistance = 37.5;
+    this.lookTarget.set(0, -0.6, 0);
+
+    this.updateCameraLayout(true);
+  }
+
+  /**
+   * Stops the intro orbit, restoring standard 3D viewing angles for subsequent manual 3D mode.
+   */
+  public stopIntroOrbit(): void {
+    if (!this.isIntroOrbiting) return;
+    this.isIntroOrbiting = false;
     this.orbitYaw = this.DEFAULT_YAW;
     this.orbitPitch = this.DEFAULT_PITCH;
     this.orbitDistance = this.DEFAULT_DISTANCE;
@@ -911,7 +954,7 @@ export class CubeRenderer {
 
     // Throttled Side-Face Animation:
     // Round-robin 20 FPS to conserve GPU bandwidth while keeping moving platforms and lasers alive
-    if (this.is3DMode || this.isRotating) {
+    if (this.is3DMode || this.isRotating || Math.abs(this.camera.position.x) > 0.02 || Math.abs(this.camera.position.y) > 0.02) {
       this.sideFacesAccumulator += dt;
       if (this.sideFacesAccumulator >= this.SIDE_FACES_INTERVAL) {
         this.sideFacesAccumulator %= this.SIDE_FACES_INTERVAL;
@@ -951,6 +994,25 @@ export class CubeRenderer {
   private updateCameraSwoop(dt: number): void {
     const aspect = this.camera.aspect;
 
+    if (this.isIntroOrbiting) {
+      this.introOrbitTime += dt;
+      const angle = this.introOrbitTime * this.INTRO_ORBIT_SPEED;
+
+      const radiusYaw = 0.36;
+      const radiusPitch = 0.20;
+
+      // Dynamic continuous 3D orbit circling around the front face (+Z normal)
+      this.orbitYaw = Math.sin(angle) * radiusYaw + Math.sin(angle * 2.3) * 0.04;
+      this.orbitPitch = Math.cos(angle) * radiusPitch + Math.cos(angle * 1.7) * 0.03;
+      this.orbitDistance = 37.5 + Math.sin(angle * 2.0) * 1.8;
+
+      this.lookTarget.set(
+        -1.2 * Math.sin(angle),
+        -0.6 * Math.cos(angle),
+        0
+      );
+    }
+
     if (this.is3DMode) {
       // Scale distance for narrow viewport aspect ratios (< 1.2)
       const baseDist = aspect < 1.2 ? this.orbitDistance * (1.2 / aspect) : this.orbitDistance;
@@ -980,9 +1042,9 @@ export class CubeRenderer {
 
       this.camera.lookAt(this.currentLookAt);
     } else {
-      // Flat Face: direct orthogonal 2D alignment
+      // Flat Face: direct orthogonal 2D alignment with smooth glide
       const targetZ = aspect < 1.2 ? 36 * (1.2 / aspect) : 36;
-      const lerpSpeed = Math.min(1.0, dt * 6.0);
+      const lerpSpeed = Math.min(1.0, dt * 5.0);
 
       // If already very close to 0,0, snap strictly to prevent fractional subpixel blur
       if (Math.abs(this.camera.position.x) < 0.02 && Math.abs(this.camera.position.y) < 0.02) {
@@ -1018,6 +1080,9 @@ export class CubeRenderer {
   }
 
   public setCameraMode(is3D: boolean): void {
+    if (!is3D && this.isIntroOrbiting) {
+      this.stopIntroOrbit();
+    }
     this.is3DMode = is3D;
   }
 
