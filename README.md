@@ -280,7 +280,8 @@ Run the comprehensive unit and integration test suite powered by Node.js's nativ
 npm test
 ```
 
-**170 automated tests passing across 17 test suites**:
+**187 automated tests passing across 18 test suites**:
+* `tests/shared-entities.test.mjs` — Single source of truth verification: canonical spatial constants, entity defaults, gate key palettes, turret base angles, turret sanitization, kinematics solvers, tile conversions, portal geometry, and coordinate navigation math.
 * `tests/dev-tools.test.mjs` — Developer manager singleton, dynamic hazard modes, god mode, fly mode, kinematics cheats, sector discovery, draggable overlay interaction, boundary clamping, and state persistence.
 * `tests/portals.test.mjs` — Quantum portal routing, $N \to 1$ topology, collision exit debouncing, intra/inter-sector kinematics, and reversed velocity vector inversion.
 * `tests/gate-keys.test.mjs` — Key pickups, locked exit forcefields, collision rejection, and sector map key markers.
@@ -307,9 +308,28 @@ npm test
 hyperfold/
 ├── index.html                     # WebGL viewport, HUD overlays, and styling
 ├── package.json                   # Project metadata and build scripts
-├── tsconfig.json                  # Strict TypeScript configuration
-├── vite.config.ts                 # Vite bundler configuration
+├── tsconfig.json                  # Strict TypeScript configuration (with @shared paths)
+├── vite.config.ts                 # Vite bundler configuration (with @shared alias)
 ├── screenshot.jpg                 # Gameplay showcase image
+├── shared/                        # Single source of truth shared between game and editor
+│   ├── index.ts                   # Central barrel export
+│   ├── constants.ts               # Canonical spatial dimensions (ROOM_SIZE 800, TILE_SIZE 40, GRID 20x20)
+│   ├── types/                     # Entity, world, and tile data contracts
+│   │   ├── entities.ts            # MovingPlatformConfig, LaserBarrierConfig, Turret, Portal, Collectible
+│   │   ├── world.ts               # RoomData, WorldData, WorldManifest, RoomExits, ExitGateConfig
+│   │   └── tiles.ts               # TileType (strip-compatible const), TileGlyph, TileDefinition
+│   ├── entities/                  # Entity defaults, kinematics, turret, portal, & gate helpers
+│   │   ├── defaults.ts            # Canonical entity defaults (DEFAULT_MOVING_PLATFORM, etc.)
+│   │   ├── platform.ts            # Harmonic sinusoidal moving platform kinematic solver
+│   │   ├── barrier.ts             # Laser barrier kinematics and 3-phase activation solver
+│   │   ├── turret.ts              # Turret base angle calculations and mode sanitization
+│   │   ├── portal.ts              # Portal bounding box and center point helpers
+│   │   └── collectible.ts         # GATE_KEY_PALETTE, getGateColor, and exit gate helpers
+│   ├── tiles/                     # Tile definitions, hotkeys, and converters
+│   │   ├── tileRegistry.ts        # TILE_DEFINITIONS, glyphToTileType, tileTypeToGlyph
+│   │   └── spikes.ts              # Surface-attached spike orientation resolver
+│   └── navigation/                # Hypercube lattice navigation and adjacent sector math
+│       └── coordinates.ts         # getAdjacentCoords, getOppositeDirection, getAdjacentSectors
 ├── editor/                        # Hyperfold World Editor (React + Vite + Tailwind)
 │   ├── index.html                 # Editor mount point
 │   ├── package.json               # Editor dependencies
@@ -320,11 +340,13 @@ hyperfold/
 │   │   │   ├── InspectorPanel.tsx # Entity and sector property editor
 │   │   │   ├── WorldGraphView.tsx # 2D topological sector map with drag & drop
 │   │   │   └── Toolbar.tsx        # Tool selection, world/room actions
-│   │   ├── types/world.ts         # Shared editor data contracts
+│   │   ├── types/world.ts         # Re-exports from @shared and declares editor UI states
 │   │   └── utils/
-│   │       ├── serialization.ts   # World/room import, export, and cloning
+│   │       ├── navigation.ts      # Re-exports navigation math from @shared
+│   │       ├── serialization.ts   # World/room import, export, and cloning via @shared
+│   │       ├── tileDefinitions.ts # Re-exports tile registry from @shared
 │   │       └── validator.ts       # Diagnostics linting engine
-│   └── vite.config.ts             # Editor bundler configuration
+│   └── vite.config.ts             # Editor bundler configuration (with @shared alias)
 ├── src/
 │   ├── main.ts                    # Game loop, state coordinator, and transition manager
 │   ├── engine/
@@ -335,9 +357,9 @@ hyperfold/
 │   │   ├── PerformanceTracker.ts  # Frame time profiler and ring buffer
 │   │   └── PhysicsEngine.ts       # Kinematics, AABB collision, moving platforms, lasers, portals
 │   ├── entities/
-│   │   ├── LaserBarrier.ts        # Mobile and timed laser barriers with warning telegraphs
+│   │   ├── LaserBarrier.ts        # Laser barrier entity delegating kinematics to @shared
 │   │   ├── LaserTurret.ts         # Wall/ceiling turrets with projectile and raycast beam collision
-│   │   ├── MovingPlatform.ts      # Harmonic moving platforms with displacement tracking
+│   │   ├── MovingPlatform.ts      # Moving platform entity delegating kinematics to @shared
 │   │   └── Player.ts              # Player state, kinematics, ducking, and rendering
 │   ├── graphics/
 │   │   ├── CubeRenderer.ts        # Three.js 3D beveled cube, orbit camera, and tumble slerp
@@ -349,16 +371,16 @@ hyperfold/
 │   │   ├── PerformanceDebugView.ts# Real-time telemetry, FPS graphing, and profiler
 │   │   └── SectorMapView.ts       # 2D panoramic sector map overlay
 │   └── world/
-│       ├── LevelLoader.ts         # ASCII grid parser and JSON loader
+│       ├── LevelLoader.ts         # ASCII grid parser and JSON loader via @shared
 │       ├── LevelMap.ts            # Dynamic coordinate-based room map and portal indexing
 │       ├── ProceduralLevelMap.ts  # On-demand infinite procedural sector generator
 │       ├── ProceduralWorldGenerator.ts # Seeded room generator with difficulty curve
-│       ├── ScreenData.ts          # Tile definitions, room schemas, portals, and exits
+│       ├── ScreenData.ts          # Re-exports @shared and defines runtime ScreenData
 │       └── WorldRegistry.ts       # Auto-discovery and registration of worlds
 ├── worlds/
 │   ├── demo/                      # Built-in campaign sectors (Genesis Core, Spire, Zenith, etc.)
 │   └── schemas/                   # JSON schemas for room and world validation
-└── tests/                         # Node.js automated test suites (170 tests)
+└── tests/                         # Node.js automated test suites (187 tests)
 ```
 
 ---
